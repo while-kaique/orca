@@ -1,8 +1,8 @@
 @echo off
 rem Abre a versao modificada do Orca (fork "PC como mesa"), separada do Orca instalado.
 set "PATH=%USERPROFILE%\.local\bin;%PATH%"
-rem Pasta curta para as dependencias: o compilador do Windows falha com caminho longo.
-set "pnpm_config_virtual_store_dir=C:/pvs/orca"
+rem Nomes curtos nas dependencias: o compilador do Windows falha com caminho longo.
+set "pnpm_config_virtual_store_dir_max_length=30"
 rem Perfil proprio (copia dos seus projetos), para nao disputar dados com o Orca instalado.
 set "ORCA_DEV_USER_DATA_PATH=%APPDATA%\orca-fork"
 if not exist "%ORCA_DEV_USER_DATA_PATH%" (
