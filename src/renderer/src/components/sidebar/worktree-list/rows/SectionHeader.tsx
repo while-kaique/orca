@@ -42,6 +42,9 @@ import {
 } from './header-event-guards'
 import type { WorktreeSidebarHeaderDrag } from '../drag/use-header-drag'
 import { getWorktreeOptionId } from './option-dom'
+import { activateProjectFolder, RepoHeaderWorktreesMenu } from './repo-header-worktrees-menu'
+import { isPcDeskModeEnabled } from '@/lib/pc-desk-mode'
+import { isGitRepoKind } from '../../../../../../shared/repo-kind'
 
 export type SectionHeaderRowContext = {
   groupBy: WorktreeGroupBy
@@ -172,6 +175,10 @@ export function renderWorktreeSectionHeaderRow(args: {
       })
     : null
   const isHeaderCollapsed = ctx.collapsedGroups.has(row.key)
+  // Why: PC-desk mode makes the project name open its folder; the chevron still collapses.
+  const pcDeskRepo = isPcDeskModeEnabled() && isRepoHeader ? row.repo! : null
+  const activateHeader = (): void =>
+    pcDeskRepo ? activateProjectFolder(pcDeskRepo) : ctx.toggleGroupWithScrollAnchor(row.key)
   // Why: repo/project/status/pinned share compact section chrome; flat "All" stays a simple label.
   const showHeaderCollapseAffordance =
     row.count > 0 &&
@@ -284,7 +291,7 @@ export function renderWorktreeSectionHeaderRow(args: {
           if (shouldIgnoreRepoHeaderToggle(event)) {
             return
           }
-          ctx.toggleGroupWithScrollAnchor(row.key)
+          activateHeader()
         }}
         onKeyDown={(e) => {
           if (shouldIgnoreRepoHeaderToggle(e)) {
@@ -292,7 +299,7 @@ export function renderWorktreeSectionHeaderRow(args: {
           }
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
-            ctx.toggleGroupWithScrollAnchor(row.key)
+            activateHeader()
           }
         }}
       >
@@ -388,7 +395,15 @@ export function renderWorktreeSectionHeaderRow(args: {
             />
           ) : null}
 
-          {row.repo && ctx.groupBy === 'repo' ? (
+          {pcDeskRepo && isGitRepoKind(pcDeskRepo) ? (
+            <RepoHeaderWorktreesMenu
+              repo={pcDeskRepo}
+              label={row.label}
+              onCreateForRepo={ctx.projectActions.onCreateForRepo}
+            />
+          ) : null}
+
+          {row.repo && ctx.groupBy === 'repo' && !pcDeskRepo ? (
             <RepoHeaderCreateWorkspaceButton
               repo={row.repo}
               label={row.label}

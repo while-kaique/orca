@@ -1,4 +1,5 @@
 import type { Repo } from '../../../../shared/repo-types'
+import { isPcDeskModeEnabled } from '@/lib/pc-desk-mode'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import type { WorktreeLineage } from '../../../../shared/worktree/lineage-types'
 export type { SidebarFilterState } from './visible-worktree-kinds'
@@ -108,7 +109,10 @@ export function computeVisibleWorktrees(
     )
   }
 
-  if (opts.hideDefaultBranchWorkspace) {
+  const pcDeskMode = isPcDeskModeEnabled()
+
+  // Why: in PC-desk mode the project folder is the row the user clicks, so it never hides.
+  if (opts.hideDefaultBranchWorkspace && !pcDeskMode) {
     all = all.filter((w) => !isDefaultBranchWorkspace(w))
   }
 
@@ -145,12 +149,15 @@ export function computeVisibleWorktrees(
     all = all.filter((w) => selectedRepoIds.has(w.repoId))
   }
 
-  if (!opts.showSleepingWorkspaces) {
+  // Why pcDeskMode: worktrees only appear while they hold open chats; the ⑂ menu lists the rest.
+  if (!opts.showSleepingWorkspaces || pcDeskMode) {
     // Why no !hideDefaultBranchWorkspace term: that filter already ran above, so
     // an explicit hide still wins over the exemption.
     all = all.filter(
       (w) =>
-        isSleepingSweepExemptWorkspace(w, opts.alwaysShowDefaultBranchWorkspace) ||
+        (pcDeskMode
+          ? w.isMainWorktree
+          : isSleepingSweepExemptWorkspace(w, opts.alwaysShowDefaultBranchWorkspace)) ||
         !isInactiveWorkspace(
           w.id,
           opts.tabsByWorktree,
