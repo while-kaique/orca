@@ -34,3 +34,13 @@
   - Código: `src/renderer/src/components/sidebar/pc-desk-switcher/` + IPC `repos:listPcDeskHomeFolders`.
   - Sem atalho de teclado ainda: Ctrl+P já é "abrir arquivo" no Orca.
 - Próximo: Kaique testa (fechar e abrir `dev-orca.bat`, porque mudou o processo principal) e passa ajustes; depois fase 2.
+
+## 24/09 (tarde) — 3 pedidos novos, commitados (912f6f6c, 4650c20e)
+1. **Botão "+" fixo** no pé da lista de chats: busca instantânea em `Projetos`; nome que não existe vira
+   "Criar projeto" (pasta com git, reusa `repos:create`) e já abre. `pc-desk-switcher/PcDeskNewProjectButton.tsx`.
+2. **Bolinha verde**: cheia = terminou e você não viu; só contorno = já viu, esperando você.
+   Regra de "visto" = a mesma das linhas em negrito (`acknowledgedAgentsByPaneKey`). Cor nova `--agent-done`.
+3. **Sessão sobrevive a desligar o PC**: causa achada — o Orca só salvava o registro de retomada de chat
+   *trabalhando*; chat parado voltava como terminal vazio. Agora salva também o parado, 2 s após cada
+   mudança, e grava em disco quando o Windows avisa que vai desligar (`main/window/os-session-end-flush.ts`).
+- Falta: Kaique testar reiniciando o PC com 2-3 chats parados abertos.
