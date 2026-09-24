@@ -20,6 +20,12 @@ import { addHostSectionRows } from '../../host-section-rows'
 import { orderHostSectionOptions } from '../../host-section-order'
 import { buildSidebarHostOptions } from '../../sidebar-host-options'
 import { selectPendingWorktreeCreationKeys } from './pending-worktree-creation-keys'
+import { usePcDeskMode } from '@/lib/pc-desk-mode'
+import { keepPcDeskWorkingRows } from '../../pc-desk-switcher/pc-desk-sidebar-rows'
+
+function filterRowsForPcDesk(pcDeskMode: boolean, rows: Row[]): Row[] {
+  return pcDeskMode ? keepPcDeskWorkingRows(rows) : rows
+}
 
 type SectionRowsArgs = {
   groupBy: WorktreeGroupBy
@@ -141,33 +147,38 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
     [hostOptions]
   )
 
+  const pcDeskMode = usePcDeskMode()
   const rows: Row[] = useMemo(
     () =>
-      buildRows(
-        args.groupBy,
-        worktrees,
-        repoMap,
-        args.prCache,
-        effectiveCollapsedGroups,
-        repoOrder,
-        args.workspaceStatuses,
-        args.projectOrderBy,
-        args.worktreeLineageById,
-        args.worktreeMap,
-        true,
-        args.settings,
-        args.visibleProjectGroupsForRows,
-        placeholderRepoIds,
-        args.importedWorktreesByRepo,
-        args.newExternalWorktreesInboxByRepo,
-        pendingCreations,
-        args.projectGrouping,
-        args.visibleFolderWorkspacesForRows,
-        hostLabelById,
-        defaultHostId,
-        args.pinnedDisplayPolicy
+      filterRowsForPcDesk(
+        pcDeskMode,
+        buildRows(
+          args.groupBy,
+          worktrees,
+          repoMap,
+          args.prCache,
+          effectiveCollapsedGroups,
+          repoOrder,
+          args.workspaceStatuses,
+          args.projectOrderBy,
+          args.worktreeLineageById,
+          args.worktreeMap,
+          true,
+          args.settings,
+          args.visibleProjectGroupsForRows,
+          placeholderRepoIds,
+          args.importedWorktreesByRepo,
+          args.newExternalWorktreesInboxByRepo,
+          pendingCreations,
+          args.projectGrouping,
+          args.visibleFolderWorkspacesForRows,
+          hostLabelById,
+          defaultHostId,
+          args.pinnedDisplayPolicy
+        )
       ),
     [
+      pcDeskMode,
       args.groupBy,
       worktrees,
       repoMap,

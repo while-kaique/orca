@@ -3,10 +3,9 @@ import { closeTerminalTab } from '@/components/terminal/terminal-tab-actions'
 import { createWorkspaceTabCloseCommands } from '@/components/tab-group/workspace-tab-close-commands'
 import type { Repo } from '../../../../../shared/repo-types'
 
-/** "Take off the sidebar": closes every tab of every workspace of the project, like closing each by hand. */
-export function closePcDeskProject(repo: Pick<Repo, 'id'>): void {
+/** Closes every tab of the given workspaces, like closing each by hand. */
+export function closePcDeskWorktrees(worktreeIds: readonly string[]): void {
   const state = useAppStore.getState()
-  const worktreeIds = (state.worktreesByRepo[repo.id] ?? []).map((worktree) => worktree.id)
   // Why deselect first: an emptied but still-selected workspace re-seeds a terminal, and closing the
   // visible pane mid-loop races its PTY exit (see sleep-worktree-flow.ts).
   if (state.activeWorktreeId && worktreeIds.includes(state.activeWorktreeId)) {
@@ -28,4 +27,10 @@ export function closePcDeskProject(repo: Pick<Repo, 'id'>): void {
       closeTerminalTab(tab.id, { force: true, skipRunningProcessConfirm: true })
     }
   }
+}
+
+/** "Take off the sidebar": closes the chats of every workspace of the project. */
+export function closePcDeskProject(repo: Pick<Repo, 'id'>): void {
+  const worktrees = useAppStore.getState().worktreesByRepo[repo.id] ?? []
+  closePcDeskWorktrees(worktrees.map((worktree) => worktree.id))
 }

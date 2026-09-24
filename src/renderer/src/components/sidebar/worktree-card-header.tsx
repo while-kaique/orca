@@ -14,6 +14,10 @@ import type { WorktreeCardPresentation } from './worktree-card-presentation'
 import { WorktreeCardSshHostControl } from './WorktreeCardSshHostControl'
 import { WorktreeTitleInlineRename } from './WorktreeTitleInlineRename'
 import type { WorktreeCardController } from './use-worktree-card-controller'
+import {
+  PcDeskCloseWorktreeButton,
+  usePcDeskCloseVisible
+} from './pc-desk-switcher/pc-desk-close-buttons'
 
 // Why: pinned repo icon and compact inline badge share this chip shell so both repo cues read as the same affordance.
 function RepoIdentityChip({
@@ -88,6 +92,8 @@ export function WorktreeCardHeader({
     titleRowIndicators,
     titleWrapper
   } = presentation
+
+  const showPcDeskClose = usePcDeskCloseVisible(worktree.id)
 
   return (
     <div className="flex min-w-0 items-center justify-between gap-2">
@@ -264,8 +270,9 @@ export function WorktreeCardHeader({
         {showTitleRowIndicators && titleRowIndicators}
       </div>
 
-      {showHeaderActions && (
+      {(showHeaderActions || showPcDeskClose) && (
         <div className="ml-auto flex shrink-0 items-center justify-center gap-1 pr-1.5">
+          {showPcDeskClose ? <PcDeskCloseWorktreeButton worktreeId={worktree.id} /> : null}
           {showTitleRowPrimary && (
             <Tooltip>
               <TooltipTrigger asChild>
