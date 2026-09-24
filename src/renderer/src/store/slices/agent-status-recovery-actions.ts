@@ -60,12 +60,14 @@ export function createAgentStatusRecoveryActions(
         }
         let changed = false
         for (const entry of Object.values(s.agentStatusByPaneKey)) {
-          if (entry.state === 'done') {
+          // Fork (PC-desk): a finished turn is a chat waiting on the user, so it is captured like a
+          // live one below — otherwise a power-off brings it back as a bare shell.
+          if (
+            entry.state === 'done' &&
+            isCompletedPiCompatibleAgentWithLiveRecoveryRecord(entry, next[entry.paneKey])
+          ) {
             const existing = next[entry.paneKey]
-            if (
-              !isCompletedPiCompatibleAgentWithLiveRecoveryRecord(entry, existing) ||
-              mode === 'periodic'
-            ) {
+            if (mode === 'periodic') {
               continue
             }
             const record = { ...existing, capturedAt, origin }

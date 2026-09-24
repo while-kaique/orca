@@ -69,20 +69,20 @@ describe('StatusIndicator', () => {
   it('renders active as full emerald dot', () => {
     const classNames = renderDotClassNames('active')
 
-    expect(classNames).toContain('bg-emerald-500')
+    expect(classNames).toContain('bg-agent-done')
   })
 
   it('renders done as an emerald dot', () => {
     const classNames = renderDotClassNames('done')
 
-    expect(classNames).toContain('bg-emerald-500')
+    expect(classNames).toContain('bg-agent-done')
   })
 
   it('renders interrupted distinctly from done', () => {
     const classNames = renderDotClassNames('interrupted')
 
     expect(classNames).toContain('bg-red-500')
-    expect(classNames).not.toContain('bg-emerald-500')
+    expect(classNames).not.toContain('bg-agent-done')
   })
 
   it.each([

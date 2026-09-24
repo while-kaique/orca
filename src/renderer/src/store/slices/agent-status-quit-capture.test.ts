@@ -823,7 +823,7 @@ describe('captureAllSleepingAgentSessions', () => {
     })
   })
 
-  it('skips done agents — there is no turn left to resume', () => {
+  it('captures done agents — an idle chat waiting on the user must survive a restart (fork)', () => {
     const store = createTestStore()
     const entry = makeAgentEntry({
       paneKey: 'tab-1:leaf-1',
@@ -840,7 +840,10 @@ describe('captureAllSleepingAgentSessions', () => {
 
     store.getState().captureAllSleepingAgentSessions('quit')
 
-    expect(store.getState().sleepingAgentSessionsByPaneKey).toEqual({})
+    expect(store.getState().sleepingAgentSessionsByPaneKey['tab-1:leaf-1']).toMatchObject({
+      state: 'done',
+      origin: 'quit'
+    })
   })
 
   it('skips agents without a resumable provider session', () => {

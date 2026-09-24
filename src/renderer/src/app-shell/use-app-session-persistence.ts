@@ -41,6 +41,8 @@ import { applyRemoteWorkspacePushStatus } from '../hooks/remote-workspace-push-s
 
 // Why: bound the resume-record loss window on a hard kill to ~1 min; capture skips unchanged records so per-tick cost is negligible.
 const SLEEPING_AGENT_RESUME_CAPTURE_INTERVAL_MS = 60_000
+// Fork (PC-desk): also capture shortly after any agent status change, so a power-off loses seconds, not a minute.
+const SLEEPING_AGENT_RESUME_CAPTURE_AFTER_CHANGE_MS = 2_000
 
 type RemoteWorkspaceUploadAuthority = {
   targetId: string
@@ -255,7 +257,25 @@ export function useAppSessionPersistence(): void {
       }
       useAppStore.getState().captureAllSleepingAgentSessions('periodic')
     }, SLEEPING_AGENT_RESUME_CAPTURE_INTERVAL_MS)
-    return () => window.clearInterval(timer)
+    let pending: number | null = null
+    const unsubscribe = useAppStore.subscribe((state, previous) => {
+      if (state.agentStatusEpoch === previous.agentStatusEpoch || pending !== null) {
+        return
+      }
+      pending = window.setTimeout(() => {
+        pending = null
+        if (shouldPersistWorkspaceSession(useAppStore.getState())) {
+          useAppStore.getState().captureAllSleepingAgentSessions('periodic')
+        }
+      }, SLEEPING_AGENT_RESUME_CAPTURE_AFTER_CHANGE_MS)
+    })
+    return () => {
+      window.clearInterval(timer)
+      if (pending !== null) {
+        window.clearTimeout(pending)
+      }
+      unsubscribe()
+    }
   }, [])
 
   // Why: subscribe at the always-mounted App root — Terminal owns the confirm flow but isn't mounted on the landing page, so subscribing there left File→Exit / Ctrl+Q with no listener (#5144).

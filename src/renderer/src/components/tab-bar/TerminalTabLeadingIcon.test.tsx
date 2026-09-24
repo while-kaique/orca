@@ -30,12 +30,12 @@ describe('TerminalTabLeadingIcon', () => {
     expect(markup).toContain('data-agent-icon="codex"')
   })
 
-  it('shows completion as an emerald check', () => {
+  it('shows a seen completion as an outline ring', () => {
     const markup = renderStatus('done')
 
     expect(markup).toContain('data-agent-activity-status="done"')
-    expect(markup).toContain('lucide-circle-check')
-    expect(markup).toContain('text-emerald-500')
+    expect(markup).toContain('border-agent-done')
+    expect(markup).not.toContain('bg-agent-done')
     expect(markup).toContain('data-agent-icon="codex"')
   })
 
@@ -70,20 +70,22 @@ describe('TerminalTabLeadingIcon', () => {
     expect(markup).not.toContain('data-testid="tab-agent-activity-indicator"')
   })
 
-  it('keeps the unread bell in the icon slot after an unvisited completion', () => {
+  it('fills the done dot after an unvisited completion', () => {
     const markup = renderToStaticMarkup(
-      <TerminalTabLeadingIcon
-        agent="codex"
-        activityStatus="done"
-        shell={undefined}
-        showUnreadActivity={true}
-        isActive={false}
-      />
+      <TooltipProvider>
+        <TerminalTabLeadingIcon
+          agent="codex"
+          activityStatus="done"
+          shell={undefined}
+          showUnreadActivity={true}
+          isActive={false}
+        />
+      </TooltipProvider>
     )
 
-    expect(markup).toContain('data-testid="tab-activity-bell"')
-    expect(markup).toContain('aria-label="Unread agent completion"')
+    expect(markup).toContain('bg-agent-done')
+    expect(markup).toContain('aria-label="Done, not seen yet"')
     expect(markup).toContain('data-agent-icon="codex"')
-    expect(markup).not.toContain('data-testid="tab-agent-activity-indicator"')
+    expect(markup).not.toContain('data-testid="tab-activity-bell"')
   })
 })
