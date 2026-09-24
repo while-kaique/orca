@@ -20,3 +20,10 @@
 1. Abrir `dev-orca.bat` e testar os 3 itens acima.
 2. O Kaique tem **ajustes** para passar — ouvir e aplicar antes de seguir.
 3. Depois: fase 2 (cada lado da tela dividida escolhe pasta/worktree, ~1 a 2 dias).
+
+## 24/09 — barra lateral em 3 versões (aguardando escolha)
+- Pedido: abrir em `Projetos`, restaurar o que ficou aberto, caixa de busca + clique nas pastas, botão de worktree por pasta.
+- Protótipo clicável A/B/C: https://claude.ai/artifact/S1XgbSgDU4g14XFjK68WDU
+  (A = seletor no topo · B = lista com busca fixa · C = paleta no meio da tela + cartões).
+- Restaurar sessão: o Orca já salva abas e histórico (`src/main/ipc/session.ts`); o fork só precisa mostrar isso na barra.
+- Próximo: o Kaique escolhe A, B ou C (+ ajustes) e eu implemento no fork.
