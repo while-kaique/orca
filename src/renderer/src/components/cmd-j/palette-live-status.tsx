@@ -1,10 +1,9 @@
 import React, { createContext, useContext, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useAppStore } from '@/store'
-import { AgentStateDot } from '@/components/AgentStateDot'
+import { AgentStateDot, DoneSeenDot } from '@/components/AgentStateDot'
 import { StateIndicatorTooltip } from '@/components/StateIndicatorTooltip'
 import StatusIndicator from '@/components/sidebar/StatusIndicator'
-import { FilledBellIcon } from '@/components/sidebar/WorktreeCardHelpers'
 import {
   buildExplicitEntriesByTabId,
   type TabPaneInputSources
@@ -289,7 +288,7 @@ function RecentTabAttentionBadgeGlyph({
   badge: TerminalTabAttentionBadge
 }): React.JSX.Element {
   if (badge === 'unread') {
-    return <FilledBellIcon className="size-2.5 text-amber-500 drop-shadow-sm" />
+    return <DoneSeenDot seen={false} className="size-1.5" />
   }
   // Why: AgentStateDot owns working/permission/done glyphs app-wide (spinner / ? / check).
   return <AgentStateDot state={badge} size="sm" title={null} />

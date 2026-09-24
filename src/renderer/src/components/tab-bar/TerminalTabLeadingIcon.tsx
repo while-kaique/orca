@@ -3,7 +3,6 @@ import { AgentIcon } from '@/lib/agent-catalog'
 import { cn } from '@/lib/utils'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import type { TuiAgent } from '../../../../shared/tui-agent'
-import { FilledBellIcon } from '../sidebar/WorktreeCardHelpers'
 import { ShellIcon } from './shell-icons'
 import {
   terminalTabActivityToAgentDotState,
@@ -75,7 +74,8 @@ export function TerminalTabLeadingIcon({
         )}
         className="mr-1 inline-flex shrink-0 items-center gap-1"
       >
-        <FilledBellIcon className="size-3 text-amber-500 drop-shadow-sm" />
+        {/* Fork (PC-desk): unread completion is the filled green dot, not the bell. */}
+        <AgentStateDot state="done" size="md" seen={false} title={null} />
         {agent ? <TerminalTabAgentIdentityIcon agent={agent} isActive={isActive} /> : null}
       </span>
     )

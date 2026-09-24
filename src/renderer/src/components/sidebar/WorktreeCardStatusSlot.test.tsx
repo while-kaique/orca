@@ -6,7 +6,13 @@ import type { WorktreeCardPrDisplay } from './worktree-card-pr-display'
 
 const mocks = vi.hoisted(() => ({
   status: 'active',
-  sleeping: false
+  sleeping: false,
+  pcDesk: false
+}))
+
+// Why: upstream cases pin the stock bell/badge; the fork's PC-desk dot has its own cases below.
+vi.mock('@/lib/pc-desk-mode', () => ({
+  usePcDeskMode: () => mocks.pcDesk
 }))
 
 vi.mock('@/components/ui/tooltip', () => ({
@@ -29,6 +35,62 @@ describe('WorktreeCardStatusSlot', () => {
   beforeEach(() => {
     mocks.status = 'active'
     mocks.sleeping = false
+    mocks.pcDesk = false
+  })
+
+  it('PC-desk: unread shows the filled green dot instead of the bell', () => {
+    mocks.pcDesk = true
+    const markup = renderToStaticMarkup(
+      <WorktreeCardStatusSlot
+        worktreeId="wt-1"
+        showStatus
+        showUnreadAction
+        isUnread
+        unreadTooltip="Mark as read"
+        onPointerDown={vi.fn()}
+        onToggleUnread={vi.fn()}
+      />
+    )
+
+    expect(markup).toContain('bg-agent-done')
+    expect(markup).not.toContain('text-amber-500')
+  })
+
+  it('PC-desk: new card style fills the dot instead of the amber badge', () => {
+    mocks.pcDesk = true
+    const markup = renderToStaticMarkup(
+      <WorktreeCardStatusSlot
+        worktreeId="wt-1"
+        showStatus
+        showUnreadAction={false}
+        isUnread
+        newCardStyle
+        unreadTooltip=""
+        onPointerDown={vi.fn()}
+        onToggleUnread={vi.fn()}
+      />
+    )
+
+    expect(markup).toContain('bg-agent-done')
+    expect(markup).not.toContain('data-worktree-unread-alert')
+  })
+
+  it('PC-desk: a seen quiet chat is an outline ring', () => {
+    mocks.pcDesk = true
+    const markup = renderToStaticMarkup(
+      <WorktreeCardStatusSlot
+        worktreeId="wt-1"
+        showStatus
+        showUnreadAction={false}
+        isUnread={false}
+        unreadTooltip=""
+        onPointerDown={vi.fn()}
+        onToggleUnread={vi.fn()}
+      />
+    )
+
+    expect(markup).toContain('border-agent-done')
+    expect(markup).not.toContain('bg-agent-done')
   })
 
   const review: WorktreeCardPrDisplay = {

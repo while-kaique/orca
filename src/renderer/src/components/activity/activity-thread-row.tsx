@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
-import { FilledBellIcon } from '../sidebar/WorktreeCardHelpers'
+import { DoneSeenDot } from '@/components/AgentStateDot'
 import CommentMarkdown from '../sidebar/CommentMarkdown'
 import { EventTime, ThreadAgentStateIndicator } from './activity-thread-controls'
 import { ActivityThreadHoverCard } from './activity-thread-hover-card'
@@ -196,10 +196,7 @@ export const ActivityThreadRow = React.memo(function ActivityThreadRow({
                           'Mark thread as read'
                         )}
                       >
-                        <FilledBellIcon
-                          className="size-3 shrink-0 text-amber-500 drop-shadow-sm"
-                          aria-hidden="true"
-                        />
+                        <DoneSeenDot seen={false} className="size-2" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent side="left">

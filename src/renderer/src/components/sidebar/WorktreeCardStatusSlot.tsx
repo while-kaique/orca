@@ -116,7 +116,7 @@ export function WorktreeCardStatusSlot({
     pcDeskMode ? selectWorktreeHasUnseenDone(s, worktreeId) : false
   )
   // Why: in PC-desk mode a filled green dot means "finished and you haven't looked"; seen chats get a ring.
-  const seen = pcDeskMode ? !hasUnseenDone : undefined
+  const seen = pcDeskMode ? !(hasUnseenDone || isUnread) : undefined
   const isSleeping = useIsSleepingWorktree(worktreeId)
   const statusLabel = getWorktreeStatusLabel(status) || status
   // Why: sleep must stay distinct from awake completion; a sleeping workspace
@@ -149,7 +149,12 @@ export function WorktreeCardStatusSlot({
   // Why: working and permission already own the new-card status lane, but
   // unread state should still surface to assistive technology and reappear afterward.
   const showNewCardUnreadAlert =
-    newCardStyle && isUnread && showStatus && status !== 'working' && status !== 'permission'
+    !pcDeskMode &&
+    newCardStyle &&
+    isUnread &&
+    showStatus &&
+    status !== 'working' &&
+    status !== 'permission'
   const reviewStatusIconClassName = compactReviewAndBranchStatusIconClassName
   const branchStatusIcon = <GitBranch className={branchStatusIconClassName} aria-hidden="true" />
   const sleepingStatusIcon = <Moon className={sleepingStatusIconClassName} aria-hidden="true" />
@@ -243,6 +248,8 @@ export function WorktreeCardStatusSlot({
               ) : (
                 <span className="sr-only">{actionLabel}</span>
               )
+            ) : isUnread && pcDeskMode ? (
+              <StatusIndicator status="done" seen={false} aria-hidden="true" showTooltip={false} />
             ) : isUnread ? (
               <FilledBellIcon className="size-[13px] text-amber-500 drop-shadow-sm" />
             ) : showStatus ? (
