@@ -102,6 +102,8 @@ export function createReposApi(): NonNullable<Partial<PreloadApi>['repos']> {
       })
       return getDefaultCreateProjectParent(result.resolvedPath)
     },
+    // Why: a paired web client has no local Desktop to browse.
+    listPcDeskHomeFolders: () => Promise.resolve({ rootPath: '', entries: [] }),
     onCloneProgress: () => noopUnsubscribe,
     getGitUsername: () => Promise.resolve(''),
     getBaseRefDefault: async ({ repoId }) =>

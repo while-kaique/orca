@@ -27,7 +27,7 @@ function getLinkedWorktrees(worktrees: readonly Worktree[]): Worktree[] {
   return worktrees.filter((worktree) => !worktree.isMainWorktree && !worktree.isArchived)
 }
 
-function getWorktreeLabel(worktree: Worktree): string {
+export function getWorktreeLabel(worktree: Worktree): string {
   return worktree.displayName || worktree.branch.replace(/^refs\/heads\//, '') || worktree.path
 }
 
@@ -57,7 +57,7 @@ export function RepoHeaderWorktreesMenu({
               variant="ghost"
               size="xs"
               // Why always visible (unlike the hover-revealed … and +): the count is the point.
-              className="h-5 shrink-0 gap-0.5 rounded-md px-1 text-muted-foreground hover:bg-accent/70 hover:text-foreground"
+              className="shrink-0"
               data-repo-header-action=""
               aria-label={`Worktrees de ${label}`}
               onClick={(event) => event.stopPropagation()}

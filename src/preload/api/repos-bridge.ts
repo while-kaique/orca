@@ -6,6 +6,7 @@ import type {
 import type { BaseRefDefaultResult, BaseRefSearchResult } from '../../shared/repo-types'
 import type { ExecutionHostId } from '../../shared/execution-host'
 import type { PreloadApi } from '../api-types'
+import type { PcDeskHomeFolderListing } from '../../shared/pc-desk-home-folder-types'
 
 export const reposApi = {
   list: () => ipcRenderer.invoke('repos:list'),
@@ -23,6 +24,9 @@ export const reposApi = {
 
   getDefaultCreateProjectParent: (): Promise<string> =>
     ipcRenderer.invoke('repos:getDefaultCreateProjectParent'),
+
+  listPcDeskHomeFolders: (): Promise<PcDeskHomeFolderListing> =>
+    ipcRenderer.invoke('repos:listPcDeskHomeFolders'),
 
   remove: (args) => ipcRenderer.invoke('repos:remove', args),
 

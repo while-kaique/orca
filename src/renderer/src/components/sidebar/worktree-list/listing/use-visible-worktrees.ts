@@ -18,6 +18,7 @@ import {
 import type { SortBy } from '../../smart-sort'
 import type { SidebarWorktreeFilters } from './use-filters'
 import { useReusedArrayIdentity } from './use-reused-array-identity'
+import { usePcDeskMode } from '@/lib/pc-desk-mode'
 
 const EMPTY_WORKTREE_ID_SET: ReadonlySet<string> = new Set()
 
@@ -48,10 +49,15 @@ export function useVisibleSidebarWorktrees(args: {
     workspaceHostScope
   } = filterState
   const worktreesByRepo = useAppStore((s) => s.worktreesByRepo)
-  const agentStatusEpoch = useAppStore((s) => (!showSleepingWorkspaces ? s.agentStatusEpoch : 0))
+  // Why: PC-desk mode lists only workspaces with open chats, so it needs activity maps even when
+  // the sleeping filter is off.
+  const pcDeskMode = usePcDeskMode()
+  const pcDeskActiveWorktreeId = useAppStore((s) => (pcDeskMode ? s.activeWorktreeId : null))
+  const tracksActivity = !showSleepingWorkspaces || pcDeskMode
+  const agentStatusEpoch = useAppStore((s) => (tracksActivity ? s.agentStatusEpoch : 0))
   // Why: skip the clock entirely when the epoch is the opt-out sentinel, so a
   // sleeping-workspaces list cannot evict the sample the live lists share.
-  const agentStatusNow = showSleepingWorkspaces ? 0 : getAgentStatusEpochNow(agentStatusEpoch)
+  const agentStatusNow = tracksActivity ? getAgentStatusEpochNow(agentStatusEpoch) : 0
   const runtimeEnvironments = useAppStore((s) => s.runtimeEnvironments)
   const runtimeStatusByEnvironmentId = useAppStore((s) => s.runtimeStatusByEnvironmentId)
   const pairedDeviceIdsByEnvironment = useMemo(
@@ -63,16 +69,16 @@ export function useVisibleSidebarWorktrees(args: {
   )
 
   // Read tabsByWorktree when needed for filtering or sorting
-  const needsActivityMaps = !showSleepingWorkspaces || sortBy === 'smart'
+  const needsActivityMaps = tracksActivity || sortBy === 'smart'
   const tabsByWorktree = useAppStore((s) =>
     needsActivityMaps ? getVisibleWorktreeTerminalActivityTabs(s.tabsByWorktree) : null
   )
   const ptyIdsByTabId = useAppStore((s) => (needsActivityMaps ? s.ptyIdsByTabId : null))
   const browserTabsByWorktree = useAppStore((s) =>
-    !showSleepingWorkspaces ? getVisibleWorktreeBrowserActivityTabs(s.browserTabsByWorktree) : null
+    tracksActivity ? getVisibleWorktreeBrowserActivityTabs(s.browserTabsByWorktree) : null
   )
   const worktreeIdsWithStructuredChat = useAppStore((s) =>
-    getStructuredChatWorktreeIds(showSleepingWorkspaces, s.unifiedTabsByWorktree)
+    getStructuredChatWorktreeIds(!tracksActivity, s.unifiedTabsByWorktree)
   )
 
   const recomputedVisibleWorktrees = useMemo(() => {
@@ -87,13 +93,13 @@ export function useVisibleSidebarWorktrees(args: {
       browserTabsByWorktree,
       worktreeIdsWithStructuredChat,
       // Why snapshot on agentStatusEpoch: update membership immediately without repainting on every hook ping.
-      worktreeIdsWithLiveAgent: showSleepingWorkspaces
-        ? EMPTY_WORKTREE_ID_SET
-        : getWorktreeIdsWithLiveAgent(
+      worktreeIdsWithLiveAgent: tracksActivity
+        ? getWorktreeIdsWithLiveAgent(
             useAppStore.getState().agentStatusByPaneKey,
             tabsByWorktree,
             agentStatusNow
-          ),
+          )
+        : EMPTY_WORKTREE_ID_SET,
       hideDefaultBranchWorkspace,
       hideAutomationGeneratedWorkspaces,
       hideCliCreatedWorkspaces,
@@ -106,11 +112,13 @@ export function useVisibleSidebarWorktrees(args: {
       visibleWorkspaceHostIds,
       defaultHostId,
       worktreeLineageById,
-      forcedVisibleWorktreeIds: args.agentSendTargetWorktreeId
-        ? [args.agentSendTargetWorktreeId]
-        : undefined
+      forcedVisibleWorktreeIds: [args.agentSendTargetWorktreeId, pcDeskActiveWorktreeId].filter(
+        (id): id is string => id !== null
+      )
     })
   }, [
+    pcDeskActiveWorktreeId,
+    tracksActivity,
     args.agentSendTargetWorktreeId,
     agentStatusEpoch,
     agentStatusNow,

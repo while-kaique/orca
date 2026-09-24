@@ -15,8 +15,7 @@ export type { ClearFilterActions } from './sidebar-filter-actions'
 import {
   isAutomationGeneratedWorkspace,
   isCliCreatedWorkspace,
-  isDetachedHeadWorkspace,
-  isSleepingSweepExemptWorkspace
+  isDetachedHeadWorkspace
 } from './visible-worktree-kinds'
 import {
   getVisibleWorkspaceHostIdSet,
@@ -24,7 +23,7 @@ import {
 } from './visible-worktree-host-scope'
 import type { Worktree } from '../../../../shared/worktree/types'
 import { buildWorktreeComparator, sortWorktreesSmart } from './smart-sort'
-import { isInactiveWorkspace } from '@/lib/worktree-activity-state'
+import { filterWorktreesByActivity } from './visible-worktree-activity-filter'
 export {
   EMPTY_STRUCTURED_CHAT_WORKTREE_IDS,
   getWorktreeIdsWithStructuredChat
@@ -149,25 +148,7 @@ export function computeVisibleWorktrees(
     all = all.filter((w) => selectedRepoIds.has(w.repoId))
   }
 
-  // Why pcDeskMode: worktrees only appear while they hold open chats; the ⑂ menu lists the rest.
-  if (!opts.showSleepingWorkspaces || pcDeskMode) {
-    // Why no !hideDefaultBranchWorkspace term: that filter already ran above, so
-    // an explicit hide still wins over the exemption.
-    all = all.filter(
-      (w) =>
-        (pcDeskMode
-          ? w.isMainWorktree
-          : isSleepingSweepExemptWorkspace(w, opts.alwaysShowDefaultBranchWorkspace)) ||
-        !isInactiveWorkspace(
-          w.id,
-          opts.tabsByWorktree,
-          opts.ptyIdsByTabId,
-          opts.browserTabsByWorktree,
-          opts.worktreeIdsWithLiveAgent,
-          opts.worktreeIdsWithStructuredChat
-        )
-    )
-  }
+  all = filterWorktreesByActivity(all, opts, pcDeskMode)
 
   if (opts.forcedVisibleWorktreeIds && opts.forcedVisibleWorktreeIds.length > 0) {
     const includedIds = new Set(all.map((worktree) => worktree.id))

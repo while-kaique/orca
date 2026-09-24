@@ -19,6 +19,8 @@ import { resolveLeftSidebarStyleVariables } from '@/lib/left-sidebar-appearance'
 import { useSystemPrefersDark } from '@/components/terminal-pane/use-system-prefers-dark'
 import { lazyWithRetry } from '@/lib/lazy-with-retry'
 import { LocalGitToolchainScanBanner } from './LocalGitToolchainScanBanner'
+import { PcDeskProjectSwitcher } from './pc-desk-switcher/PcDeskProjectSwitcher'
+import { usePcDeskMode } from '@/lib/pc-desk-mode'
 
 // Why lazy: the Agents list pulls the whole activity pipeline (virtualizer, markdown
 // previews, thread derivation); users on the workspace view should not load or render any of it.
@@ -148,6 +150,7 @@ function Sidebar({
   })
 
   useWorkspaceRevealBodyRedirect(sidebarOpen && sidebarBody === 'agents')
+  const pcDeskMode = usePcDeskMode()
 
   return (
     <TooltipProvider delayDuration={400}>
@@ -183,6 +186,7 @@ function Sidebar({
               </React.Suspense>
             ) : (
               <>
+                {pcDeskMode ? <PcDeskProjectSwitcher /> : null}
                 <LocalGitToolchainScanBanner />
                 <WorktreeList
                   scrollOffsetRef={worktreeScrollOffsetRef}
