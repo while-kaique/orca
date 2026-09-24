@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { ChevronRight, Folder, GitBranch, Loader2 } from 'lucide-react'
+import { ChevronRight, Folder, FolderPlus, GitBranch, Loader2 } from 'lucide-react'
 import {
   Command,
   CommandEmpty,
@@ -17,12 +17,17 @@ export function PcDeskFolderView({
   listing,
   loading,
   onPick,
-  onShowWorktrees
+  onShowWorktrees,
+  onCreate,
+  placeholder = 'Buscar pasta em Projetos'
 }: {
   listing: PcDeskHomeFolderListing
   loading: boolean
   onPick: (row: PcDeskSwitcherRow) => void
   onShowWorktrees: (row: PcDeskSwitcherRow) => void
+  /** When set, a typed name with no exact match offers "Criar projeto". */
+  onCreate?: (name: string) => void
+  placeholder?: string
 }): React.JSX.Element {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState('')
@@ -47,6 +52,12 @@ export function PcDeskFolderView({
     const all = sections.results ?? [...sections.open, ...sections.recent, ...sections.all]
     return new Map(all.map((row) => [row.key, row]))
   }, [sections])
+
+  const trimmedQuery = query.trim()
+  const canCreate =
+    !!onCreate &&
+    trimmedQuery.length > 0 &&
+    !listing.entries.some((entry) => entry.name.toLowerCase() === trimmedQuery.toLowerCase())
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
     const input = event.target instanceof HTMLInputElement ? event.target : null
@@ -102,12 +113,7 @@ export function PcDeskFolderView({
       onValueChange={setSelected}
       onKeyDown={handleKeyDown}
     >
-      <CommandInput
-        autoFocus
-        value={query}
-        onValueChange={setQuery}
-        placeholder="Buscar pasta em Projetos"
-      />
+      <CommandInput autoFocus value={query} onValueChange={setQuery} placeholder={placeholder} />
       <CommandList className="max-h-[min(400px,60vh)]">
         {loading && listing.entries.length === 0 ? (
           <div className="flex items-center gap-2 px-3 py-3 text-xs text-muted-foreground">
@@ -115,7 +121,7 @@ export function PcDeskFolderView({
             Lendo {listing.rootPath || 'Projetos'}…
           </div>
         ) : (
-          <CommandEmpty>
+          <CommandEmpty className={canCreate ? 'hidden' : undefined}>
             {listing.error
               ? `Não deu para ler ${listing.rootPath}.`
               : `Nenhuma pasta com “${query}”.`}
@@ -128,6 +134,17 @@ export function PcDeskFolderView({
             </CommandGroup>
           ) : null
         )}
+        {canCreate ? (
+          // Why: last in the list so Enter on a partial name still opens the closest match.
+          <CommandGroup>
+            <CommandItem value="__pc-desk-create__" onSelect={() => onCreate?.(trimmedQuery)}>
+              <FolderPlus className="size-3.5 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate">
+                Criar projeto “<span className="font-medium">{trimmedQuery}</span>”
+              </span>
+            </CommandItem>
+          </CommandGroup>
+        ) : null}
       </CommandList>
       <div className="flex gap-3 border-t border-border px-3 py-1.5 text-[11px] text-muted-foreground">
         <span>↑↓ andar</span>

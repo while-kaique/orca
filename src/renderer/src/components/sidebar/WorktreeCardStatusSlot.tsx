@@ -3,6 +3,8 @@ import { Bell, GitBranch, Moon } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
+import { usePcDeskMode } from '@/lib/pc-desk-mode'
+import { useAppStore } from '@/store'
 import { getWorktreeStatusLabel, type WorktreeStatus } from '@/lib/worktree-status'
 import { FilledBellIcon } from './WorktreeCardHelpers'
 import StatusIndicator from './StatusIndicator'
@@ -10,6 +12,7 @@ import { useWorktreeActivityStatus } from './use-worktree-activity-status'
 import { useIsSleepingWorktree } from './use-worktree-sleep-state'
 import type { WorktreeCardPrDisplay } from './worktree-card-pr-display'
 import { getReviewLabel, ReviewIcon } from './worktree-review-helpers'
+import { selectWorktreeHasUnseenDone } from './pc-desk-switcher/worktree-unseen-done'
 
 type WorktreeCardStatusSlotProps = {
   worktreeId: string
@@ -108,6 +111,12 @@ export function WorktreeCardStatusSlot({
   className
 }: WorktreeCardStatusSlotProps): React.JSX.Element | null {
   const status = useWorktreeActivityStatus(worktreeId)
+  const pcDeskMode = usePcDeskMode()
+  const hasUnseenDone = useAppStore((s) =>
+    pcDeskMode ? selectWorktreeHasUnseenDone(s, worktreeId) : false
+  )
+  // Why: in PC-desk mode a filled green dot means "finished and you haven't looked"; seen chats get a ring.
+  const seen = pcDeskMode ? !hasUnseenDone : undefined
   const isSleeping = useIsSleepingWorktree(worktreeId)
   const statusLabel = getWorktreeStatusLabel(status) || status
   // Why: sleep must stay distinct from awake completion; a sleeping workspace
@@ -162,7 +171,7 @@ export function WorktreeCardStatusSlot({
   ) : newCardStyle && showStatus ? (
     <>
       <span className={cn('inline-flex size-5 items-center justify-center', className)}>
-        <StatusIndicator status={status} aria-hidden="true" tooltipSide="right" />
+        <StatusIndicator status={status} seen={seen} aria-hidden="true" tooltipSide="right" />
       </span>
       <span className="sr-only">{passiveStatusAnnouncement}</span>
     </>
@@ -170,6 +179,7 @@ export function WorktreeCardStatusSlot({
     <>
       <StatusIndicator
         status={status}
+        seen={seen}
         aria-hidden="true"
         className={className}
         tooltipSide="right"
@@ -224,7 +234,12 @@ export function WorktreeCardStatusSlot({
                   {branchStatusIcon}
                 </span>
               ) : showStatus ? (
-                <StatusIndicator status={status} aria-hidden="true" showTooltip={false} />
+                <StatusIndicator
+                  status={status}
+                  seen={seen}
+                  aria-hidden="true"
+                  showTooltip={false}
+                />
               ) : (
                 <span className="sr-only">{actionLabel}</span>
               )
@@ -234,6 +249,7 @@ export function WorktreeCardStatusSlot({
               <>
                 <StatusIndicator
                   status={status}
+                  seen={seen}
                   aria-hidden="true"
                   showTooltip={false}
                   className="transition-opacity group-hover/unread:opacity-0 group-focus-within/unread:opacity-0"

@@ -74,7 +74,7 @@ const DashboardAgentRow = React.memo(function DashboardAgentRow({
   onDismiss,
   onActivate,
   now,
-  isUnvisited = false,
+  isUnvisited: isUnvisitedProp,
   stateDotSize = 'md',
   hideIdentityIcon = false,
   hideExpand = false,
@@ -88,6 +88,8 @@ const DashboardAgentRow = React.memo(function DashboardAgentRow({
   sendTargetDisabledReason,
   onSendTargetClick
 }: Props) {
+  // Why: only callers that track visits (the sidebar) pass the prop; the rest keep the check glyph.
+  const isUnvisited = isUnvisitedProp ?? false
   const hasChildDisclosure =
     typeof childAgentCount === 'number' &&
     childAgentCount > 0 &&
@@ -239,7 +241,12 @@ const DashboardAgentRow = React.memo(function DashboardAgentRow({
               className="inline-flex shrink-0 items-center justify-center"
               aria-label={dotTooltipLabel}
             >
-              <AgentStateDot state={dotState} size={stateDotSize} title={null} />
+              <AgentStateDot
+                state={dotState}
+                size={stateDotSize}
+                title={null}
+                seen={isUnvisitedProp === undefined ? undefined : !isUnvisitedProp}
+              />
             </span>
           </TooltipTrigger>
           <TooltipContent side="top" sideOffset={4}>

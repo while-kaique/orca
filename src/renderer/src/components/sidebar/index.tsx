@@ -20,6 +20,7 @@ import { useSystemPrefersDark } from '@/components/terminal-pane/use-system-pref
 import { lazyWithRetry } from '@/lib/lazy-with-retry'
 import { LocalGitToolchainScanBanner } from './LocalGitToolchainScanBanner'
 import { PcDeskProjectSwitcher } from './pc-desk-switcher/PcDeskProjectSwitcher'
+import { PcDeskNewProjectButton } from './pc-desk-switcher/PcDeskNewProjectButton'
 import { usePcDeskMode } from '@/lib/pc-desk-mode'
 
 // Why lazy: the Agents list pulls the whole activity pipeline (virtualizer, markdown
@@ -197,6 +198,7 @@ function Sidebar({
                   onWorkspaceBoardDragPreviewCommit={solidifyWorkspaceBoardFromDrag}
                   onWorkspaceBoardDragPreviewCancel={cancelWorkspaceBoardDragPreview}
                 />
+                {pcDeskMode ? <PcDeskNewProjectButton /> : null}
               </>
             )}
 

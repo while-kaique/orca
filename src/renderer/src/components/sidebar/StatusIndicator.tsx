@@ -19,6 +19,8 @@ type StatusIndicatorProps = Omit<React.ComponentProps<'span'>, 'title'> & {
   status: Status
   showTooltip?: boolean
   tooltipSide?: StateIndicatorTooltipSide
+  /** PC-desk mode: true draws the quiet green states as an outline ring (seen, waiting on the user). */
+  seen?: boolean
 }
 
 const AGENT_STATUS_TOOLTIP_STATUSES = new Set<Status>([
@@ -34,6 +36,7 @@ const StatusIndicator = React.memo(function StatusIndicator({
   className,
   showTooltip = true,
   tooltipSide,
+  seen,
   ...rest
 }: StatusIndicatorProps) {
   const tooltipLabel =
@@ -88,8 +91,10 @@ const StatusIndicator = React.memo(function StatusIndicator({
             status === 'done' || status === 'active'
               ? // Green dot for both hook-reported 'done' and the heuristic
                 // 'active' (terminal open, quiet). Working uses a yellow
-                // ring above; 'inactive' stays grey.
-                'bg-emerald-500'
+                // ring above; 'inactive' stays grey. Once seen it becomes a ring.
+                seen
+                ? 'border-[1.5px] border-agent-done bg-transparent'
+                : 'bg-agent-done'
               : 'bg-neutral-500/40'
           )}
         />

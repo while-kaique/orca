@@ -75,6 +75,11 @@ type Props = {
   /** Overrides the hover tooltip; null suppresses it for an existing tooltip. */
   title?: string | null
   tooltipSide?: StateIndicatorTooltipSide
+  /**
+   * PC-desk mode: for 'done', true draws an outline ring (seen, waiting on the user)
+   * and false a filled dot (finished and not seen yet). Undefined keeps the check glyph.
+   */
+  seen?: boolean
 }
 
 /** Render the compact state glyph used by agent rows and terminal tabs. */
@@ -83,7 +88,8 @@ export const AgentStateDot = React.memo(function AgentStateDot({
   size = 'sm',
   className,
   title,
-  tooltipSide
+  tooltipSide,
+  seen
 }: Props): React.JSX.Element {
   const box = size === 'md' ? 'h-3 w-3' : 'h-2.5 w-2.5'
   const inner = size === 'md' ? 'size-2' : 'size-1.5'
@@ -108,6 +114,15 @@ export const AgentStateDot = React.memo(function AgentStateDot({
         aria-label={agentStateLabel(state)}
       >
         <Activity className={cn('text-yellow-500', icon)} aria-hidden="true" />
+      </span>
+    )
+  } else if (state === 'done' && seen !== undefined) {
+    indicator = (
+      <span
+        className={cn('inline-flex shrink-0 items-center justify-center', box, className)}
+        aria-label={seen ? agentStateLabel(state) : 'Done, not seen yet'}
+      >
+        <DoneSeenDot seen={seen} className={inner} />
       </span>
     )
   } else if (state === 'done') {
@@ -168,3 +183,22 @@ export const AgentStateDot = React.memo(function AgentStateDot({
     </StateIndicatorTooltip>
   )
 })
+
+/** Filled when the finished turn is unseen; outline ring once the user has looked at it. */
+export function DoneSeenDot({
+  seen,
+  className
+}: {
+  seen: boolean
+  className?: string
+}): React.JSX.Element {
+  return (
+    <span
+      className={cn(
+        'block rounded-full',
+        seen ? 'border-[1.5px] border-agent-done bg-transparent' : 'bg-agent-done',
+        className
+      )}
+    />
+  )
+}

@@ -50,6 +50,21 @@ export function TerminalTabLeadingIcon({
   showUnreadActivity,
   isActive
 }: TerminalTabLeadingIconProps): React.JSX.Element {
+  // Why: fork (PC-desk) vocabulary — a finished turn is a filled green dot until seen, then a ring.
+  const dotState = terminalTabActivityToAgentDotState(activityStatus)
+  if (dotState === 'done') {
+    return (
+      <span
+        data-testid="tab-agent-activity-indicator"
+        data-agent-activity-status={activityStatus}
+        className="mr-1 inline-flex shrink-0 items-center gap-1"
+      >
+        <AgentStateDot state="done" size="md" seen={!showUnreadActivity} />
+        {agent ? <TerminalTabAgentIdentityIcon agent={agent} isActive={isActive} /> : null}
+      </span>
+    )
+  }
+
   if (showUnreadActivity) {
     return (
       <span
@@ -68,7 +83,6 @@ export function TerminalTabLeadingIcon({
 
   // Why: shared mapper with Cmd+J recent badges — working/permission/done only; active/inactive
   // fall through to agent/shell identity.
-  const dotState = terminalTabActivityToAgentDotState(activityStatus)
   if (dotState) {
     return (
       <span
