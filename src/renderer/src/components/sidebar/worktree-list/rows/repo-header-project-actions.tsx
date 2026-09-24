@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useState } from 'react'
 import {
   CircleX,
   Ellipsis,
   Eye,
+  EyeOff,
   FolderInput,
   FolderTree,
   Plus,
@@ -38,6 +39,12 @@ import {
   REPO_HEADER_ACTION_BUTTON_CLASS,
   REPO_HEADER_ACTION_REVEAL_CLASS
 } from '../../repo-header-action-button-class'
+import { usePcDeskMode } from '@/lib/pc-desk-mode'
+import {
+  clearPcDeskProjectMenuRequest,
+  usePcDeskProjectMenuRequested
+} from '../../pc-desk-switcher/pc-desk-project-menu-request'
+import { closePcDeskProject } from '../../pc-desk-switcher/close-pc-desk-project'
 import type { getRepoHeaderCreateState } from '../../repo-header-create-state'
 import {
   handleRepoHeaderActionPointerDown,
@@ -79,8 +86,17 @@ export function RepoHeaderProjectActionsMenu({
   projectGroups: readonly ProjectGroup[]
   actions: RepoHeaderProjectActions
 }): React.JSX.Element {
+  const pcDeskMode = usePcDeskMode()
+  const menuRequested = usePcDeskProjectMenuRequested(repo.id)
+  const [open, setOpen] = useState(false)
+  const handleOpenChange = (next: boolean): void => {
+    setOpen(next)
+    if (!next) {
+      clearPcDeskProjectMenuRequest()
+    }
+  }
   return (
-    <DropdownMenu modal={false}>
+    <DropdownMenu modal={false} open={open || menuRequested} onOpenChange={handleOpenChange}>
       <Tooltip>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
@@ -89,6 +105,8 @@ export function RepoHeaderProjectActionsMenu({
               variant="ghost"
               size="icon-xs"
               className={REPO_HEADER_ACTION_BUTTON_CLASS}
+              // Why: PC-desk mode keeps this menu visible instead of hover-only.
+              data-pc-desk-visible={pcDeskMode ? '' : undefined}
               data-repo-header-action=""
               aria-label={translate(
                 'auto.components.sidebar.WorktreeList.609633a9e6',
@@ -119,6 +137,15 @@ export function RepoHeaderProjectActionsMenu({
         onClick={stopRepoHeaderMenuEvent}
         onKeyDown={stopRepoHeaderMenuEvent}
       >
+        {pcDeskMode ? (
+          <>
+            <DropdownMenuItem onSelect={() => closePcDeskProject(repo)}>
+              <EyeOff className="size-3.5" />
+              Tirar da barra (fecha os chats)
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        ) : null}
         <DropdownMenuItem onSelect={() => actions.onOpenRepoSettings(repo.id)}>
           <SlidersHorizontal className="size-3.5" />
           {translate('auto.components.sidebar.WorktreeList.2cdffbc728', 'Project Settings')}

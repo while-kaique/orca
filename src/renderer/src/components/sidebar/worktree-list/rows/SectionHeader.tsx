@@ -44,6 +44,7 @@ import type { WorktreeSidebarHeaderDrag } from '../drag/use-header-drag'
 import { getWorktreeOptionId } from './option-dom'
 import { activateProjectFolder, RepoHeaderWorktreesMenu } from './repo-header-worktrees-menu'
 import { isPcDeskModeEnabled } from '@/lib/pc-desk-mode'
+import { getPcDeskProjectContextMenuHandler } from '../../pc-desk-switcher/pc-desk-project-menu-request'
 import { isGitRepoKind } from '../../../../../../shared/repo-kind'
 
 export type SectionHeaderRowContext = {
@@ -214,6 +215,7 @@ export function renderWorktreeSectionHeaderRow(args: {
         tabIndex={0}
         aria-expanded={showHeaderCollapseAffordance ? !isHeaderCollapsed : undefined}
         data-repo-header-id={projectIdForHeader}
+        onContextMenu={getPcDeskProjectContextMenuHandler(pcDeskRepo)}
         data-repo-header-index={repoHeaderIndex}
         data-repo-header-bucket={repoHeaderBucketKey}
         data-repo-header-section-end={
