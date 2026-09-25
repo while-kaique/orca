@@ -69,3 +69,8 @@
   `pty-connection/sleeping-record-access.ts` (`getColdRestoreRecordForPane`).
 - Conversa perdida desse dia: `claude --resume d74a6471-0d66-4d92-b4be-328a4a3b6497` no Creative Studio.
 - Lição: reiniciar o Orca por WMI abre sem o PATH do usuário (claude "não encontrado"); reiniciar via explorer.exe.
+
+## 25/09 10:30 — testado no app
+- Nome inteligente: chat novo no diario-local abriu como "diario-local" e 10 s após a 1ª mensagem virou "Contar arquivos MD".
+- Reinício: os 7 chats abertos voltaram com o Claude rodando e a conversa anterior na tela (Creative Studio x2, radar, jarvis, diario x2, este).
+- Pegadinha de teste: no CDP, caminho com `\` virou pasta inexistente; usar barras normais. Dev CLI: `pnpm run build:cli` e usar `orca-dev.cmd`.
