@@ -25,6 +25,7 @@ type TabNamerState = {
   lastRenameAt: number
   hasRealName: boolean
   inFlight: boolean
+  failures: number
 }
 
 const namerByTabId = new Map<string, TabNamerState>()
@@ -36,6 +37,11 @@ let started = false
 
 export function startPcDeskSessionNamer(): void {
   started = true
+  // Why reset: a renderer hot reload re-runs startup; the next prompt re-arms the tick.
+  if (tickTimer) {
+    clearInterval(tickTimer)
+    tickTimer = null
+  }
   setPcDeskSmartTitlesPreferred(isPcDeskModeEnabled())
 }
 
@@ -50,14 +56,24 @@ function storeState(): AppState {
   return readState()
 }
 
-function projectNameFor(worktreeId: string): string | null {
+const FOLDER_WORKSPACE_ID_MARKER = '::workspace:'
+const MAX_FIRST_NAME_FAILURES = 3
+
+/** Where to run Haiku and what the project is called; folder workspaces aren't in worktreesByRepo. */
+function workspaceTargetFor(worktreeId: string): { cwd: string; projectName: string } | null {
   const state = storeState()
   const worktree = findWorktreeById(state, worktreeId)
-  if (!worktree) {
+  const repoId = worktreeId.split('::')[0] ?? ''
+  const markerAt = worktreeId.indexOf(FOLDER_WORKSPACE_ID_MARKER)
+  // Folder workspace ids embed their path: `<repoId>::<path>::workspace:<folderId>`.
+  const cwd = worktree?.path ?? (markerAt > 0 ? worktreeId.slice(repoId.length + 2, markerAt) : '')
+  if (!cwd) {
     return null
   }
-  const repo = state.repos.find((candidate) => candidate.id === worktree.repoId)
-  return repo?.displayName?.trim() || worktree.displayName?.trim() || null
+  const repo = state.repos.find((candidate) => candidate.id === (worktree?.repoId ?? repoId))
+  const projectName =
+    repo?.displayName?.trim() || worktree?.displayName?.trim() || cwd.split(/[\\/]/u).pop() || cwd
+  return { cwd, projectName }
 }
 
 function currentTab(tabId: string, worktreeId: string) {
@@ -103,12 +119,13 @@ export function notePcDeskAgentPrompt(
       lastRenameAt: now,
       // A title restored from a previous run is already a real name, not the placeholder.
       hasRealName: Boolean(tab.generatedTitle?.trim()),
-      inFlight: false
+      inFlight: false,
+      failures: 0
     }
     namerByTabId.set(tabId, namer)
-    const projectName = projectNameFor(input.worktreeId)
-    if (!namer.hasRealName && projectName) {
-      storeState().setPcDeskSessionTabTitle(tabId, capSessionTitle(projectName))
+    const target = workspaceTargetFor(input.worktreeId)
+    if (!namer.hasRealName && target) {
+      storeState().setPcDeskSessionTabTitle(tabId, capSessionTitle(target.projectName))
     }
     ensureTicking()
   }
@@ -135,7 +152,7 @@ function isDue(namer: TabNamerState, now: number): boolean {
   }
   // Retries the first name on the next tick if the immediate attempt failed.
   if (!namer.hasRealName) {
-    return namer.newPromptCount >= 1
+    return namer.newPromptCount >= 1 && namer.failures < MAX_FIRST_NAME_FAILURES
   }
   return (
     namer.newPromptCount >= MIN_NEW_PROMPTS &&
@@ -146,27 +163,33 @@ function isDue(namer: TabNamerState, now: number): boolean {
 
 async function checkTab(tabId: string, namer: TabNamerState): Promise<void> {
   const tab = currentTab(tabId, namer.worktreeId)
-  const worktree = findWorktreeById(storeState(), namer.worktreeId)
-  if (!tab || !worktree || tab.customTitle?.trim()) {
+  const target = workspaceTargetFor(namer.worktreeId)
+  if (!tab || !target || tab.customTitle?.trim()) {
     namerByTabId.delete(tabId)
     return
   }
-  const projectName = projectNameFor(namer.worktreeId) ?? worktree.displayName
+  const pendingPrompts = namer.newPromptCount
   namer.inFlight = true
   namer.lastCheckAt = Date.now()
   namer.newPromptCount = 0
   try {
-    const result = await window.api.repos.suggestPcDeskSessionTitle({
-      cwd: worktree.path,
-      projectName,
-      currentTitle: tab.generatedTitle?.trim() || projectName,
-      currentIsPlaceholder: !namer.hasRealName,
-      recentPrompts: namer.prompts
-    })
+    const result = await window.api.repos
+      .suggestPcDeskSessionTitle({
+        cwd: target.cwd,
+        projectName: target.projectName,
+        currentTitle: tab.generatedTitle?.trim() || target.projectName,
+        currentIsPlaceholder: !namer.hasRealName,
+        recentPrompts: namer.prompts
+      })
+      .catch((error: unknown) => ({ kind: 'error' as const, error: String(error) }))
     if (result.kind === 'error') {
+      // Why keep the count: a failed first name must retry on the next tick, not wait for a new prompt.
+      namer.failures += 1
+      namer.newPromptCount += pendingPrompts
       console.warn('[pc-desk-session-namer] naming failed:', result.error)
       return
     }
+    namer.failures = 0
     // The user may have renamed the tab while Haiku was thinking.
     if (result.kind === 'rename' && !currentTab(tabId, namer.worktreeId)?.customTitle?.trim()) {
       storeState().setPcDeskSessionTabTitle(tabId, result.title)
@@ -192,4 +215,17 @@ function tick(): void {
 
 function ensureTicking(): void {
   tickTimer ??= setInterval(tick, CHECK_TICK_MS)
+}
+
+/** The sidebar row's name in PC-desk mode: the oldest named chat tab of the workspace. */
+export function pcDeskWorkspaceSessionTitle(
+  tabs: readonly { customTitle: string | null; generatedTitle?: string | null }[] | undefined
+): string | null {
+  for (const tab of tabs ?? []) {
+    const title = tab.customTitle?.trim() || tab.generatedTitle?.trim()
+    if (title) {
+      return title
+    }
+  }
+  return null
 }

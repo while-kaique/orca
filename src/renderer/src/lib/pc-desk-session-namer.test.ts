@@ -7,7 +7,11 @@ vi.mock('@/store/github/worktree-refresh', () => ({
 }))
 
 import type { AppState } from '@/store/types'
-import { notePcDeskAgentPrompt, startPcDeskSessionNamer } from './pc-desk-session-namer'
+import {
+  notePcDeskAgentPrompt,
+  pcDeskWorkspaceSessionTitle,
+  startPcDeskSessionNamer
+} from './pc-desk-session-namer'
 
 function makeStore() {
   const setPcDeskSessionTabTitle = vi.fn()
@@ -16,9 +20,15 @@ function makeStore() {
     customTitle: null,
     generatedTitle: null
   }
+  const tabsByWorktree: Record<
+    string,
+    { id: string; customTitle: null; generatedTitle: string | null }[]
+  > = {
+    wt: [tab]
+  }
   const state = {
     repos: [{ id: 'r', displayName: 'orca' }],
-    tabsByWorktree: { wt: [tab] },
+    tabsByWorktree,
     agentStatusByPaneKey: { 'tab:a': {} },
     setPcDeskSessionTabTitle: (tabId: string, title: string) => {
       tab.generatedTitle = title
@@ -26,7 +36,7 @@ function makeStore() {
     }
   }
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the namer reads only the fields stubbed above.
-  return { getState: () => state as unknown as AppState, setPcDeskSessionTabTitle }
+  return { getState: () => state as unknown as AppState, setPcDeskSessionTabTitle, tabsByWorktree }
 }
 
 const note = (getState: () => AppState, paneKey: string, prompt: string) =>
@@ -73,5 +83,40 @@ describe('pc-desk session namer', () => {
     await vi.advanceTimersByTimeAsync(11 * 60_000)
     expect(suggest).toHaveBeenCalledTimes(2)
     expect(suggest.mock.calls[1][0].recentPrompts).toEqual(['arruma o botão', 'um', 'dois', 'três'])
+  })
+
+  it('names a folder workspace and retries a failed first name on the next tick', async () => {
+    const store = makeStore()
+    const folderId = 'r::C:/Users/me/Projetos::workspace:f1'
+    // A fresh tab id: the namer keeps per-tab state across tests.
+    store.tabsByWorktree[folderId] = [{ id: 'tab2', customTitle: null, generatedTitle: null }]
+    suggest.mockResolvedValueOnce({ kind: 'error', error: 'boom' })
+    notePcDeskAgentPrompt(store.getState, {
+      paneKey: 'tab2:a',
+      prompt: 'organiza as pastas',
+      worktreeId: folderId,
+      tabId: 'tab2'
+    })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(suggest.mock.calls[0][0].cwd).toBe('C:/Users/me/Projetos')
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(suggest).toHaveBeenCalledTimes(2)
+    expect(store.setPcDeskSessionTabTitle).toHaveBeenLastCalledWith(
+      'tab2',
+      'Botão adicionar projeto'
+    )
+  })
+})
+
+describe('pcDeskWorkspaceSessionTitle', () => {
+  it('uses the oldest named tab, preferring a manual name', () => {
+    expect(
+      pcDeskWorkspaceSessionTitle([
+        { customTitle: null, generatedTitle: null },
+        { customTitle: null, generatedTitle: 'Lote 6 vitrine' },
+        { customTitle: 'Outro', generatedTitle: 'x' }
+      ])
+    ).toBe('Lote 6 vitrine')
+    expect(pcDeskWorkspaceSessionTitle(undefined)).toBeNull()
   })
 })

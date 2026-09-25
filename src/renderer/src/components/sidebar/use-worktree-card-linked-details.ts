@@ -2,6 +2,8 @@ import React from 'react'
 
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
+import { usePcDeskMode } from '@/lib/pc-desk-mode'
+import { pcDeskWorkspaceSessionTitle } from '@/lib/pc-desk-session-namer'
 import type { IssueInfo } from '../../../../shared/github/pull-request-types'
 import type { LinearIssue } from '../../../../shared/linear/issue-types'
 import { getWorktreeCardJiraIssueDisplay } from './worktree-card-jira-issue-display'
@@ -116,7 +118,13 @@ export function useWorktreeCardLinkedDetails({
     reviewTitle: prDisplay?.title
   })
   const legacyCardTitleDisplay = coerceWorktreeCardVisibleTitle(worktree.displayName)
-  const visibleCardTitle = newCardStyle ? cardTitleDisplay : legacyCardTitleDisplay
+  const pcDeskMode = usePcDeskMode()
+  const pcDeskSessionTitle = useAppStore((s) =>
+    pcDeskMode ? pcDeskWorkspaceSessionTitle(s.tabsByWorktree[worktree.id]) : null
+  )
+  // Fork (PC-desk): the row names what the oldest chat is doing, not the workspace's random name.
+  const visibleCardTitle =
+    pcDeskSessionTitle ?? (newCardStyle ? cardTitleDisplay : legacyCardTitleDisplay)
   const isDeleting = deleteState?.isDeleting ?? false
   const isQueuedForDeletion = deleteState?.phase === 'queued'
   const deleteLabel = isQueuedForDeletion
