@@ -14,6 +14,7 @@ import { isMeaningfulOpenCodeTerminalTitle } from './opencode-terminal-title'
 import { SYNTHETIC_AGENT_TITLE_PROFILES } from './synthetic-agent-title'
 import type { TerminalTab } from './terminal-tab-types'
 import { capSessionTitle } from './session-title-cap'
+import { preferredPcDeskSessionTitle } from './pc-desk-session-title'
 
 export type ConversationNameTab = Pick<
   TerminalTab,
@@ -152,6 +153,10 @@ function resolveAgentRowConversationName(
   const quickCommandLabel = tab.quickCommandLabel?.trim()
   if (quickCommandLabel) {
     return quickCommandLabel
+  }
+  const pcDeskTitle = preferredPcDeskSessionTitle(tab.generatedTitle)
+  if (pcDeskTitle) {
+    return pcDeskTitle
   }
   const liveTitle =
     paneLiveTitle === undefined ? (tab.title?.trim() ?? '') : (paneLiveTitle?.trim() ?? '')

@@ -7,6 +7,10 @@ import type { BaseRefDefaultResult, BaseRefSearchResult } from '../../shared/rep
 import type { ExecutionHostId } from '../../shared/execution-host'
 import type { PreloadApi } from '../api-types'
 import type { PcDeskHomeFolderListing } from '../../shared/pc-desk-home-folder-types'
+import type {
+  PcDeskSessionTitleRequest,
+  PcDeskSessionTitleResult
+} from '../../shared/pc-desk-session-title'
 
 export const reposApi = {
   list: () => ipcRenderer.invoke('repos:list'),
@@ -27,6 +31,11 @@ export const reposApi = {
 
   listPcDeskHomeFolders: (): Promise<PcDeskHomeFolderListing> =>
     ipcRenderer.invoke('repos:listPcDeskHomeFolders'),
+
+  suggestPcDeskSessionTitle: (
+    request: PcDeskSessionTitleRequest
+  ): Promise<PcDeskSessionTitleResult> =>
+    ipcRenderer.invoke('repos:suggestPcDeskSessionTitle', request),
 
   remove: (args) => ipcRenderer.invoke('repos:remove', args),
 

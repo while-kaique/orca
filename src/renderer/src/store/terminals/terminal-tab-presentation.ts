@@ -20,6 +20,7 @@ export function createTerminalTabPresentationActions(
   | 'updateTabTitle'
   | 'updateTabTitles'
   | 'setAiVaultTabTitle'
+  | 'setPcDeskSessionTabTitle'
   | 'setGeneratedTabTitleFromAgentPrompt'
   | 'setGeneratedTabTitlesFromAgentPrompts'
   | 'clearTabLaunchAgent'
@@ -68,6 +69,41 @@ export function createTerminalTabPresentationActions(
         const unifiedTabs = s.unifiedTabsByWorktree[ownerWorktreeId] ?? []
         const nextUnifiedTabs = unifiedTabs.map((tab) =>
           tab.contentType === 'terminal' && tab.entityId === tabId ? { ...tab, aiVaultTitle } : tab
+        )
+        adoptTerminalTabOwnerMetadataOnlyBuckets(s.tabsByWorktree, nextTabsByWorktree, [
+          ownerWorktreeId
+        ])
+        scheduleRuntimeGraphSync()
+        return {
+          tabsByWorktree: nextTabsByWorktree,
+          unifiedTabsByWorktree: {
+            ...s.unifiedTabsByWorktree,
+            [ownerWorktreeId]: nextUnifiedTabs
+          }
+        }
+      })
+    },
+    setPcDeskSessionTabTitle: (tabId, title) => {
+      set((s) => {
+        const ownerWorktreeId = getTerminalTabOwnerWorktreeId(s.tabsByWorktree, tabId)
+        if (!ownerWorktreeId) {
+          return s
+        }
+        const tabs = s.tabsByWorktree[ownerWorktreeId] ?? []
+        const current = tabs.find((tab) => tab.id === tabId)
+        if (!current || current.customTitle?.trim() || current.generatedTitle === title) {
+          return s
+        }
+        // Why generatedTitle: it is already persisted and mirrored to the unified tab label.
+        const ownerTabs = tabs.map((tab) =>
+          tab.id === tabId ? { ...tab, generatedTitle: title } : tab
+        )
+        const nextTabsByWorktree = { ...s.tabsByWorktree, [ownerWorktreeId]: ownerTabs }
+        const unifiedTabs = s.unifiedTabsByWorktree[ownerWorktreeId] ?? []
+        const nextUnifiedTabs = unifiedTabs.map((tab) =>
+          tab.contentType === 'terminal' && tab.entityId === tabId
+            ? { ...tab, generatedLabel: title }
+            : tab
         )
         adoptTerminalTabOwnerMetadataOnlyBuckets(s.tabsByWorktree, nextTabsByWorktree, [
           ownerWorktreeId

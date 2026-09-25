@@ -2,6 +2,7 @@ import type { Tab } from './tab-types'
 import type { TerminalTab } from './terminal-tab-types'
 import { isMeaningfulOpenCodeTerminalTitle } from './opencode-terminal-title'
 import { capSessionTitle } from './session-title-cap'
+import { preferredPcDeskSessionTitle } from './pc-desk-session-title'
 
 export function resolveTerminalTabTitle(
   tab: Pick<
@@ -17,7 +18,8 @@ export function resolveTerminalTabTitle(
     tab.quickCommandLabel?.trim() ||
     // Why: names the user typed stay whole; only auto-generated ones are capped.
     capSessionTitle(
-      (isMeaningfulOpenCodeTerminalTitle(liveTitle) ? liveTitle : '') ||
+      preferredPcDeskSessionTitle(tab.generatedTitle) ||
+        (isMeaningfulOpenCodeTerminalTitle(liveTitle) ? liveTitle : '') ||
         tab.aiVaultTitle?.title.trim() ||
         (generatedTitlesEnabled ? tab.generatedTitle?.trim() : '') ||
         liveTitle
@@ -38,7 +40,8 @@ export function resolveUnifiedTabLabel(
     tab?.customLabel?.trim() ||
     tab?.quickCommandLabel?.trim() ||
     capSessionTitle(
-      (isMeaningfulOpenCodeTerminalTitle(liveLabel) ? liveLabel : '') ||
+      preferredPcDeskSessionTitle(tab?.generatedLabel) ||
+        (isMeaningfulOpenCodeTerminalTitle(liveLabel) ? liveLabel : '') ||
         tab?.aiVaultTitle?.title.trim() ||
         (generatedTitlesEnabled ? tab?.generatedLabel?.trim() : '') ||
         liveLabel

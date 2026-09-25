@@ -14,6 +14,7 @@ import { registerRepoCloneHandlers } from './repos/repo-clone-lifecycle'
 import { registerRepoGitUsernameHandler } from './repos/repo-git-username-handler'
 import { registerBaseRefQueryHandlers } from './repos/base-ref-query-handlers'
 import { registerPcDeskHomeFolderHandlers } from './repos/pc-desk-home-folder-handlers'
+import { registerPcDeskSessionTitleHandlers } from './repos/pc-desk-session-title-handlers'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 
 export function registerRepoHandlers(
@@ -69,6 +70,7 @@ export function registerRepoHandlers(
   ipcMain.removeHandler('sparsePresets:save')
   ipcMain.removeHandler('sparsePresets:remove')
   ipcMain.removeHandler('repos:listPcDeskHomeFolders')
+  ipcMain.removeHandler('repos:suggestPcDeskSessionTitle')
 
   registerRepoCatalogHandlers(mainWindow, store)
   registerProjectHostSetupHandlers(mainWindow, store)
@@ -83,4 +85,5 @@ export function registerRepoHandlers(
   registerRepoGitUsernameHandler(store)
   registerBaseRefQueryHandlers(store)
   registerPcDeskHomeFolderHandlers()
+  registerPcDeskSessionTitleHandlers()
 }

@@ -1,4 +1,5 @@
 import { resolvePaneKey } from '../../lib/agent-status-pane-ownership'
+import { notePcDeskAgentPrompt } from '../../lib/pc-desk-session-namer'
 import type { AgentStatusSlice } from './agent-status-slice-contract'
 import type { AgentStatusRuntime } from './agent-status-runtime'
 import type {
@@ -169,6 +170,12 @@ export function createAgentStatusLiveActions(
       liveIsDispatchPrompt && mayWriteGeneratedTitle
         ? getAgentRowGeneratedTitleText(entry)
         : entry.prompt
+    notePcDeskAgentPrompt(get, {
+      paneKey,
+      prompt: liveIsDispatchPrompt ? '' : entry.prompt,
+      worktreeId: entry.worktreeId,
+      tabId: entry.tabId
+    })
     applyGeneratedTabTitleUpdate({
       paneKey,
       prompt: generatedTitlePrompt,

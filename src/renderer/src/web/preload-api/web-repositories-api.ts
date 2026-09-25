@@ -104,6 +104,7 @@ export function createReposApi(): NonNullable<Partial<PreloadApi>['repos']> {
     },
     // Why: a paired web client has no local Desktop to browse.
     listPcDeskHomeFolders: () => Promise.resolve({ rootPath: '', entries: [] }),
+    suggestPcDeskSessionTitle: () => Promise.resolve({ kind: 'keep' }),
     onCloneProgress: () => noopUnsubscribe,
     getGitUsername: () => Promise.resolve(''),
     getBaseRefDefault: async ({ repoId }) =>

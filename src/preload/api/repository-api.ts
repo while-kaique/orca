@@ -1,4 +1,8 @@
 import type { PcDeskHomeFolderListing } from '../../shared/pc-desk-home-folder-types'
+import type {
+  PcDeskSessionTitleRequest,
+  PcDeskSessionTitleResult
+} from '../../shared/pc-desk-session-title'
 import type { ExecutionHostId } from '../../shared/execution-host'
 import type { GhAccountBinding } from '../../shared/github/account-binding'
 import type {
@@ -104,6 +108,10 @@ export type RepositoryApi = {
   getDefaultCreateProjectParent: () => Promise<string>
   /** Fork-only: subfolders of Desktop\Projetos for the PC-desk project switcher. */
   listPcDeskHomeFolders: () => Promise<PcDeskHomeFolderListing>
+  /** Fork-only: asks Haiku whether a session tab needs a new name. */
+  suggestPcDeskSessionTitle: (
+    request: PcDeskSessionTitleRequest
+  ) => Promise<PcDeskSessionTitleResult>
   onCloneProgress: (callback: (data: { phase: string; percent: number }) => void) => () => void
   getGitUsername: (args: { repoId: string }) => Promise<string>
   getBaseRefDefault: (args: {

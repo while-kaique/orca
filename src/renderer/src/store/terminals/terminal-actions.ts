@@ -107,6 +107,8 @@ export type TerminalActions = {
   updateTabTitle: (tabId: string, title: string) => void
   updateTabTitles: (updates: readonly TerminalTabTitleUpdate[]) => void
   setAiVaultTabTitle: (tabId: string, aiVaultTitle: AiVaultSessionTitle | null) => void
+  /** Fork-only: PC-desk session namer writes the tab's generated title directly. */
+  setPcDeskSessionTabTitle: (tabId: string, title: string) => void
   setGeneratedTabTitleFromAgentPrompt: (
     paneKey: string,
     prompt: string,
