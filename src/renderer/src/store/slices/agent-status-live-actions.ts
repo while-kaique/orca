@@ -174,7 +174,10 @@ export function createAgentStatusLiveActions(
       paneKey,
       prompt: liveIsDispatchPrompt ? '' : entry.prompt,
       worktreeId: entry.worktreeId,
-      tabId: entry.tabId
+      tabId: entry.tabId,
+      assistantMessage: entry.lastAssistantMessageIsToolOutput
+        ? undefined
+        : entry.lastAssistantMessage
     })
     applyGeneratedTabTitleUpdate({
       paneKey,

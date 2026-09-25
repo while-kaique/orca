@@ -26,6 +26,7 @@ type TabNamerState = {
   hasRealName: boolean
   inFlight: boolean
   failures: number
+  lastAssistantMessage?: string
 }
 
 const namerByTabId = new Map<string, TabNamerState>()
@@ -100,6 +101,7 @@ export function notePcDeskAgentPrompt(
     prompt: string
     worktreeId: string | undefined
     tabId: string | undefined
+    assistantMessage?: string
   }
 ): void {
   readState = getState
@@ -142,6 +144,9 @@ export function notePcDeskAgentPrompt(
       return
     }
     namer.anchorPaneKey = input.paneKey
+  }
+  if (input.assistantMessage?.trim()) {
+    namer.lastAssistantMessage = input.assistantMessage.slice(0, PROMPT_PREVIEW_CHARS)
   }
   if (namer.prompts.at(-1) === prompt) {
     return
@@ -187,7 +192,8 @@ async function checkTab(tabId: string, namer: TabNamerState): Promise<void> {
         projectName: target.projectName,
         currentTitle: tab.generatedTitle?.trim() || target.projectName,
         currentIsPlaceholder: !namer.hasRealName,
-        recentPrompts: namer.prompts
+        recentPrompts: namer.prompts,
+        ...(namer.lastAssistantMessage ? { lastAssistantMessage: namer.lastAssistantMessage } : {})
       })
       .catch((error: unknown) => ({ kind: 'error' as const, error: String(error) }))
     if (result.kind === 'error') {
@@ -202,8 +208,9 @@ async function checkTab(tabId: string, namer: TabNamerState): Promise<void> {
     if (result.kind === 'rename' && !currentTab(tabId, namer.worktreeId)?.customTitle?.trim()) {
       storeState().setPcDeskSessionTabTitle(tabId, result.title)
       namer.lastRenameAt = Date.now()
+      namer.hasRealName = true
     }
-    namer.hasRealName = true
+    // A "keep" on the project-name placeholder (e.g. a bare "e aí") retries on the next prompt.
   } finally {
     namer.inFlight = false
   }

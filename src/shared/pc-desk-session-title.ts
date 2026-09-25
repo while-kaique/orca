@@ -8,6 +8,8 @@ export type PcDeskSessionTitleRequest = {
   currentIsPlaceholder: boolean
   /** User messages from the tab's oldest chat, oldest first. */
   recentPrompts: string[]
+  /** The assistant's latest reply; gives context when the prompts are vague ("e aí"). */
+  lastAssistantMessage?: string
 }
 
 export type PcDeskSessionTitleResult =
@@ -44,6 +46,11 @@ export function buildPcDeskSessionTitlePrompt(request: PcDeskSessionTitleRequest
     `Projeto: "${request.projectName}". Nome atual da aba: "${request.currentTitle}".`,
     'Últimas mensagens do usuário (a mais recente por último):',
     messages,
+    ...(request.lastAssistantMessage
+      ? [
+          `Última resposta do assistente: ${request.lastAssistantMessage.replace(/\s+/gu, ' ').trim().slice(0, PROMPT_PREVIEW_CHARS)}`
+        ]
+      : []),
     '',
     decision,
     'Nome novo: no máximo 3 palavras e 23 caracteres, no idioma das mensagens, sem artigos nem preposições,',
