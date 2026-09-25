@@ -27,7 +27,7 @@ if errorlevel 1 goto dev
 node config\scripts\pc-desk-build-key.mjs "%BUILD_KEY%" --save
 :start
 call pnpm run ensure:electron-runtime >> "%LOG%" 2>&1
-call node_modules.binelectron-vite.cmd preview --skipBuild >> "%LOG%" 2>&1
+call "%~dp0node_modules\.bin\electron-vite.cmd" preview --skipBuild >> "%LOG%" 2>&1
 if errorlevel 1 goto dev
 exit /b 0
 
