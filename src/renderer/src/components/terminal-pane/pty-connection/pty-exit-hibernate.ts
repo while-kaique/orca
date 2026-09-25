@@ -202,6 +202,12 @@ export function installPtyExitHibernate(session: ConnectPanePtySession): void {
       scheduleRuntimeGraphSync()
       return
     }
+    // Fork (PC-desk): a reattached session found dead after a restart is not the user closing the
+    // chat — resume it in place. Built before removeAgentStatus below drops the hydrated status.
+    const restartResumeStartup =
+      session.reconciledDeadPtyId === ptyId && !isUnverifiedExit
+        ? session.buildColdRestoreAgentResumeStartup()
+        : null
     session.handledExitPtyId = ptyId
     const processExitState =
       session.processExitStateByPtyId.get(ptyId) ?? session.currentProcessExitState
@@ -293,6 +299,12 @@ export function installPtyExitHibernate(session: ConnectPanePtySession): void {
       return
     }
     session.manager.setPaneGpuRendering(session.pane.id, true)
+    if (restartResumeStartup) {
+      void session.startFreshColdRestoreAgentResume(restartResumeStartup, {
+        forceBlankRestoredViewport: true
+      })
+      return
+    }
     const failedLocalProcess =
       !session.connectionId && session.runtimeEnvironmentId === null && exitCode !== 0
     if (failedLocalProcess && session.deps.onPaneProcessDied) {

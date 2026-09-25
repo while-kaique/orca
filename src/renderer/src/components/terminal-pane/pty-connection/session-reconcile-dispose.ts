@@ -42,6 +42,8 @@ export function installSessionReconcileDispose(session: ConnectPanePtySession): 
     ) {
       return
     }
+    // Fork (PC-desk): lets onExit tell a restart artifact from the user ending the chat.
+    session.reconciledDeadPtyId = currentPtyId
     session.onExit(currentPtyId)
   }
 
@@ -86,6 +88,7 @@ export function installSessionReconcileDispose(session: ConnectPanePtySession): 
         ) {
           return
         }
+        session.reconciledDeadPtyId = currentPtyId
         session.onExit(currentPtyId)
       })
       .catch(() => {})
