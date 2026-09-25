@@ -32,7 +32,7 @@ export function PcDeskNewProjectButton(): React.JSX.Element {
             type="button"
             aria-label="Abrir ou criar projeto"
             aria-haspopup="dialog"
-            className="flex h-8 w-full items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/50 bg-sidebar-accent/50 text-foreground/80 transition-colors hover:border-foreground/70 hover:bg-sidebar-accent hover:text-foreground data-[state=open]:border-foreground/70 data-[state=open]:bg-sidebar-accent data-[state=open]:text-foreground"
+            className="dashed-outline-spaced flex h-8 w-full items-center justify-center rounded-lg bg-sidebar-accent/25 text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-foreground data-[state=open]:bg-sidebar-accent/60 data-[state=open]:text-foreground"
           >
             <Plus className="size-4" />
           </button>

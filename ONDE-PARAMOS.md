@@ -44,3 +44,8 @@
    *trabalhando*; chat parado voltava como terminal vazio. Agora salva também o parado, 2 s após cada
    mudança, e grava em disco quando o Windows avisa que vai desligar (`main/window/os-session-end-flush.ts`).
 - Falta: Kaique testar reiniciando o PC com 2-3 chats parados abertos.
+
+## 25/09 — 2 ajustes (d2056b21)
+1. "+" agora fica logo abaixo do último projeto (a lista encolhe até o conteúdo no modo mesa); borda tracejada grossa, fundo mais claro, clareia no hover.
+2. "New workspace" abre com o foco na busca de projeto (não no nome opcional) — só no modo mesa.
+- Falta: Kaique ver na tela.
