@@ -36,7 +36,7 @@ describe('tab title resolution', () => {
         },
         true
       )
-    ).toBe('OC | Native Stable Session')
+    ).toBe('OC | Native Stable')
   })
 
   it('keeps generated titles ahead of generic OpenCode titles', () => {
@@ -87,7 +87,7 @@ describe('tab title resolution', () => {
         },
         false
       )
-    ).toBe('Repair provider-native tab titles')
+    ).toBe('Repair provider-native')
   })
 
   it('keeps manual and quick-command labels ahead of AI Vault titles', () => {
@@ -178,7 +178,7 @@ describe('tab title resolution', () => {
         },
         true
       )
-    ).toBe('OC | Native Stable Session')
+    ).toBe('OC | Native Stable')
   })
 
   it('keeps manual and quick command labels ahead of native OpenCode labels', () => {

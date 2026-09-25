@@ -26,9 +26,7 @@ describe('getAgentRowConversationName', () => {
 
   it('keeps OpenCode semantic session titles whole', () => {
     const tab = makeTab({ title: 'OC | build the release pipeline' })
-    expect(getAgentRowConversationName(tab, 'opencode', false)).toBe(
-      'OC | build the release pipeline'
-    )
+    expect(getAgentRowConversationName(tab, 'opencode', false)).toBe('OC | build release')
   })
 
   it("shows the title owned by the row's provider session", () => {
@@ -38,7 +36,7 @@ describe('getAgentRowConversationName', () => {
       title: '\u2733 Investigate replay bug'
     })
     expect(getAgentRowConversationName(tab, 'claude', true, undefined, 's1')).toBe(
-      'Fix the lease probe'
+      'Fix lease probe'
     )
   })
 
@@ -89,7 +87,7 @@ describe('getAgentRowConversationName', () => {
     // OpenCode's semantic title is a live title too, so it follows the pane.
     expect(
       getAgentRowConversationName(tab, 'opencode', false, 'OC | build the release pipeline')
-    ).toBe('OC | build the release pipeline')
+    ).toBe('OC | build release')
     // No resolvable pane title: no live title at all, never the sibling's.
     expect(getAgentRowConversationName(tab, 'claude', false, null)).toBeNull()
     // A single-pane tab passes undefined and is untouched.
@@ -111,7 +109,7 @@ describe('getAgentRowConversationName', () => {
   it('strips leading status decoration from agent-set titles', () => {
     expect(
       getAgentRowConversationName(makeTab({ title: '✳ Fix patient intake flow' }), 'claude', false)
-    ).toBe('Fix patient intake flow')
+    ).toBe('Fix patient intake')
     expect(
       getAgentRowConversationName(makeTab({ title: '⠋ Refactor replay guard' }), 'codex', false)
     ).toBe('Refactor replay guard')
@@ -145,7 +143,7 @@ describe('getAgentRowConversationName', () => {
   it('accepts multi-word titles that merely contain a slash', () => {
     expect(
       getAgentRowConversationName(makeTab({ title: 'Fix a/b toggle in settings' }), 'codex', false)
-    ).toBe('Fix a/b toggle in settings')
+    ).toBe('Fix a/b toggle')
   })
 
   it('rejects synthetic status titles', () => {

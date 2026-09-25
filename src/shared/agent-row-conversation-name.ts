@@ -13,6 +13,7 @@ import { formatAgentTypeLabel } from './agent-type-label'
 import { isMeaningfulOpenCodeTerminalTitle } from './opencode-terminal-title'
 import { SYNTHETIC_AGENT_TITLE_PROFILES } from './synthetic-agent-title'
 import type { TerminalTab } from './terminal-tab-types'
+import { capSessionTitle } from './session-title-cap'
 
 export type ConversationNameTab = Pick<
   TerminalTab,
@@ -120,6 +121,27 @@ export function getAgentRowConversationName(
   // this row's own pane title, or `null` when none resolves; `undefined` (a
   // single-pane tab) keeps the tab title. Tab-owned names above are unaffected:
   // the user gave those to the whole tab and they do not flip on focus.
+  paneLiveTitle?: string | null,
+  providerSessionId?: string
+): string | null {
+  const name = resolveAgentRowConversationName(
+    tab,
+    agentType,
+    generatedTitlesEnabled,
+    paneLiveTitle,
+    providerSessionId
+  )
+  // Why: names the user typed stay whole; only auto-generated ones are capped.
+  if (!name || name === tab.customTitle?.trim() || name === tab.quickCommandLabel?.trim()) {
+    return name
+  }
+  return capSessionTitle(name) || null
+}
+
+function resolveAgentRowConversationName(
+  tab: ConversationNameTab,
+  agentType: AgentType | null | undefined,
+  generatedTitlesEnabled: boolean,
   paneLiveTitle?: string | null,
   providerSessionId?: string
 ): string | null {
