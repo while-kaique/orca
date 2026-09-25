@@ -17,10 +17,17 @@ if exist "%ORCA_LOG_DIR%\main-console.log" move /Y "%ORCA_LOG_DIR%\main-console.
 set "LOG=%ORCA_LOG_DIR%\main-console.log"
 cd /d "%~dp0"
 echo === modo montado, aberto em %DATE% %TIME% ===>> "%LOG%"
+set "BUILD_KEY=%~dp0out\.pc-desk-build-key"
+rem So monta se o codigo mudou desde a ultima montagem (economiza ~10 s).
+node config\scripts\pc-desk-build-key.mjs "%BUILD_KEY%"
+if not errorlevel 1 goto start
+if exist "%BUILD_KEY%" del "%BUILD_KEY%"
 call pnpm run build:electron-vite >> "%LOG%" 2>&1
 if errorlevel 1 goto dev
+node config\scripts\pc-desk-build-key.mjs "%BUILD_KEY%" --save
+:start
 call pnpm run ensure:electron-runtime >> "%LOG%" 2>&1
-call npx electron-vite preview --skipBuild >> "%LOG%" 2>&1
+call node_modules.binelectron-vite.cmd preview --skipBuild >> "%LOG%" 2>&1
 if errorlevel 1 goto dev
 exit /b 0
 
