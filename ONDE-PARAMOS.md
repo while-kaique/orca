@@ -60,3 +60,12 @@
     ferramentas nem sessão salva (senão cada renomeação viraria linha no Diário de Bordo).
   - Nome fica em `generatedTitle` (já persistido) e vence o título do Claude no modo mesa.
   - Falta: Kaique testar (fechar e abrir `dev-orca.bat`, mudou o processo principal).
+
+## 25/09 — chat parado sumia ao reiniciar (corrigido, falta testar)
+- Caso: 2 chats no Creative Studio; após reinício forçado só 1 voltou com a conversa. O outro não tinha registro
+  de retomada, e na reabertura chat PARADO só voltava com registro (chat trabalhando já usava o último status).
+- Correção: na reabertura, sem registro, usa o último status do painel que o processo principal salva em disco
+  (`last-status.json`). Só vale na reabertura; chat encerrado de propósito continua fechado.
+  `pty-connection/sleeping-record-access.ts` (`getColdRestoreRecordForPane`).
+- Conversa perdida desse dia: `claude --resume d74a6471-0d66-4d92-b4be-328a4a3b6497` no Creative Studio.
+- Lição: reiniciar o Orca por WMI abre sem o PATH do usuário (claude "não encontrado"); reiniciar via explorer.exe.

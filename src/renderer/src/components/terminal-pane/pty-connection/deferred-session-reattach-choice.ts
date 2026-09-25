@@ -27,7 +27,7 @@ export function runDeferredSessionReattachChoice(session: ConnectPanePtySession)
   const existingPtyId = storeSnapshot.tabsByWorktree[session.deps.worktreeId]?.find(
     (t) => t.id === session.deps.tabId
   )?.ptyId
-  const hasSleepingAgentSession = Boolean(session.getSleepingRecordForPane(storeSnapshot))
+  const hasSleepingAgentSession = Boolean(session.getColdRestoreRecordForPane(storeSnapshot))
 
   // Why: the tab-level fallback must not steal a PTY a setup sibling already published while the main pane waited for split geometry.
   const tabFallbackPtyId =

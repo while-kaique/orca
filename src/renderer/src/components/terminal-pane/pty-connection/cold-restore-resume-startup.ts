@@ -27,7 +27,7 @@ export function bindBuildColdRestoreAgentResumeStartup(session: ConnectPanePtySe
     }
     const state = useAppStore.getState()
     const entry = state.agentStatusByPaneKey[session.cacheKey]
-    const sleepingRecordEntry = session.getSleepingRecordForPane(state)
+    const sleepingRecordEntry = session.getColdRestoreRecordForPane(state)
     const sleepingRecord = sleepingRecordEntry?.record
 
     const useLiveEntry = entry && entry.state !== 'done'

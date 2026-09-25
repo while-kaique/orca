@@ -15,6 +15,7 @@ import {
   releaseAgentStartupDeliveryAttempt
 } from '@/lib/agent-startup-delayed-delivery'
 
+import { sleepingRecordFromEntry } from '@/store/slices/agent-status-sleeping-records'
 import type { ConnectPanePtySession } from './connect-pane-pty-session'
 
 import { installCommandInferredPaneAgent } from './command-inferred-pane-agent'
@@ -62,6 +63,11 @@ export function installSleepingRecordAccess(session: ConnectPanePtySession): voi
     const [paneKey, record] = selectedLegacyMatch
     return { paneKey, record }
   }
+  // Fork (PC-desk): only cold restore falls back to the hydrated status, so an exited chat stays closed.
+  session.getColdRestoreRecordForPane = (
+    state: ReturnType<typeof useAppStore.getState>
+  ): { paneKey: string; record: SleepingAgentSessionRecord } | null =>
+    session.getSleepingRecordForPane(state) ?? hydratedStatusRecordForPane(state, session)
   session.clearSleepingRecordProviderDuplicates = (
     state: ReturnType<typeof useAppStore.getState>,
     consumed: { paneKey: string; record: SleepingAgentSessionRecord }
@@ -192,4 +198,27 @@ export function installSleepingRecordAccess(session: ConnectPanePtySession): voi
     return tab?.defaultTitle?.trim() || 'Terminal'
   }
   installCommandInferredPaneAgent(session)
+}
+
+/**
+ * Fork (PC-desk): the pane's last hook status, hydrated by main from last-status.json, as a
+ * resume record. Covers a hard kill that landed before the periodic capture saw this chat —
+ * otherwise the pane would come back as a bare shell and lose the conversation.
+ */
+function hydratedStatusRecordForPane(
+  state: ReturnType<typeof useAppStore.getState>,
+  session: ConnectPanePtySession
+): { paneKey: string; record: SleepingAgentSessionRecord } | null {
+  const entry = state.agentStatusByPaneKey[session.cacheKey]
+  if (!entry || entry.worktreeId !== session.deps.worktreeId) {
+    return null
+  }
+  const record = sleepingRecordFromEntry({
+    state,
+    entry,
+    worktreeId: session.deps.worktreeId,
+    capturedAt: Date.now(),
+    origin: 'live'
+  })
+  return record ? { paneKey: session.cacheKey, record } : null
 }
