@@ -3,6 +3,10 @@ import type { RuntimeWorktreePsSummary } from '../../shared/runtime-types'
 import { folderWorkspaceToWorktree } from '../../shared/folder-workspace-worktree'
 import type { RuntimeStore } from './runtime-store-contract'
 import type { ResolvedWorktree } from './runtime-worktree-path-identity'
+import {
+  isPcDeskSmartTitlesPreferred,
+  pcDeskWorkspaceSessionTitle
+} from '../../shared/pc-desk-session-title'
 
 export function buildRuntimeWorktreePsSummaries(args: {
   store: RuntimeStore | null
@@ -12,6 +16,12 @@ export function buildRuntimeWorktreePsSummaries(args: {
   const repoById = new Map((args.store?.getRepos() ?? []).map((repo) => [repo.id, repo]))
   const summaries = new Map<string, RuntimeWorktreePsSummary>()
   const ghCache = args.store?.getGitHubCache?.()
+  // Fork (PC-desk): the phone names each row like the desktop sidebar does, after its oldest chat.
+  const tabsByWorktree = isPcDeskSmartTitlesPreferred()
+    ? args.store?.getWorkspaceSession?.()?.tabsByWorktree
+    : undefined
+  const rowName = (worktreeId: string, fallback: string): string =>
+    pcDeskWorkspaceSessionTitle(tabsByWorktree?.[worktreeId]) ?? fallback
   for (const worktree of args.resolvedWorktrees) {
     const meta =
       args.store?.getWorktreeMeta?.(worktree.id) ?? args.store?.getAllWorktreeMeta()[worktree.id]
@@ -51,7 +61,7 @@ export function buildRuntimeWorktreePsSummaries(args: {
         : {}),
       parentWorktreeId: worktree.parentWorktreeId,
       childWorktreeIds: worktree.childWorktreeIds,
-      displayName: worktree.displayName,
+      displayName: rowName(worktree.id, worktree.displayName),
       workspaceStatus: meta?.workspaceStatus ?? DEFAULT_WORKSPACE_STATUS_ID,
       sortOrder: meta?.sortOrder ?? 0,
       ...(meta?.manualOrder !== undefined ? { manualOrder: meta.manualOrder } : {}),
@@ -97,7 +107,7 @@ export function buildRuntimeWorktreePsSummaries(args: {
       ...(worktree.instanceId !== undefined ? { worktreeInstanceId: worktree.instanceId } : {}),
       parentWorktreeId: null,
       childWorktreeIds: [],
-      displayName: worktree.displayName,
+      displayName: rowName(worktree.id, worktree.displayName),
       workspaceStatus: worktree.workspaceStatus ?? DEFAULT_WORKSPACE_STATUS_ID,
       sortOrder: worktree.sortOrder ?? 0,
       ...(worktree.manualOrder !== undefined ? { manualOrder: worktree.manualOrder } : {}),

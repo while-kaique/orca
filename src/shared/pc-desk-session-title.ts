@@ -31,6 +31,23 @@ export function setPcDeskSmartTitlesPreferred(next: boolean): void {
 export function preferredPcDeskSessionTitle(generatedTitle: string | null | undefined): string {
   return smartTitlesPreferred ? (generatedTitle?.trim() ?? '') : ''
 }
+
+export function isPcDeskSmartTitlesPreferred(): boolean {
+  return smartTitlesPreferred
+}
+
+/** Name of a workspace row: what its oldest named chat is doing (desktop sidebar and phone list). */
+export function pcDeskWorkspaceSessionTitle(
+  tabs: readonly { customTitle: string | null; generatedTitle?: string | null }[] | undefined
+): string | null {
+  for (const tab of tabs ?? []) {
+    const title = tab.customTitle?.trim() || tab.generatedTitle?.trim()
+    if (title) {
+      return title
+    }
+  }
+  return null
+}
 const KEEP_TOKEN = 'KEEP'
 
 export function buildPcDeskSessionTitlePrompt(request: PcDeskSessionTitleRequest): string {

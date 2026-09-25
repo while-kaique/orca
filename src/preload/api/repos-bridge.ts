@@ -36,6 +36,8 @@ export const reposApi = {
     request: PcDeskSessionTitleRequest
   ): Promise<PcDeskSessionTitleResult> =>
     ipcRenderer.invoke('repos:suggestPcDeskSessionTitle', request),
+  setPcDeskSmartTitles: (enabled: boolean): Promise<void> =>
+    ipcRenderer.invoke('repos:setPcDeskSmartTitles', enabled),
 
   remove: (args) => ipcRenderer.invoke('repos:remove', args),
 

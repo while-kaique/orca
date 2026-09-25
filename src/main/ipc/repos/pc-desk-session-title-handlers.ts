@@ -6,7 +6,8 @@ import {
   buildPcDeskSessionTitlePrompt,
   parsePcDeskSessionTitleOutput,
   type PcDeskSessionTitleRequest,
-  type PcDeskSessionTitleResult
+  type PcDeskSessionTitleResult,
+  setPcDeskSmartTitlesPreferred
 } from '../../../shared/pc-desk-session-title'
 import type { SpawnSourceControlAgent } from '../../text-generation/source-control-text-generation-types'
 import { runLocalSourceControlPlan } from '../../text-generation/source-control-local-process'
@@ -74,6 +75,10 @@ export async function suggestPcDeskSessionTitle(
 }
 
 export function registerPcDeskSessionTitleHandlers(): void {
+  ipcMain.removeHandler('repos:setPcDeskSmartTitles')
+  ipcMain.handle('repos:setPcDeskSmartTitles', (_event, enabled: unknown) => {
+    setPcDeskSmartTitlesPreferred(enabled === true)
+  })
   ipcMain.handle('repos:suggestPcDeskSessionTitle', (_event, request: PcDeskSessionTitleRequest) =>
     suggestPcDeskSessionTitle(request)
   )

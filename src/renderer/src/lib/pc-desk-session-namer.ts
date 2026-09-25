@@ -2,7 +2,10 @@ import type { AppState } from '@/store/types'
 import { findWorktreeById } from '@/store/github/worktree-refresh'
 import { getTabIdFromPaneKey } from '@/store/terminals/terminal-pty-identities'
 import { capSessionTitle } from '../../../shared/session-title-cap'
-import { setPcDeskSmartTitlesPreferred } from '../../../shared/pc-desk-session-title'
+import {
+  pcDeskWorkspaceSessionTitle,
+  setPcDeskSmartTitlesPreferred
+} from '../../../shared/pc-desk-session-title'
 import { isPcDeskModeEnabled } from './pc-desk-mode'
 
 // Fork-only: a tab starts named after its project, then Haiku renames it to what the user
@@ -44,6 +47,8 @@ export function startPcDeskSessionNamer(): void {
     tickTimer = null
   }
   setPcDeskSmartTitlesPreferred(isPcDeskModeEnabled())
+  // Why: the phone's workspace list is built in main, which can't read this renderer preference.
+  void window.api?.repos?.setPcDeskSmartTitles?.(isPcDeskModeEnabled())
 }
 
 function isActive(): boolean {
@@ -145,16 +150,19 @@ export function notePcDeskAgentPrompt(
     }
     namer.anchorPaneKey = input.paneKey
   }
-  if (input.assistantMessage?.trim()) {
-    namer.lastAssistantMessage = input.assistantMessage.slice(0, PROMPT_PREVIEW_CHARS)
+  const assistantMessage = input.assistantMessage?.trim().slice(0, PROMPT_PREVIEW_CHARS)
+  const assistantChanged =
+    Boolean(assistantMessage) && assistantMessage !== namer.lastAssistantMessage
+  if (assistantChanged) {
+    namer.lastAssistantMessage = assistantMessage
   }
-  if (namer.prompts.at(-1) === prompt) {
-    return
+  const promptIsNew = namer.prompts.at(-1) !== prompt
+  if (promptIsNew) {
+    namer.prompts = [...namer.prompts, prompt].slice(-RECENT_PROMPTS_KEPT)
+    namer.newPromptCount += 1
   }
-  namer.prompts = [...namer.prompts, prompt].slice(-RECENT_PROMPTS_KEPT)
-  namer.newPromptCount += 1
-  // The first prompt names the tab right away instead of waiting for the tick.
-  if (!namer.hasRealName && !namer.inFlight) {
+  // The first prompt names the tab right away; a finished reply retries a vague one ("e aí").
+  if (!namer.hasRealName && !namer.inFlight && (promptIsNew || assistantChanged)) {
     void checkTab(tabId, namer)
   }
 }
@@ -233,14 +241,4 @@ function ensureTicking(): void {
 }
 
 /** The sidebar row's name in PC-desk mode: the oldest named chat tab of the workspace. */
-export function pcDeskWorkspaceSessionTitle(
-  tabs: readonly { customTitle: string | null; generatedTitle?: string | null }[] | undefined
-): string | null {
-  for (const tab of tabs ?? []) {
-    const title = tab.customTitle?.trim() || tab.generatedTitle?.trim()
-    if (title) {
-      return title
-    }
-  }
-  return null
-}
+export { pcDeskWorkspaceSessionTitle }
