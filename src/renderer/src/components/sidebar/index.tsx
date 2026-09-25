@@ -198,7 +198,12 @@ function Sidebar({
                   onWorkspaceBoardDragPreviewCommit={solidifyWorkspaceBoardFromDrag}
                   onWorkspaceBoardDragPreviewCancel={cancelWorkspaceBoardDragPreview}
                 />
-                {pcDeskMode ? <PcDeskNewProjectButton /> : null}
+                {pcDeskMode ? (
+                  <>
+                    <PcDeskNewProjectButton />
+                    <div className="min-h-0 flex-1" />
+                  </>
+                ) : null}
               </>
             )}
 

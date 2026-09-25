@@ -1,5 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { useAppStore } from '@/store'
+import { cn } from '@/lib/utils'
+import { usePcDeskMode } from '@/lib/pc-desk-mode'
 import { translate } from '@/i18n/i18n'
 import { WorktreeListScrollToTopButton } from '../../WorktreeListScrollToTopButton'
 import { renderWorktreeSidebarDropIndicators } from './drop-indicators'
@@ -56,6 +58,8 @@ export const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktr
   // Why: callback-ref only mutates scrollRef; state re-runs the scroll-to-top listener attach.
   const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null)
   const settings = useAppStore((s) => s.settings)
+  // Why: PC-desk mode hugs the rows so the "+" sits right under the last project.
+  const hugContent = usePcDeskMode()
   const worktreeVisibilityDefaultsByHost = useAppStore((s) => s.worktreeVisibilityDefaultsByHost)
   const sshConnectionStates = useAppStore((s) => s.sshConnectionStates)
   const newCardStyle = settings?.experimentalNewWorktreeCardStyle === true
@@ -323,7 +327,7 @@ export const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktr
     <div
       data-worktree-sidebar-container
       data-contextual-tour-target="workspace-list"
-      className="relative min-h-0 flex-1"
+      className={cn('relative min-h-0', hugContent ? 'flex flex-col' : 'flex-1')}
     >
       <div
         ref={setScrollRootRef}
@@ -349,7 +353,10 @@ export const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktr
         onWheel={markDirectScrollInput}
         onDragOver={nativeDrag.handleWorktreeDragOver}
         onDrop={nativeDrag.handleWorktreeDrop}
-        className="worktree-sidebar-scrollbar h-full overflow-y-auto overflow-x-hidden pl-1 scrollbar-sleek outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset pt-px"
+        className={cn(
+          'worktree-sidebar-scrollbar overflow-y-auto overflow-x-hidden pl-1 scrollbar-sleek outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset pt-px',
+          hugContent ? 'min-h-0' : 'h-full'
+        )}
         style={WORKTREE_SIDEBAR_SCROLL_STYLE}
       >
         <div

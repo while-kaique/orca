@@ -26,6 +26,7 @@ import type { WorkspaceStatus } from '../../../shared/worktree/types'
 import type { TaskSourceContext } from '../../../shared/task-source-context'
 import { translate } from '@/i18n/i18n'
 import { getWorkspaceComposerInitialFocusTarget } from '@/lib/workspace-composer-initial-focus'
+import { isPcDeskModeEnabled } from '@/lib/pc-desk-mode'
 import { getFolderWorkspacePrimaryActionLabel } from '@/components/sidebar/folder-workspace-composer-helpers'
 
 // Why: match App-level AddRepoDialog loading — the add flow is off the hot
@@ -91,7 +92,9 @@ function ComposerModalBody({
           // so users can start typing immediately.
           event.preventDefault()
           const content = event.currentTarget as HTMLElement
-          getWorkspaceComposerInitialFocusTarget(content)?.focus({ preventScroll: true })
+          getWorkspaceComposerInitialFocusTarget(content, {
+            preferProjectSearch: isPcDeskModeEnabled()
+          })?.focus({ preventScroll: true })
         }}
       >
         <QuickTabBody
