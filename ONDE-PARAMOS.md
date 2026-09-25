@@ -74,3 +74,11 @@
 - Nome inteligente: chat novo no diario-local abriu como "diario-local" e 10 s após a 1ª mensagem virou "Contar arquivos MD".
 - Reinício: os 7 chats abertos voltaram com o Claude rodando e a conversa anterior na tela (Creative Studio x2, radar, jarvis, diario x2, este).
 - Pegadinha de teste: no CDP, caminho com `\` virou pasta inexistente; usar barras normais. Dev CLI: `pnpm run build:cli` e usar `orca-dev.cmd`.
+
+## 25/09 — nome da aba vira o nome da sessão entre chats
+- Antes: chats se viam como `creative-studio-c5`, `whelk-b5` (nome derivado da pasta pelo Claude Code).
+- Agora: hook `~/.claude/hooks/orca-nome-da-aba.js` (SessionStart + UserPromptSubmit, fora do repo) lê
+  o nome da aba em `profiles/*/orca-data.json` pelo `ORCA_TAB_ID` e devolve `sessionTitle`. Nome manual vence;
+  nome provisório (= nome do projeto) é ignorado. Sem mudança no código do app.
+- Atraso: o nome novo entra na mensagem SEGUINTE do chat (hook só roda quando você manda mensagem ou reabre).
+- Backup do settings: `~/.claude/settings.json.bak-nome-aba`.
