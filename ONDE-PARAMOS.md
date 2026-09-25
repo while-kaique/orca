@@ -49,3 +49,10 @@
 1. "+" agora fica logo abaixo do último projeto (a lista encolhe até o conteúdo no modo mesa); borda tracejada grossa, fundo mais claro, clareia no hover.
 2. "New workspace" abre com o foco na busca de projeto (não no nome opcional) — só no modo mesa.
 - Falta: Kaique ver na tela.
+
+## 25/09 — nome da sessão
+- Feito (0bb4e05e): nome automático cortado em 3 palavras / 23 caracteres, sem "de/do/para…" (`src/shared/session-title-cap.ts`). Nome renomeado à mão não corta.
+- Planejado, aguardando OK: nome "inteligente" = nome do projeto no início; depois, a cada ~10 min com ≥3 mensagens novas,
+  o Haiku (via `claude -p`, mesmo caminho da mensagem de commit em `src/main/text-generation/`) lê as últimas mensagens do
+  chat mais antigo da aba e responde MANTER ou nome novo. Troca no máximo 1x a cada 20 min. Grava em `generatedTitle`,
+  que passa a ter prioridade sobre o título do Claude no modo mesa.
