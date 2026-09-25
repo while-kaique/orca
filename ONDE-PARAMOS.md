@@ -92,3 +92,6 @@
   3. `main-console.log` → saída do processo principal (antes ia pro nada). Sessão anterior em `main-console.anterior.log`.
 - Código: `src/main/daemon/pc-desk-daemon-watch.ts` (dentro do daemon) e `pc-desk-daemon-respawn-log.ts` (no app).
 - Próximo: na próxima queda, cruzar os 3 arquivos pelo horário.
+- **Atalho "Orca (meu)" agora abre no modo montado** (`abrir-orca-fork.vbs` → `abrir-orca-montado.bat`): monta em ~10 s
+  e roda sem recarregar quando o código muda. Se montar/abrir falhar, cai sozinho no `dev-orca.bat`.
+  Para editar o Orca com recarga automática, abrir `dev-orca.bat` direto. Ainda não testado ao vivo (o app estava aberto).
