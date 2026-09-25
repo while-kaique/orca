@@ -5,6 +5,9 @@ rem Nomes curtos nas dependencias: o compilador do Windows falha com caminho lon
 set "pnpm_config_virtual_store_dir_max_length=30"
 rem Perfil proprio (copia dos seus projetos), para nao disputar dados com o Orca instalado.
 set "ORCA_DEV_USER_DATA_PATH=%APPDATA%\orca-fork"
+rem Liga o Orca Relay: o modo dev nao traz o endereco oficial de login, entao passamos aqui.
+set "ORCA_CLOUD_API_URL=https://login.onorca.dev"
+set "ORCA_CLOUD_CLIENT_ID=orca-desktop"
 if not exist "%ORCA_DEV_USER_DATA_PATH%" (
   echo Copiando seus projetos do Orca instalado para o perfil do fork...
   robocopy "%APPDATA%\orca\profiles" "%ORCA_DEV_USER_DATA_PATH%\profiles" /E /NFL /NDL /NJH /NJS >nul
