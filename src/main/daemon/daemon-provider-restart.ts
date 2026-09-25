@@ -21,6 +21,7 @@ import {
 import { getDaemonProvider, getDaemonSpawner, replaceDaemonProvider } from './daemon-provider-state'
 import { DaemonPtyAdapter } from './daemon-pty-adapter'
 import type { DaemonRespawnReason } from './daemon-pty-runtime-state'
+import { logDaemonRespawn } from './pc-desk-daemon-respawn-log'
 import { DaemonPtyRouter } from './daemon-pty-router'
 import { cleanupDaemonForProtocol } from './daemon-protocol-cleanup'
 import {
@@ -96,6 +97,7 @@ async function runRestartDaemon(): Promise<RestartDaemonResult> {
     packagedAppVersion: resolvePackagedDarwinAppVersion(),
     historyPath: getHistoryDir(),
     respawn: async (reason: DaemonRespawnReason) => {
+      logDaemonRespawn(reason, getDaemonPidPath(runtimeDir), isDaemonRestartInFlight())
       // Why: attribute rather than emit — the launcher below is the one that completes the
       // replacement, and emitting here would fire before the outcome is known.
       // Caveat: a wedged-but-alive daemon (#8689) can still report died_respawn here and

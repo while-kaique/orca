@@ -13,5 +13,10 @@ if not exist "%ORCA_DEV_USER_DATA_PATH%" (
   robocopy "%APPDATA%\orca\profiles" "%ORCA_DEV_USER_DATA_PATH%\profiles" /E /NFL /NDL /NJH /NJS >nul
   copy /Y "%APPDATA%\orca\orca-profile-index.json" "%ORCA_DEV_USER_DATA_PATH%\" >nul
 )
+rem Grava a saida do app (avisos do processo principal) para investigar quedas depois.
+set "ORCA_LOG_DIR=%ORCA_DEV_USER_DATA_PATH%\logs"
+if not exist "%ORCA_LOG_DIR%" mkdir "%ORCA_LOG_DIR%"
+if exist "%ORCA_LOG_DIR%\main-console.log" move /Y "%ORCA_LOG_DIR%\main-console.log" "%ORCA_LOG_DIR%\main-console.anterior.log" >nul
 cd /d "%~dp0"
-pnpm dev-stable-name
+echo === aberto em %DATE% %TIME% ===>> "%ORCA_LOG_DIR%\main-console.log"
+pnpm dev-stable-name >> "%ORCA_LOG_DIR%\main-console.log" 2>&1

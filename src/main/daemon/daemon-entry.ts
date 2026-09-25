@@ -28,6 +28,7 @@ import { readCurrentDaemonReadyIdentity } from './daemon-ready-identity'
 import { publishDaemonPidFile } from './daemon-spawner'
 import { isNativePtyException } from './daemon-native-pty-exception'
 import { startDaemonScopeDeathWatch } from './daemon-scope-death-watch'
+import { startDaemonHeartbeat } from './pc-desk-daemon-watch'
 
 export type ParsedDaemonArgs = {
   socketPath: string
@@ -134,6 +135,7 @@ async function main(): Promise<void> {
   // Fail-open: a broken log path must never block daemon startup.
   const daemonLog = logFilePath ? createDaemonFileLog(logFilePath) : createNoopDaemonFileLog()
   daemonLog.log('startup', { protocolVersion: PROTOCOL_VERSION, socketPath })
+  startDaemonHeartbeat(daemonLog)
   startDaemonScopeDeathWatch({
     freshScope: freshDaemonScope === true,
     launchNonce,

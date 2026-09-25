@@ -82,3 +82,13 @@
   nome provisório (= nome do projeto) é ignorado. Sem mudança no código do app.
 - Atraso: o nome novo entra na mensagem SEGUINTE do chat (hook só roda quando você manda mensagem ou reabre).
 - Backup do settings: `~/.claude/settings.json.bak-nome-aba`.
+
+## 25/09 18h — app "trava, pisca e volta" sem ninguém mexer (investigando)
+- Causa vista no log: o **serviço de terminais (daemon) morre calado** e o app sobe outro; todos os chats remontam.
+  Em 25/09: 12:54, 14:16, 16:07, 17:59 (horário de Brasília). Nenhuma linha de erro, nenhum crash no Windows.
+- Monitoramento novo (vale depois de fechar e abrir `dev-orca.bat`), tudo em `%APPDATA%\orca-fork\logs`:
+  1. `daemon.log` → `heartbeat` a cada 30 s (memória, atraso do laço) + `process-exit`. Batimento parando sem `process-exit` = morte nativa ou kill externo; atraso alto antes = travou.
+  2. `daemon-watch.log` → `daemon-respawn`: motivo, pid antigo e se ainda estava vivo.
+  3. `main-console.log` → saída do processo principal (antes ia pro nada). Sessão anterior em `main-console.anterior.log`.
+- Código: `src/main/daemon/pc-desk-daemon-watch.ts` (dentro do daemon) e `pc-desk-daemon-respawn-log.ts` (no app).
+- Próximo: na próxima queda, cruzar os 3 arquivos pelo horário.
