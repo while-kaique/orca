@@ -48,7 +48,9 @@ export function startPcDeskSessionNamer(): void {
   }
   setPcDeskSmartTitlesPreferred(isPcDeskModeEnabled())
   // Why: the phone's workspace list is built in main, which can't read this renderer preference.
-  void window.api?.repos?.setPcDeskSmartTitles?.(isPcDeskModeEnabled())
+  if (typeof window !== 'undefined') {
+    void window.api?.repos?.setPcDeskSmartTitles?.(isPcDeskModeEnabled())
+  }
 }
 
 function isActive(): boolean {
