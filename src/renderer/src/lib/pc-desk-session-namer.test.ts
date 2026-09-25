@@ -120,3 +120,25 @@ describe('pcDeskWorkspaceSessionTitle', () => {
     expect(pcDeskWorkspaceSessionTitle(undefined)).toBeNull()
   })
 })
+
+describe('pc-desk session namer after a restart', () => {
+  it('treats a saved project-name placeholder as unnamed and names it on the next prompt', async () => {
+    vi.useFakeTimers()
+    startPcDeskSessionNamer()
+    const suggest = vi.fn().mockResolvedValue({ kind: 'rename', title: 'Lote 6 vitrine' })
+    vi.stubGlobal('window', { api: { repos: { suggestPcDeskSessionTitle: suggest } } })
+    const store = makeStore()
+    store.tabsByWorktree.wt = [{ id: 'tab3', customTitle: null, generatedTitle: 'orca' }]
+    notePcDeskAgentPrompt(store.getState, {
+      paneKey: 'tab3:a',
+      prompt: 'revisa o lote 6',
+      worktreeId: 'wt',
+      tabId: 'tab3'
+    })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(suggest).toHaveBeenCalledTimes(1)
+    expect(suggest.mock.calls[0][0].currentIsPlaceholder).toBe(true)
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+})

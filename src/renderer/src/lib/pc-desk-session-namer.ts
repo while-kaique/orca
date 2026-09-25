@@ -84,6 +84,14 @@ function anchorIsGone(anchorPaneKey: string): boolean {
   return !storeState().agentStatusByPaneKey[anchorPaneKey]
 }
 
+function isRealSessionTitle(
+  title: string | null | undefined,
+  target: { projectName: string } | null
+): boolean {
+  const trimmed = title?.trim()
+  return Boolean(trimmed) && (!target || trimmed !== capSessionTitle(target.projectName))
+}
+
 /** Called for every accepted agent status update; cheap unless the prompt is new. */
 export function notePcDeskAgentPrompt(
   getState: () => AppState,
@@ -117,8 +125,8 @@ export function notePcDeskAgentPrompt(
       newPromptCount: 0,
       lastCheckAt: now,
       lastRenameAt: now,
-      // A title restored from a previous run is already a real name, not the placeholder.
-      hasRealName: Boolean(tab.generatedTitle?.trim()),
+      // A restored title is a real name unless it is the saved project-name placeholder.
+      hasRealName: isRealSessionTitle(tab.generatedTitle, workspaceTargetFor(input.worktreeId)),
       inFlight: false,
       failures: 0
     }
