@@ -95,3 +95,10 @@
 - **Atalho "Orca (meu)" agora abre no modo montado** (`abrir-orca-fork.vbs` → `abrir-orca-montado.bat`): monta em ~10 s
   e roda sem recarregar quando o código muda. Se montar/abrir falhar, cai sozinho no `dev-orca.bat`.
   Para editar o Orca com recarga automática, abrir `dev-orca.bat` direto. Ainda não testado ao vivo (o app estava aberto).
+
+## 28/09 — botão "+ Adicionar Chat" + grupo desfeito
+- Botão **+ Adicionar Chat** logo abaixo do seletor de projeto (modo mesa): abre uma aba nova com o agente padrão
+  (Claude) no projeto/worktree ativo — processo novo, então a conversa tem memória própria.
+  `pc-desk-switcher/PcDeskAddChatButton.tsx`. Falta: Kaique ver na tela.
+- Grupo "Projetos group" (criado sem querer) desfeito pela RPC `projectGroup.delete` — só desagrupa, a pasta
+  Projetos e os chats ficaram. Backup: `%APPDATA%\orca-fork\profiles\local-default\orca-data.json.antes-desfazer-grupo`.

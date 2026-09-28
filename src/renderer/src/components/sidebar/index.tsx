@@ -21,6 +21,7 @@ import { lazyWithRetry } from '@/lib/lazy-with-retry'
 import { LocalGitToolchainScanBanner } from './LocalGitToolchainScanBanner'
 import { PcDeskProjectSwitcher } from './pc-desk-switcher/PcDeskProjectSwitcher'
 import { PcDeskNewProjectButton } from './pc-desk-switcher/PcDeskNewProjectButton'
+import { PcDeskAddChatButton } from './pc-desk-switcher/PcDeskAddChatButton'
 import { usePcDeskMode } from '@/lib/pc-desk-mode'
 
 // Why lazy: the Agents list pulls the whole activity pipeline (virtualizer, markdown
@@ -187,7 +188,12 @@ function Sidebar({
               </React.Suspense>
             ) : (
               <>
-                {pcDeskMode ? <PcDeskProjectSwitcher /> : null}
+                {pcDeskMode ? (
+                  <>
+                    <PcDeskProjectSwitcher />
+                    <PcDeskAddChatButton />
+                  </>
+                ) : null}
                 <LocalGitToolchainScanBanner />
                 <WorktreeList
                   scrollOffsetRef={worktreeScrollOffsetRef}
