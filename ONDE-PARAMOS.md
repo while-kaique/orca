@@ -102,3 +102,17 @@
   `pc-desk-switcher/PcDeskAddChatButton.tsx`. Falta: Kaique ver na tela.
 - Grupo "Projetos group" (criado sem querer) desfeito pela RPC `projectGroup.delete` — só desagrupa, a pasta
   Projetos e os chats ficaram. Backup: `%APPDATA%\orca-fork\profiles\local-default\orca-data.json.antes-desfazer-grupo`.
+
+## 28/09 (tarde) — cada chat vira uma linha própria na barra
+- Pedido: "+" → "Projetos" → Enter não fazia nada; "Adicionar Chat" só abria aba no mesmo espaço; "social hub" não abria.
+- Causas: (1) a barra mostrava 1 linha por pasta, e escolher a pasta já aberta só a reativava;
+  (2) a busca não tratava espaço como `-`/`_`, então "social hub" só oferecia "Criar projeto".
+- Agora (modo mesa):
+  1. Cada chat (aba de terminal) é uma linha debaixo do projeto, com nome, bolinha e X próprios; clicar abre aquele chat.
+     `pc-desk-switcher/pc-desk-chat-rows.ts` (divide as linhas) + `PcDeskChatCardScope.tsx` (contexto do chat no card).
+  2. "+" lá embaixo: escolher uma pasta abre um **chat novo** nela (nova linha), mesmo se ela já estiver aberta.
+     "Criar projeto" também já abre com um chat. `launch-pc-desk-chat.ts` (usado também pelo "Adicionar Chat").
+  3. Busca: espaço casa com `-`, `_` e `.` ("social hub" → social-hub-gogroup; também acha socialhub-profiles).
+- Limite: as abas no topo continuam mostrando todos os chats da mesma pasta.
+- Testes da barra: 186 falhas já existiam antes desta mudança (mesmo número com `git stash`).
+- Falta: Kaique fechar e abrir o "Orca (meu)" (remonta sozinho) e testar.

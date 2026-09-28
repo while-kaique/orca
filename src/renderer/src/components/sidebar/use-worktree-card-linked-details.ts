@@ -4,6 +4,7 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { usePcDeskMode } from '@/lib/pc-desk-mode'
 import { pcDeskWorkspaceSessionTitle } from '@/lib/pc-desk-session-namer'
+import { usePcDeskChatTabId } from './pc-desk-switcher/pc-desk-chat-rows'
 import type { IssueInfo } from '../../../../shared/github/pull-request-types'
 import type { LinearIssue } from '../../../../shared/linear/issue-types'
 import { getWorktreeCardJiraIssueDisplay } from './worktree-card-jira-issue-display'
@@ -119,9 +120,17 @@ export function useWorktreeCardLinkedDetails({
   })
   const legacyCardTitleDisplay = coerceWorktreeCardVisibleTitle(worktree.displayName)
   const pcDeskMode = usePcDeskMode()
-  const pcDeskSessionTitle = useAppStore((s) =>
-    pcDeskMode ? pcDeskWorkspaceSessionTitle(s.tabsByWorktree[worktree.id]) : null
-  )
+  const pcDeskChatTabId = usePcDeskChatTabId()
+  const pcDeskSessionTitle = useAppStore((s) => {
+    if (!pcDeskMode) {
+      return null
+    }
+    const tabs = s.tabsByWorktree[worktree.id]
+    // Why: a row that stands for one chat is named after that chat, not the workspace's oldest one.
+    return pcDeskWorkspaceSessionTitle(
+      pcDeskChatTabId ? tabs?.filter((tab) => tab.id === pcDeskChatTabId) : tabs
+    )
+  })
   // Fork (PC-desk): the row names what the oldest chat is doing, not the workspace's random name.
   const visibleCardTitle =
     pcDeskSessionTitle ?? (newCardStyle ? cardTitleDisplay : legacyCardTitleDisplay)

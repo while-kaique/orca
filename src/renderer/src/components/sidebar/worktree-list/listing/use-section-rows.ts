@@ -22,9 +22,19 @@ import { buildSidebarHostOptions } from '../../sidebar-host-options'
 import { selectPendingWorktreeCreationKeys } from './pending-worktree-creation-keys'
 import { usePcDeskMode } from '@/lib/pc-desk-mode'
 import { keepPcDeskWorkingRows } from '../../pc-desk-switcher/pc-desk-sidebar-rows'
+import {
+  parsePcDeskChatTabIdsSignature,
+  selectPcDeskChatTabIdsSignature,
+  splitPcDeskRowsByChat
+} from '../../pc-desk-switcher/pc-desk-chat-rows'
 
-function filterRowsForPcDesk(pcDeskMode: boolean, rows: Row[]): Row[] {
-  return pcDeskMode ? keepPcDeskWorkingRows(rows) : rows
+function filterRowsForPcDesk(pcDeskMode: boolean, rows: Row[], chatTabIdsSignature: string): Row[] {
+  return pcDeskMode
+    ? splitPcDeskRowsByChat(
+        keepPcDeskWorkingRows(rows),
+        parsePcDeskChatTabIdsSignature(chatTabIdsSignature)
+      )
+    : rows
 }
 
 type SectionRowsArgs = {
@@ -148,6 +158,9 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
   )
 
   const pcDeskMode = usePcDeskMode()
+  const pcDeskChatTabIdsSignature = useAppStore((s) =>
+    pcDeskMode ? selectPcDeskChatTabIdsSignature(s) : ''
+  )
   const rows: Row[] = useMemo(
     () =>
       filterRowsForPcDesk(
@@ -175,10 +188,12 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
           hostLabelById,
           defaultHostId,
           args.pinnedDisplayPolicy
-        )
+        ),
+        pcDeskChatTabIdsSignature
       ),
     [
       pcDeskMode,
+      pcDeskChatTabIdsSignature,
       args.groupBy,
       worktrees,
       repoMap,

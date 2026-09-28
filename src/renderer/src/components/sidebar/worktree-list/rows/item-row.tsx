@@ -24,6 +24,7 @@ import { stopNestedWorktreeCardBubble } from './header-event-guards'
 import type { WorktreeItemRow } from '../listing/renderable-rows'
 import { getWorktreeOptionId } from './option-dom'
 import type { WorktreeRowDragState } from '../drag/row-state'
+import { PcDeskChatCardScope } from '../../pc-desk-switcher/PcDeskChatCardScope'
 
 export type WorktreeItemRowContext = {
   settings: AppState['settings']
@@ -69,7 +70,11 @@ function getWorktreeItemRowGeometry(
   ctx: WorktreeItemRowContext,
   itemRow: WorktreeItemRow,
   nested: boolean
-): { surfaceInset: number; cardContentIndent: number; lineageChildrenInlineOffset?: number } {
+): {
+  surfaceInset: number
+  cardContentIndent: number
+  lineageChildrenInlineOffset?: number
+} {
   const projectGroupId = itemRow.repo?.projectGroupId
   const isFolderBackedRepoChild =
     ctx.groupBy === 'repo' &&
@@ -185,46 +190,55 @@ export function renderWorktreeItemRow(
         paddingLeft: surfaceInset > 0 ? `${surfaceInset}px` : undefined
       }}
     >
-      <WorktreeCard
-        worktree={itemRow.worktree}
-        repo={itemRow.repo}
-        isActive={isActiveWorktree}
-        isCurrentWorktree={ctx.currentWorktreeId === itemRow.worktree.id}
-        // Why: a child-active parent should look active without the active-card side effects (e.g. SSH reconnect UI).
-        isActiveSurface={forceActiveSurface || isActiveWorktree}
-        activeSurfaceVariant={
-          isActiveWorktree && !forceActiveSurface ? ctx.getActiveSurfaceVariant(itemRow) : 'primary'
-        }
-        isMultiSelected={ctx.selectedWorktreeIds.has(worktreeIdentity)}
-        revealHighlight={ctx.highlightedRevealRowKey === itemRow.rowKey}
-        revealHighlightTone={
-          ctx.agentSendTargetWorktreeId === itemRow.worktree.id ? 'ai' : 'default'
-        }
-        selectedWorktrees={ctx.selectedWorktrees}
-        nativeDragEnabled={false}
-        isLineageDropTarget={Boolean(isLineageDropTarget)}
-        contentIndent={cardContentIndent}
-        flushSurface
-        activationRowKey={itemRow.rowKey}
-        onImmediateActivate={ctx.onImmediateActivate}
-        onSelectionGesture={ctx.onSelectionGesture}
-        onWorktreeCardClick={ctx.onWorktreeCardClick}
-        onContextMenuSelect={ctx.onContextMenuSelect}
-        onCardDragStart={ctx.onCardDragStart}
-        onCardDragEnd={ctx.onCardDragEnd}
-        hideRepoBadge={ctx.groupBy === 'repo'}
-        // Why: pinned worktrees mix repos in one section, so only it needs the leading repo identity chip.
-        hostContextLabel={itemRow.hostContextLabel}
-        inPinnedSection={itemRow.sectionKey === PINNED_GROUP_KEY}
-        renameRowKey={itemRow.rowKey}
-        lineageChildCount={itemRow.lineageChildCount}
-        lineageCollapsed={itemRow.lineageCollapsed}
-        lineageChildren={lineageChildren}
-        lineageChildrenStyle={lineageChildrenStyle}
-        onLineageToggle={
-          itemRow.lineageGroupKey ? ctx.getLineageToggleHandler(itemRow.lineageGroupKey) : undefined
-        }
-      />
+      <PcDeskChatCardScope tabId={itemRow.pcDeskTabId} isActiveWorktree={isActiveWorktree}>
+        {(chatScope) => (
+          <WorktreeCard
+            worktree={itemRow.worktree}
+            repo={itemRow.repo}
+            isActive={chatScope.isActive}
+            onActivate={chatScope.onActivate}
+            isCurrentWorktree={ctx.currentWorktreeId === itemRow.worktree.id}
+            // Why: a child-active parent should look active without the active-card side effects (e.g. SSH reconnect UI).
+            isActiveSurface={forceActiveSurface || chatScope.isActive}
+            activeSurfaceVariant={
+              chatScope.isActive && !forceActiveSurface
+                ? ctx.getActiveSurfaceVariant(itemRow)
+                : 'primary'
+            }
+            isMultiSelected={ctx.selectedWorktreeIds.has(worktreeIdentity)}
+            revealHighlight={ctx.highlightedRevealRowKey === itemRow.rowKey}
+            revealHighlightTone={
+              ctx.agentSendTargetWorktreeId === itemRow.worktree.id ? 'ai' : 'default'
+            }
+            selectedWorktrees={ctx.selectedWorktrees}
+            nativeDragEnabled={false}
+            isLineageDropTarget={Boolean(isLineageDropTarget)}
+            contentIndent={cardContentIndent}
+            flushSurface
+            activationRowKey={itemRow.rowKey}
+            onImmediateActivate={ctx.onImmediateActivate}
+            onSelectionGesture={ctx.onSelectionGesture}
+            onWorktreeCardClick={ctx.onWorktreeCardClick}
+            onContextMenuSelect={ctx.onContextMenuSelect}
+            onCardDragStart={ctx.onCardDragStart}
+            onCardDragEnd={ctx.onCardDragEnd}
+            hideRepoBadge={ctx.groupBy === 'repo'}
+            // Why: pinned worktrees mix repos in one section, so only it needs the leading repo identity chip.
+            hostContextLabel={itemRow.hostContextLabel}
+            inPinnedSection={itemRow.sectionKey === PINNED_GROUP_KEY}
+            renameRowKey={itemRow.rowKey}
+            lineageChildCount={itemRow.lineageChildCount}
+            lineageCollapsed={itemRow.lineageCollapsed}
+            lineageChildren={lineageChildren}
+            lineageChildrenStyle={lineageChildrenStyle}
+            onLineageToggle={
+              itemRow.lineageGroupKey
+                ? ctx.getLineageToggleHandler(itemRow.lineageGroupKey)
+                : undefined
+            }
+          />
+        )}
+      </PcDeskChatCardScope>
     </div>
   )
 }

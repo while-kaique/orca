@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { usePcDeskHomeFolders } from './use-pc-desk-home-folders'
-import { openPcDeskFolder } from './open-pc-desk-folder'
+import { openPcDeskChatInFolder } from './launch-pc-desk-chat'
 import { createPcDeskProject } from './create-pc-desk-project'
 import { PcDeskFolderView } from './PcDeskFolderView'
 import { PcDeskWorktreeView } from './PcDeskWorktreeView'
@@ -10,7 +10,7 @@ import type { PcDeskSwitcherRow } from './pc-desk-switcher-rows'
 
 type View = { kind: 'folders' } | { kind: 'worktrees'; row: PcDeskSwitcherRow }
 
-/** PC-desk mode: fixed "+" under the open chats — search Desktop\Projetos or create a new project. */
+/** PC-desk mode: fixed "+" under the open chats — a new chat (own row) in a Projetos folder, or a new project. */
 export function PcDeskNewProjectButton(): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [view, setView] = useState<View>({ kind: 'folders' })
@@ -50,7 +50,7 @@ export function PcDeskNewProjectButton(): React.JSX.Element {
               placeholder="Nome do projeto"
               onPick={(row) => {
                 close()
-                void openPcDeskFolder(row)
+                void openPcDeskChatInFolder(row)
               }}
               onShowWorktrees={(row) => setView({ kind: 'worktrees', row })}
               onCreate={(name) => {

@@ -1,12 +1,10 @@
 import React from 'react'
 import { Plus } from 'lucide-react'
-import { toast } from 'sonner'
 import { useAppStore } from '@/store'
 import { findWorktreeById } from '@/store/github/worktree-refresh'
-import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
-import { resolveDefaultAgentForNewTab } from '@/lib/agent-tab-shortcuts'
+import { launchPcDeskChat } from './launch-pc-desk-chat'
 
-/** PC-desk mode: opens one more agent chat (its own session) in the project picked above. */
+/** PC-desk mode: opens one more agent chat (its own session and sidebar row) in the project picked above. */
 export function PcDeskAddChatButton(): React.JSX.Element {
   const activeWorktreeId = useAppStore((s) => s.activeWorktreeId)
   const projectName = useAppStore((s) => {
@@ -17,30 +15,8 @@ export function PcDeskAddChatButton(): React.JSX.Element {
   })
 
   const handleClick = (): void => {
-    if (!activeWorktreeId) {
-      return
-    }
-    const state = useAppStore.getState()
-    const agent = resolveDefaultAgentForNewTab({
-      defaultTuiAgent: state.settings?.defaultTuiAgent ?? 'claude',
-      detectedAgentIds: state.detectedAgentIds,
-      disabledTuiAgents: state.settings?.disabledTuiAgents
-    })
-    if (!agent) {
-      toast.error('Nenhum agente instalado para abrir o chat.')
-      return
-    }
-    // Why a new tab: each launch is a fresh agent process, so the new chat has its own memory.
-    const result = launchAgentInNewTab({
-      agent,
-      worktreeId: activeWorktreeId,
-      groupId:
-        state.activeGroupIdByWorktree[activeWorktreeId] ??
-        state.groupsByWorktree[activeWorktreeId]?.[0]?.id,
-      launchSource: 'shortcut'
-    })
-    if (!result) {
-      toast.error('Não consegui abrir o chat novo.')
+    if (activeWorktreeId) {
+      launchPcDeskChat(activeWorktreeId)
     }
   }
 

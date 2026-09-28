@@ -13,6 +13,7 @@ import { useIsSleepingWorktree } from './use-worktree-sleep-state'
 import type { WorktreeCardPrDisplay } from './worktree-card-pr-display'
 import { getReviewLabel, ReviewIcon } from './worktree-review-helpers'
 import { selectWorktreeHasUnseenDone } from './pc-desk-switcher/worktree-unseen-done'
+import { usePcDeskChatTabId } from './pc-desk-switcher/pc-desk-chat-rows'
 
 type WorktreeCardStatusSlotProps = {
   worktreeId: string
@@ -110,10 +111,11 @@ export function WorktreeCardStatusSlot({
   branchIdentityLabel,
   className
 }: WorktreeCardStatusSlotProps): React.JSX.Element | null {
-  const status = useWorktreeActivityStatus(worktreeId)
+  const pcDeskChatTabId = usePcDeskChatTabId()
+  const status = useWorktreeActivityStatus(worktreeId, pcDeskChatTabId)
   const pcDeskMode = usePcDeskMode()
   const hasUnseenDone = useAppStore((s) =>
-    pcDeskMode ? selectWorktreeHasUnseenDone(s, worktreeId) : false
+    pcDeskMode ? selectWorktreeHasUnseenDone(s, worktreeId, pcDeskChatTabId) : false
   )
   // Why: in PC-desk mode a filled green dot means "finished and you haven't looked"; seen chats get a ring.
   const seen = pcDeskMode ? !(hasUnseenDone || isUnread) : undefined

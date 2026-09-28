@@ -29,6 +29,15 @@ describe('matchFolderName', () => {
     expect(matchFolderName('hit-stories', 'hsr').score).toBe(1)
     expect(matchFolderName('orca', 'xyz').score).toBe(0)
   })
+
+  it('treats a typed space like the dash or underscore in folder names', () => {
+    expect(matchFolderName('social-hub-gogroup', 'social hub')).toEqual({
+      score: 4,
+      indexes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    })
+    expect(matchFolderName('socialhub-profiles', 'social hub').score).toBe(1)
+    expect(matchFolderName('torre_b2b', 'torre b2b').score).toBe(4)
+  })
 })
 
 describe('buildPcDeskSwitcherSections', () => {

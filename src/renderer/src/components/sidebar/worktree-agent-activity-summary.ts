@@ -227,7 +227,7 @@ function agentStatusPaneIdsByTabIdEqual(
   return true
 }
 
-function applyLiveAgentState(
+export function applyLiveAgentState(
   summary: WorktreeAgentActivitySummary,
   entry: Pick<AgentStatusEntry, 'state' | 'workingMode' | 'interrupted'>
 ): void {

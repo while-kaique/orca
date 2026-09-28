@@ -44,6 +44,8 @@ export type WorktreeRow = {
   lineageGroupKey?: string
   lineageCollapsed?: boolean
   hostContextLabel?: string
+  /** Fork (PC-desk): the one chat this row stands for; the workspace then has a row per chat. */
+  pcDeskTabId?: string
 }
 
 export type ImportedWorktreesCardCandidate = {

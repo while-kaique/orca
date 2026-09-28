@@ -10,7 +10,8 @@ import {
   handleRepoHeaderActionPointerDown,
   stopRepoHeaderKeyboardToggle
 } from '../worktree-list/rows/header-event-guards'
-import { closePcDeskProject, closePcDeskWorktrees } from './close-pc-desk-project'
+import { closePcDeskChat, closePcDeskProject, closePcDeskWorktrees } from './close-pc-desk-project'
+import { usePcDeskChatTabId } from './pc-desk-chat-rows'
 
 /** True in PC-desk mode while the workspace has any tab open. */
 export function usePcDeskCloseVisible(worktreeId: string): boolean {
@@ -59,25 +60,31 @@ export function PcDeskCloseProjectButton({
   )
 }
 
-/** Hover X on a workspace row: closes that workspace's chats. */
+/** Hover X on a workspace row: closes that row's chat, or all the workspace's chats. */
 export function PcDeskCloseWorktreeButton({
   worktreeId
 }: {
   worktreeId: string
 }): React.JSX.Element {
+  const chatTabId = usePcDeskChatTabId()
+  const label = chatTabId ? 'Fechar este chat' : 'Fechar os chats'
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
           type="button"
           data-workspace-board-preserve-open=""
-          aria-label="Fechar os chats desta worktree"
+          aria-label={chatTabId ? 'Fechar este chat' : 'Fechar os chats desta worktree'}
           // Why: a pointerdown reaching the card would activate the workspace being closed.
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.preventDefault()
             event.stopPropagation()
-            closePcDeskWorktrees([worktreeId])
+            if (chatTabId) {
+              closePcDeskChat(worktreeId, chatTabId)
+            } else {
+              closePcDeskWorktrees([worktreeId])
+            }
           }}
           className="inline-flex size-4 items-center justify-center rounded bg-transparent text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/worktree-card:opacity-100 group-focus-within/worktree-card:opacity-100"
         >
@@ -85,7 +92,7 @@ export function PcDeskCloseWorktreeButton({
         </button>
       </TooltipTrigger>
       <TooltipContent side="right" sideOffset={8}>
-        Fechar os chats
+        {label}
       </TooltipContent>
     </Tooltip>
   )

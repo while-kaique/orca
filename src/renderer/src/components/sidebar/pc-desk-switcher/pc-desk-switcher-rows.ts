@@ -26,11 +26,13 @@ export type PcDeskSwitcherSections = {
 
 const RECENT_LIMIT = 5
 
+// Why one-for-one: "social hub" must find "social-hub-gogroup", and highlight indexes must still line up.
 function normalizeForSearch(value: string): string {
   return value
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
+    .replace(/[-_.]/g, ' ')
 }
 
 /** Contiguous hits beat scattered ones; a hit at a word start beats one mid-word. */
@@ -46,15 +48,17 @@ export function matchFolderName(name: string, query: string): { score: number; i
     const wordStart = at === 0 || /[\s\-_./]/.test(haystack[at - 1] ?? '')
     return { score: at === 0 ? 4 : wordStart ? 3 : 2, indexes }
   }
+  // Why no spaces: "social hub" still finds "socialhub-profiles" letter by letter.
+  const letters = needle.replace(/\s+/g, '')
   const indexes: number[] = []
   let cursor = 0
-  for (let i = 0; i < haystack.length && cursor < needle.length; i++) {
-    if (haystack[i] === needle[cursor]) {
+  for (let i = 0; i < haystack.length && cursor < letters.length; i++) {
+    if (haystack[i] === letters[cursor]) {
       indexes.push(i)
       cursor++
     }
   }
-  return cursor === needle.length ? { score: 1, indexes } : { score: 0, indexes: [] }
+  return cursor === letters.length ? { score: 1, indexes } : { score: 0, indexes: [] }
 }
 
 export function isRepoOpen(

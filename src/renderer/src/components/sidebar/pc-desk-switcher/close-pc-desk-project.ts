@@ -29,6 +29,16 @@ export function closePcDeskWorktrees(worktreeIds: readonly string[]): void {
   }
 }
 
+/** Closes one chat (a sidebar row per chat); the last chat closes the workspace like before. */
+export function closePcDeskChat(worktreeId: string, tabId: string): void {
+  const tabs = useAppStore.getState().tabsByWorktree[worktreeId] ?? []
+  if (tabs.every((tab) => tab.id === tabId)) {
+    closePcDeskWorktrees([worktreeId])
+    return
+  }
+  closeTerminalTab(tabId, { force: true, skipRunningProcessConfirm: true })
+}
+
 /** "Take off the sidebar": closes the chats of every workspace of the project. */
 export function closePcDeskProject(repo: Pick<Repo, 'id'>): void {
   const worktrees = useAppStore.getState().worktreesByRepo[repo.id] ?? []
