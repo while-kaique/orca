@@ -16,9 +16,12 @@ if not exist "%ORCA_DEV_USER_DATA_PATH%" (
 rem Grava a saida do app (avisos do processo principal) para investigar quedas depois.
 set "ORCA_LOG_DIR=%ORCA_DEV_USER_DATA_PATH%\logs"
 if not exist "%ORCA_LOG_DIR%" mkdir "%ORCA_LOG_DIR%"
-if exist "%ORCA_LOG_DIR%\main-console.log" move /Y "%ORCA_LOG_DIR%\main-console.log" "%ORCA_LOG_DIR%\main-console.anterior.log" >nul
+if exist "%ORCA_LOG_DIR%\main-console.log" move /Y "%ORCA_LOG_DIR%\main-console.log" "%ORCA_LOG_DIR%\main-console.anterior.log" >nul 2>&1
+rem Se um processo antigo do fork ainda segura o log, grava num arquivo novo em vez de falhar.
+set "LOG=%ORCA_LOG_DIR%\main-console.log"
+if exist "%LOG%" set "LOG=%ORCA_LOG_DIR%\main-console-%RANDOM%.log"
 cd /d "%~dp0"
 rem O modo dev reescreve out\, entao a montagem do atalho deixa de valer.
 if exist "out\.pc-desk-build-key" del "out\.pc-desk-build-key"
-echo === aberto em %DATE% %TIME% ===>> "%ORCA_LOG_DIR%\main-console.log"
-pnpm dev-stable-name >> "%ORCA_LOG_DIR%\main-console.log" 2>&1
+echo === aberto em %DATE% %TIME% ===>> "%LOG%"
+pnpm dev-stable-name >> "%LOG%" 2>&1

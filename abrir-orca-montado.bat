@@ -13,8 +13,10 @@ if not exist "%ORCA_DEV_USER_DATA_PATH%" (
 )
 set "ORCA_LOG_DIR=%ORCA_DEV_USER_DATA_PATH%\logs"
 if not exist "%ORCA_LOG_DIR%" mkdir "%ORCA_LOG_DIR%"
-if exist "%ORCA_LOG_DIR%\main-console.log" move /Y "%ORCA_LOG_DIR%\main-console.log" "%ORCA_LOG_DIR%\main-console.anterior.log" >nul
+if exist "%ORCA_LOG_DIR%\main-console.log" move /Y "%ORCA_LOG_DIR%\main-console.log" "%ORCA_LOG_DIR%\main-console.anterior.log" >nul 2>&1
+rem Se um processo antigo do fork ainda segura o log, grava num arquivo novo em vez de falhar.
 set "LOG=%ORCA_LOG_DIR%\main-console.log"
+if exist "%LOG%" set "LOG=%ORCA_LOG_DIR%\main-console-%RANDOM%.log"
 cd /d "%~dp0"
 echo === modo montado, aberto em %DATE% %TIME% ===>> "%LOG%"
 set "BUILD_KEY=%~dp0out\.pc-desk-build-key"
