@@ -24,8 +24,11 @@ rem So monta se o codigo mudou desde a ultima montagem (economiza ~10 s).
 node config\scripts\pc-desk-build-key.mjs "%BUILD_KEY%"
 if not errorlevel 1 goto start
 if exist "%BUILD_KEY%" del "%BUILD_KEY%"
+rem Apaga a montagem antiga: se o build nem rodar (ex.: log preso), a chave nao e gravada.
+if exist "%~dp0out\main\index.js" del "%~dp0out\main\index.js"
 call pnpm run build:electron-vite >> "%LOG%" 2>&1
 if errorlevel 1 goto dev
+if not exist "%~dp0out\main\index.js" goto dev
 node config\scripts\pc-desk-build-key.mjs "%BUILD_KEY%" --save
 :start
 call pnpm run ensure:electron-runtime >> "%LOG%" 2>&1
