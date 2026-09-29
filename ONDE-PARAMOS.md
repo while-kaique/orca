@@ -116,3 +116,10 @@
 - Limite: as abas no topo continuam mostrando todos os chats da mesma pasta.
 - Testes da barra: 186 falhas já existiam antes desta mudança (mesmo número com `git stash`).
 - Falta: Kaique fechar e abrir o "Orca (meu)" (remonta sozinho) e testar.
+
+## 29/09 — "+" no cabeçalho do projeto
+- Pedido: "+" no card da pasta (ex.: Projetos), antes da setinha, que abre um chat novo.
+- Feito: `pc-desk-switcher/PcDeskHeaderNewChatButton.tsx` (em `SectionHeader.tsx`, só no modo mesa). Aparece ao
+  passar o mouse no cabeçalho, como os outros botões; o chat nasce como linha nova debaixo do projeto.
+- Mesmo caminho do "+" de baixo: `openPcDeskChatInRepo` em `launch-pc-desk-chat.ts`.
+- Falta: Kaique reabrir o "Orca (meu)" (remonta sozinho) e testar.

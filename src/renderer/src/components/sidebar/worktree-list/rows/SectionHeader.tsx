@@ -45,6 +45,7 @@ import { getWorktreeOptionId } from './option-dom'
 import { activateProjectFolder, RepoHeaderWorktreesMenu } from './repo-header-worktrees-menu'
 import { isPcDeskModeEnabled } from '@/lib/pc-desk-mode'
 import { getPcDeskProjectContextMenuHandler } from '../../pc-desk-switcher/pc-desk-project-menu-request'
+import { PcDeskHeaderNewChatButton } from '../../pc-desk-switcher/PcDeskHeaderNewChatButton'
 import { isGitRepoKind } from '../../../../../../shared/repo-kind'
 
 export type SectionHeaderRowContext = {
@@ -350,6 +351,8 @@ export function renderWorktreeSectionHeaderRow(args: {
         </div>
 
         <ProjectHeaderActions>
+          {pcDeskRepo ? <PcDeskHeaderNewChatButton repo={pcDeskRepo} label={row.label} /> : null}
+
           {showHeaderCollapseAffordance ? (
             <div
               className="flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent/70 hover:text-foreground"

@@ -3,6 +3,7 @@ import { useAppStore } from '@/store'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
 import { resolveDefaultAgentForNewTab } from '@/lib/agent-tab-shortcuts'
+import type { Repo } from '../../../../../shared/repo-types'
 import { getRepoMainWorktreeId } from '../../../../../shared/worktree/id'
 import { ensurePcDeskRepo } from './open-pc-desk-folder'
 import type { PcDeskSwitcherRow } from './pc-desk-switcher-rows'
@@ -33,13 +34,8 @@ export function launchPcDeskChat(worktreeId: string): boolean {
   return true
 }
 
-/** "+" pick: adds the folder as a project if needed, then opens a new chat in it. */
-export async function openPcDeskChatInFolder(row: PcDeskSwitcherRow): Promise<void> {
-  const repo = await ensurePcDeskRepo(row)
-  if (!repo) {
-    toast.error('Não deu para abrir o projeto', { description: row.path })
-    return
-  }
+/** Activates the project folder and opens a new chat in it (header "+" and the bottom "+"). */
+export function openPcDeskChatInRepo(repo: Pick<Repo, 'id' | 'path' | 'displayName'>): void {
   const worktreeId = getRepoMainWorktreeId(repo)
   // Why: the chat is the first surface; without this an empty workspace also gets a bare shell.
   const activated = activateAndRevealWorktree(worktreeId, { providesInitialSurface: true })
@@ -48,4 +44,14 @@ export async function openPcDeskChatInFolder(row: PcDeskSwitcherRow): Promise<vo
     return
   }
   launchPcDeskChat(worktreeId)
+}
+
+/** "+" pick: adds the folder as a project if needed, then opens a new chat in it. */
+export async function openPcDeskChatInFolder(row: PcDeskSwitcherRow): Promise<void> {
+  const repo = await ensurePcDeskRepo(row)
+  if (!repo) {
+    toast.error('Não deu para abrir o projeto', { description: row.path })
+    return
+  }
+  openPcDeskChatInRepo(repo)
 }
