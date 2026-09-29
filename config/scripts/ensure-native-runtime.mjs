@@ -2,7 +2,7 @@
 
 import { spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { release } from 'node:os'
 import { basename, dirname, resolve } from 'node:path'
 import {
@@ -111,6 +111,20 @@ function ensureElectronRuntime() {
     return
   }
 
+  // Why: Windows App Control (Smart App Control) can refuse a locally built,
+  // unsigned addon; rebuilding every launch cost minutes of MSBuild and, with
+  // two launches at once, overloaded the PC. Try once per blocked binary.
+  const blockedFingerprint = appControlBlockFingerprint(initial)
+  if (!patchedNodePtyRebuildReason && blockedFingerprint) {
+    if (readAppControlAttempts().includes(blockedFingerprint)) {
+      console.warn(
+        '[native-runtime] Windows App Control still blocks the same native addon; skipping the rebuild (already tried once).'
+      )
+      return
+    }
+    rememberAppControlAttempt(blockedFingerprint)
+  }
+
   if (patchedNodePtyRebuildReason) {
     console.warn(`[native-runtime] ${patchedNodePtyRebuildReason}`)
     if (!initial.ok) {
@@ -122,15 +136,79 @@ function ensureElectronRuntime() {
     )
     printCheckError(initial)
   }
-  runNodeScript(['config/scripts/rebuild-native-deps.mjs'])
+  const rebuild = spawnSync(process.execPath, ['config/scripts/rebuild-native-deps.mjs'], {
+    cwd: projectDir,
+    stdio: 'inherit'
+  })
 
   const final = runElectronCheck()
+  const finalBlockedFingerprint = appControlBlockFingerprint(final)
+  if (finalBlockedFingerprint) {
+    rememberAppControlAttempt(finalBlockedFingerprint)
+    console.warn(
+      '[native-runtime] Windows App Control blocks the rebuilt addon; starting without it and not rebuilding again.'
+    )
+    return
+  }
+  if (rebuild.error || rebuild.status !== 0) {
+    console.error('[native-runtime] config/scripts/rebuild-native-deps.mjs failed.')
+    process.exit(rebuild.status ?? 1)
+  }
   if (!final.ok) {
     console.error(
       `[native-runtime] Native modules still do not load for ${formatRuntimeLabel('electron')}.`
     )
     printCheckError(final)
     process.exit(1)
+  }
+}
+
+// Windows error 4551 is ERROR_SYSTEM_INTEGRITY_POLICY_VIOLATION.
+const APP_CONTROL_BLOCK_PATTERN =
+  /error:\s*4551\b|Application Control policy|Controle de Aplicativo/i
+const APP_CONTROL_ATTEMPTS_PATH = resolve(
+  projectDir,
+  'node_modules',
+  '.cache',
+  'orca-app-control-rebuild-attempts.json'
+)
+
+// The exact blocked binaries (path + size + mtime), or null when any failure is not an App Control block.
+function appControlBlockFingerprint(check) {
+  if (process.platform !== 'win32' || check.ok || check.failures.length === 0) {
+    return null
+  }
+  const parts = []
+  for (const failure of check.failures) {
+    const addonPath = /([A-Za-z]:\\.*?\.node)/.exec(failure.message)?.[1]
+    if (!APP_CONTROL_BLOCK_PATTERN.test(failure.message) || !addonPath || !existsSync(addonPath)) {
+      return null
+    }
+    const stat = statSync(addonPath)
+    parts.push(`${addonPath}|${stat.size}|${stat.mtimeMs}`)
+  }
+  return parts.sort().join(';')
+}
+
+function readAppControlAttempts() {
+  try {
+    const attempts = JSON.parse(readFileSync(APP_CONTROL_ATTEMPTS_PATH, 'utf8'))
+    return Array.isArray(attempts) ? attempts : []
+  } catch {
+    return []
+  }
+}
+
+function rememberAppControlAttempt(fingerprint) {
+  const attempts = [
+    ...readAppControlAttempts().filter((entry) => entry !== fingerprint),
+    fingerprint
+  ]
+  try {
+    mkdirSync(dirname(APP_CONTROL_ATTEMPTS_PATH), { recursive: true })
+    writeFileSync(APP_CONTROL_ATTEMPTS_PATH, JSON.stringify(attempts.slice(-10)))
+  } catch {
+    // Best effort: without the record the next launch just tries once more.
   }
 }
 

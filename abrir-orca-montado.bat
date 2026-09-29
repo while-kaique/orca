@@ -13,6 +13,23 @@ if not exist "%ORCA_DEV_USER_DATA_PATH%" (
 )
 set "ORCA_LOG_DIR=%ORCA_DEV_USER_DATA_PATH%\logs"
 if not exist "%ORCA_LOG_DIR%" mkdir "%ORCA_LOG_DIR%"
+rem Uma abertura por vez: duas montagens ao mesmo tempo disputam os mesmos arquivos e
+rem sobrecarregam o PC (travou o Windows em 29/09/2026). A trava vale so enquanto monta.
+set "LOCK=%ORCA_LOG_DIR%\abertura.lock"
+set "PREPARED="
+set "PREP_FAILED="
+2>nul (9>"%LOCK%" call :prepare)
+if not defined PREPARED (
+  echo %DATE% %TIME% atalho ignorado: outra abertura do fork ainda esta montando>> "%ORCA_LOG_DIR%\aberturas-ignoradas.log"
+  exit /b 0
+)
+if defined PREP_FAILED goto dev
+call "%~dp0node_modules\.bin\electron-vite.cmd" preview --skipBuild >> "%LOG%" 2>&1
+if errorlevel 1 goto dev
+exit /b 0
+
+:prepare
+set "PREPARED=1"
 if exist "%ORCA_LOG_DIR%\main-console.log" move /Y "%ORCA_LOG_DIR%\main-console.log" "%ORCA_LOG_DIR%\main-console.anterior.log" >nul 2>&1
 rem Se um processo antigo do fork ainda segura o log, grava num arquivo novo em vez de falhar.
 set "LOG=%ORCA_LOG_DIR%\main-console.log"
@@ -22,18 +39,16 @@ echo === modo montado, aberto em %DATE% %TIME% ===>> "%LOG%"
 set "BUILD_KEY=%~dp0out\.pc-desk-build-key"
 rem So monta se o codigo mudou desde a ultima montagem (economiza ~10 s).
 node config\scripts\pc-desk-build-key.mjs "%BUILD_KEY%"
-if not errorlevel 1 goto start
+if not errorlevel 1 goto ensure
 if exist "%BUILD_KEY%" del "%BUILD_KEY%"
 rem Apaga a montagem antiga: se o build nem rodar (ex.: log preso), a chave nao e gravada.
 if exist "%~dp0out\main\index.js" del "%~dp0out\main\index.js"
 call pnpm run build:electron-vite >> "%LOG%" 2>&1
-if errorlevel 1 goto dev
-if not exist "%~dp0out\main\index.js" goto dev
+if errorlevel 1 (set "PREP_FAILED=1" & exit /b 1)
+if not exist "%~dp0out\main\index.js" (set "PREP_FAILED=1" & exit /b 1)
 node config\scripts\pc-desk-build-key.mjs "%BUILD_KEY%" --save
-:start
+:ensure
 call pnpm run ensure:electron-runtime >> "%LOG%" 2>&1
-call "%~dp0node_modules\.bin\electron-vite.cmd" preview --skipBuild >> "%LOG%" 2>&1
-if errorlevel 1 goto dev
 exit /b 0
 
 :dev
