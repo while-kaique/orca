@@ -22,6 +22,21 @@ export function getRepoMainWorktreeId(repo: Pick<Repo, 'id' | 'path'>): string {
   return `${repo.id}${WORKTREE_ID_SEPARATOR}${repo.path}`
 }
 
+/**
+ * The main-worktree id as the loaded list spells it. Why: repos added by the CLI keep `C:\…` while git
+ * reports `C:/…`, so the built id misses exact-id store lookups and opening the project fails.
+ */
+export function resolveRepoMainWorktreeId(
+  repo: Pick<Repo, 'id' | 'path'>,
+  worktrees: readonly { id: string; isMainWorktree?: boolean }[] | undefined
+): string {
+  const builtId = getRepoMainWorktreeId(repo)
+  const match =
+    worktrees?.find((wt) => worktreeIdsEqual(wt.id, builtId)) ??
+    worktrees?.find((wt) => wt.isMainWorktree)
+  return match?.id ?? builtId
+}
+
 export function getRepoIdFromWorktreeId(worktreeId: string): string {
   const separatorIdx = worktreeId.indexOf(WORKTREE_ID_SEPARATOR)
   return separatorIdx === -1 ? worktreeId : worktreeId.slice(0, separatorIdx)

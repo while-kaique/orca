@@ -127,6 +127,8 @@
 ## 30/09 — "+" → social-hub-gogroup dava "Não deu para abrir o projeto" (corrigido)
 - Causa: o projeto foi registrado com `C:\…` e o git devolve a pasta como `C:/…`; o seletor montava o id com `\`
   e a busca exata não achava a pasta principal.
-- Correção: `pc-desk-switcher/pc-desk-main-worktree-id.ts` acha o id real carregado (compara ignorando o tipo de barra).
-  Usado no "+", no "+" do cabeçalho, no "Criar projeto" e em "Pasta do projeto".
+- Afetava os 8 projetos com git adicionados pela CLI em 23/09 (social-strategy, hit-stories, cx-hub, goatlas…).
+- Correção definitiva: `resolveRepoMainWorktreeId` em `src/shared/worktree/id.ts` (com teste) acha o id real carregado,
+  comparando sem ligar pro tipo de barra. Usado em TODO lugar do app que abria a pasta principal pelo id montado:
+  "+", "+" do cabeçalho, "Criar projeto", "Pasta do projeto" (seletor e menu do cabeçalho) e sincronizar fork.
 - Falta: Kaique reabrir o "Orca (meu)" e testar "+" → socialhub → Enter.

@@ -14,7 +14,7 @@ import { useAppStore } from '@/store'
 import { activateWorktreeFromSidebar } from '@/lib/sidebar-worktree-activation'
 import type { Repo } from '../../../../../../shared/repo-types'
 import type { Worktree } from '../../../../../../shared/worktree/types'
-import { getRepoMainWorktreeId } from '../../../../../../shared/worktree/id'
+import { resolveRepoMainWorktreeId } from '../../../../../../shared/worktree/id'
 import {
   handleRepoHeaderActionPointerDown,
   stopRepoHeaderKeyboardToggle,
@@ -32,7 +32,9 @@ export function getWorktreeLabel(worktree: Worktree): string {
 }
 
 export function activateProjectFolder(repo: Pick<Repo, 'id' | 'path'>): void {
-  void activateWorktreeFromSidebar(getRepoMainWorktreeId(repo))
+  void activateWorktreeFromSidebar(
+    resolveRepoMainWorktreeId(repo, useAppStore.getState().worktreesByRepo[repo.id])
+  )
 }
 
 /** PC-desk mode: lists a git project's linked worktrees so one can be entered on demand. */

@@ -3,6 +3,7 @@ import {
   WORKTREE_ID_SEPARATOR,
   getRepoIdFromWorktreeId,
   getRepoMainWorktreeId,
+  resolveRepoMainWorktreeId,
   getWorktreePathBasenameFromId,
   splitWorktreeId,
   splitWorktreeIdForFilesystem,
@@ -194,5 +195,20 @@ describe('worktreeIdComparisonKey path-spelling parity for id: selectors (#16243
     expect(key('repo-a')).toBeNull()
     expect(key('repo-a::')).toBeNull()
     expect(key('/srv/workspaces/plugin')).toBeNull()
+  })
+})
+
+describe('resolveRepoMainWorktreeId', () => {
+  it('returns the loaded id when the repo path uses the other slash', () => {
+    const repo = { id: 'r1', path: String.raw`C:\Users\me\proj` }
+    const loaded = [
+      { id: 'r1::C:/Users/me/other', isMainWorktree: false },
+      { id: 'r1::C:/Users/me/proj', isMainWorktree: true }
+    ]
+    expect(resolveRepoMainWorktreeId(repo, loaded)).toBe('r1::C:/Users/me/proj')
+  })
+
+  it('falls back to the built id before worktrees load', () => {
+    expect(resolveRepoMainWorktreeId({ id: 'r1', path: '/p' }, undefined)).toBe('r1::/p')
   })
 })
