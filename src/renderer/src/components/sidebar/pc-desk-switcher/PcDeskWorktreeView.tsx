@@ -12,7 +12,7 @@ import { useAppStore } from '@/store'
 import { activateWorktreeFromSidebar } from '@/lib/sidebar-worktree-activation'
 import type { Repo } from '../../../../../shared/repo-types'
 import type { Worktree } from '../../../../../shared/worktree/types'
-import { getRepoMainWorktreeId } from '../../../../../shared/worktree/id'
+import { resolvePcDeskMainWorktreeId } from './pc-desk-main-worktree-id'
 import { getWorktreeLabel } from '../worktree-list/rows/repo-header-worktrees-menu'
 import { ensurePcDeskRepo } from './open-pc-desk-folder'
 import { matchFolderName, type PcDeskSwitcherRow } from './pc-desk-switcher-rows'
@@ -121,7 +121,10 @@ export function PcDeskWorktreeView({
             <CommandEmpty>Nenhuma worktree com “{query}”.</CommandEmpty>
             {!query ? (
               <CommandGroup>
-                <CommandItem value="__main" onSelect={() => activate(getRepoMainWorktreeId(repo))}>
+                <CommandItem
+                  value="__main"
+                  onSelect={() => activate(resolvePcDeskMainWorktreeId(repo))}
+                >
                   <FolderOpen className="size-3.5" />
                   <span className="flex-1">Pasta do projeto</span>
                   {main?.branch ? (

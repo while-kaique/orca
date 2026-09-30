@@ -123,3 +123,10 @@
   passar o mouse no cabeçalho, como os outros botões; o chat nasce como linha nova debaixo do projeto.
 - Mesmo caminho do "+" de baixo: `openPcDeskChatInRepo` em `launch-pc-desk-chat.ts`.
 - Falta: Kaique reabrir o "Orca (meu)" (remonta sozinho) e testar.
+
+## 30/09 — "+" → social-hub-gogroup dava "Não deu para abrir o projeto" (corrigido)
+- Causa: o projeto foi registrado com `C:\…` e o git devolve a pasta como `C:/…`; o seletor montava o id com `\`
+  e a busca exata não achava a pasta principal.
+- Correção: `pc-desk-switcher/pc-desk-main-worktree-id.ts` acha o id real carregado (compara ignorando o tipo de barra).
+  Usado no "+", no "+" do cabeçalho, no "Criar projeto" e em "Pasta do projeto".
+- Falta: Kaique reabrir o "Orca (meu)" e testar "+" → socialhub → Enter.

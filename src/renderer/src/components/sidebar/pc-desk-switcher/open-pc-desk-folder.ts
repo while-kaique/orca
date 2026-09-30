@@ -1,7 +1,7 @@
 import { useAppStore } from '@/store'
 import { activateWorktreeFromSidebar } from '@/lib/sidebar-worktree-activation'
 import type { Repo } from '../../../../../shared/repo-types'
-import { getRepoMainWorktreeId } from '../../../../../shared/worktree/id'
+import { resolvePcDeskMainWorktreeId } from './pc-desk-main-worktree-id'
 import type { PcDeskSwitcherRow } from './pc-desk-switcher-rows'
 
 /** Adds the folder as a project on first use (no dialog), then loads its worktrees. */
@@ -24,6 +24,6 @@ export async function ensurePcDeskRepo(row: PcDeskSwitcherRow): Promise<Repo | n
 export async function openPcDeskFolder(row: PcDeskSwitcherRow): Promise<void> {
   const repo = await ensurePcDeskRepo(row)
   if (repo) {
-    await activateWorktreeFromSidebar(getRepoMainWorktreeId(repo))
+    await activateWorktreeFromSidebar(resolvePcDeskMainWorktreeId(repo))
   }
 }

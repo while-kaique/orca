@@ -1,7 +1,7 @@
 import { toast } from 'sonner'
 import { useAppStore } from '@/store'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
-import { getRepoMainWorktreeId } from '../../../../../shared/worktree/id'
+import { resolvePcDeskMainWorktreeId } from './pc-desk-main-worktree-id'
 import { upsertAddedRepoWithProjectHostSetup } from '../add-repo-store-upsert'
 import { launchPcDeskChat } from './launch-pc-desk-chat'
 
@@ -22,7 +22,7 @@ export async function createPcDeskProject(rootPath: string, rawName: string): Pr
   }
   const { repo } = upsertAddedRepoWithProjectHostSetup(result.repo)
   await useAppStore.getState().fetchWorktrees(repo.id)
-  const worktreeId = getRepoMainWorktreeId(repo)
+  const worktreeId = resolvePcDeskMainWorktreeId(repo)
   if (activateAndRevealWorktree(worktreeId, { providesInitialSurface: true }) !== false) {
     launchPcDeskChat(worktreeId)
   }
