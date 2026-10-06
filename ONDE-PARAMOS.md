@@ -132,3 +132,11 @@
   comparando sem ligar pro tipo de barra. Usado em TODO lugar do app que abria a pasta principal pelo id montado:
   "+", "+" do cabeçalho, "Criar projeto", "Pasta do projeto" (seletor e menu do cabeçalho) e sincronizar fork.
 - Falta: Kaique reabrir o "Orca (meu)" e testar "+" → socialhub → Enter.
+
+## 06/10 — serviço de terminais caiu 2x de manhã (08:45 e 09:56)
+- Mesmo padrão de 25/09: batimento normal (memória ~165 MB, sem travar) e some, sem `process-exit`,
+  sem evento de erro no Windows e sem despejo de crash. Cara de processo morto de fora (encerramento forçado).
+- Descartado: o chat do radar-de-trends rodou `Stop-Process` na porta 8765 às 09:50 (5 min antes, outro processo).
+- Os 7 chats voltaram com a conversa (`claude --resume`), mas o que estava trabalhando para e espera mensagem.
+- Ideia em aberto: na volta, mandar "continue" sozinho só para quem estava trabalhando na hora da queda
+  (`pty-connection/cold-restore-resume-startup.ts` + último status em `last-status.json`).
