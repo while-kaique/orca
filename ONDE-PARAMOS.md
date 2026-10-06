@@ -140,3 +140,14 @@
 - Os 7 chats voltaram com a conversa (`claude --resume`), mas o que estava trabalhando para e espera mensagem.
 - Ideia em aberto: na volta, mandar "continue" sozinho só para quem estava trabalhando na hora da queda
   (`pty-connection/cold-restore-resume-startup.ts` + último status em `last-status.json`).
+
+## 06/10 10:17 — caixa-preta ligada (descobre QUEM mata o serviço)
+- Vigia `tools/caixa-preta/caixa-preta.py`, tarefa agendada **"Orca caixa-preta"** (administrador, liga ao entrar no Windows,
+  reinicia sozinha). Escuta o rastreamento do próprio Windows (ETW): quem chamou TerminateProcess + código de saída.
+- Quando o serviço (ou o app) morre, grava em `%APPDATA%\orca-fork\logs\caixa-preta\`:
+  `QUEDA-<data>-daemon-<pid>.txt` (culpado e pais até o claude.exe com a pasta, processos nascidos 90 s antes,
+  comandos dos agentes Claude em volta) + uma linha em `caixa-preta.log`. Mortes de claude.exe vão em `mortes.log`.
+- Testado: processo falso morto por `taskkill` → relatório apontou taskkill → bash → claude.exe em `Projetos`.
+- Suspeita a confirmar: o próprio Claude Code roda `taskkill` para matar comandos em segundo plano; um PID velho
+  reaproveitado pelo serviço explicaria a morte "sem dono". Na próxima queda: abrir o QUEDA mais novo.
+- Reinstalar/atualizar: `powershell -File tools\caixa-preta\instalar.ps1` (pede o "Sim" do Windows).
