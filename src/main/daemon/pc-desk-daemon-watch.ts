@@ -10,6 +10,7 @@
 // Nunca registra conteúdo de terminal. Este arquivo roda DENTRO do daemon (Node puro):
 // não importar nada que dependa do Electron. O lado do app fica em pc-desk-daemon-respawn-log.ts.
 
+import { dirname } from 'node:path'
 import { monitorEventLoopDelay } from 'node:perf_hooks'
 import type { DaemonFileLog } from './daemon-file-log'
 
@@ -17,8 +18,13 @@ const HEARTBEAT_MS = 30_000
 const MB = 1024 * 1024
 
 /** Roda dentro do daemon. Fail-open: qualquer erro aqui só desliga o monitoramento. */
-export function startDaemonHeartbeat(log: DaemonFileLog): void {
+export function startDaemonHeartbeat(log: DaemonFileLog, logFilePath?: string): void {
   try {
+    // 06/10: o daemon saiu com 134 (abort fatal do Node) 3x; o relatório traz pilha nativa e JS.
+    if (logFilePath && process.report) {
+      process.report.directory = dirname(logFilePath)
+      process.report.reportOnFatalError = true
+    }
     const lag = monitorEventLoopDelay({ resolution: 50 })
     lag.enable()
     const timer = setInterval(() => {
@@ -29,6 +35,7 @@ export function startDaemonHeartbeat(log: DaemonFileLog): void {
           rssMB: Math.round(mem.rss / MB),
           heapUsedMB: Math.round(mem.heapUsed / MB),
           externalMB: Math.round(mem.external / MB),
+          handles: process.getActiveResourcesInfo().length,
           loopLagMaxMs: Math.round(lag.max / 1e6),
           loopLagP99Ms: Math.round(lag.percentile(99) / 1e6)
         })

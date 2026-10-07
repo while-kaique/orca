@@ -151,3 +151,12 @@
 - Suspeita a confirmar: o próprio Claude Code roda `taskkill` para matar comandos em segundo plano; um PID velho
   reaproveitado pelo serviço explicaria a morte "sem dono". Na próxima queda: abrir o QUEDA mais novo.
 - Reinstalar/atualizar: `powershell -File tools\caixa-preta\instalar.ps1` (pede o "Sim" do Windows).
+
+## 06/10 noite — causa parcial: o serviço ABORTA sozinho (código 134)
+- Caixa-preta pegou 4 quedas (11:04, 14:43, 17:30 + manhã): ninguém matou; saída 134 = falha fatal interna do Node
+  (aborto). Sempre com ~60-70 min de vida. A mensagem do erro ia para o stderr, que o app fecha depois da partida.
+- Correção de diagnóstico (falta reabrir o "Orca (meu)" para valer):
+  `pc-desk-daemon-stderr-log.ts` grava o stderr do serviço em `logs/daemon-stderr.log`; o serviço gera relatório
+  do Node (`report.*.json`, pilhas nativa e JS) em `logs/` em erro fatal; heartbeat ganhou `handles`.
+- Vigia: filtro no próprio ETW + só lê detalhes de electron/claude/python → ~23% de 1 núcleo (~1,5% do PC), 58 MB.
+  O PC cria ~25 processos/s (bash, curl, cmd, clink de hooks/barra de status dos chats).

@@ -8,6 +8,7 @@ import {
 } from './daemon-launched-child-spawn'
 import { parseDaemonReadyIdentity } from './daemon-ready-identity'
 import { unlinkOwnedDaemonPidFile } from './daemon-spawner'
+import { keepDaemonStderrInFile } from './pc-desk-daemon-stderr-log'
 
 const DAEMON_CHILD_TERMINATION_GRACE_MS = 5_000
 const DAEMON_CHILD_FORCE_EXIT_WAIT_MS = 1_000
@@ -81,7 +82,7 @@ async function launchDaemonChildAttempt(
   const releaseStderr = (): void => {
     collectingStderr = false
     child.stderr?.off('data', onStartupStderr)
-    child.stderr?.destroy()
+    keepDaemonStderrInFile(child.stderr)
   }
 
   // Wait for the daemon to signal readiness via IPC

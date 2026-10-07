@@ -135,7 +135,7 @@ async function main(): Promise<void> {
   // Fail-open: a broken log path must never block daemon startup.
   const daemonLog = logFilePath ? createDaemonFileLog(logFilePath) : createNoopDaemonFileLog()
   daemonLog.log('startup', { protocolVersion: PROTOCOL_VERSION, socketPath })
-  startDaemonHeartbeat(daemonLog)
+  startDaemonHeartbeat(daemonLog, logFilePath)
   startDaemonScopeDeathWatch({
     freshScope: freshDaemonScope === true,
     launchNonce,

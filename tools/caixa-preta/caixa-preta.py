@@ -22,7 +22,11 @@ import sys
 import threading
 import time
 
+import ctypes as ct
+
 import etw
+from etw import evntprov
+from etw.etw import ProviderParameters
 import psutil
 
 SESSION = "OrcaCaixaPreta"
@@ -153,8 +157,12 @@ def no_evento_processo(eid, out):
         except Exception:
             ppid = None
         imagem = os.path.basename(str(out.get("ImageName", "")))
-        i = ler_processo(pid, imagem)
-        i["ppid"] = i["ppid"] or ppid
+        # Ler o comando custa caro e nascem ~25 processos/s; só os que podem virar alvo.
+        if imagem.lower() in ("electron.exe", "orca.exe", "claude.exe", "python.exe"):
+            i = ler_processo(pid, imagem)
+            i["ppid"] = i["ppid"] or ppid
+        else:
+            i = {"pid": pid, "nome": imagem, "cmd": "", "ppid": ppid, "cwd": ""}
         with lock:
             cache[pid] = i
             starts.append((t, i))
@@ -171,7 +179,8 @@ def no_evento_processo(eid, out):
             threading.Thread(target=relatorio, args=(t, tipo, i, codigo), daemon=True).start()
         elif tipo == "claude" and codigo not in (0, None):
             log("mortes.log", f"{agora()} claude.exe pid {pid} saiu com {fmt_codigo(codigo)}")
-        threading.Timer(120, lambda: cache.pop(pid, None)).start()
+        with lock:
+            mortos[pid] = t
 
 
 def no_evento_auditoria(out):
@@ -201,8 +210,21 @@ def no_evento_auditoria(out):
         )
 
 
+contagem = collections.Counter()
+mortos = {}  # pid -> hora da morte; o cache guarda por 2 min para os relatórios
+
+
+def limpar_cache():
+    limite = time.time() - 120
+    with lock:
+        for pid in [p for p, t in mortos.items() if t < limite]:
+            mortos.pop(pid, None)
+            cache.pop(pid, None)
+
+
 def callback(evento):
     eid, out = evento
+    contagem[(out["EventHeader"]["ProviderId"][:9], eid)] += 1
     try:
         prov = out["EventHeader"]["ProviderId"].upper()
         if prov == KPROC and eid in (1, 2):
@@ -291,19 +313,40 @@ def semear_cache():
         cache[p.info["pid"]] = i
 
 
+_vivos = []  # buffers que o Windows lê depois; não podem ser coletados pelo Python
+
+
+def so_eventos(*ids):
+    """Filtro no próprio ETW: sem ele o vigia recebia todo OpenProcess do PC (~50% de um núcleo)."""
+    lista = evntprov.EVENT_FILTER_EVENT_ID(True, list(ids))
+    desc = evntprov.EVENT_FILTER_DESCRIPTOR()
+    desc.Ptr = ct.addressof(lista._buf)
+    desc.Size = len(lista._buf)
+    desc.Type = evntprov.EVENT_FILTER_TYPE_EVENT_ID
+    params = ProviderParameters(0, [desc])
+    _vivos.extend([lista, desc, params])
+    return params.get()
+
+
 def main():
     subprocess.run(["logman", "stop", SESSION, "-ets"], capture_output=True)  # sessão velha de um vigia que caiu
     semear_cache()
     provedores = [
-        etw.ProviderInfo("Kernel-Process", etw.GUID(KPROC), any_keywords=0x10),
-        etw.ProviderInfo("Kernel-Audit-API-Calls", etw.GUID(AUDIT)),
+        etw.ProviderInfo("Kernel-Process", etw.GUID(KPROC), any_keywords=0x10, params=so_eventos(1, 2)),
+        etw.ProviderInfo("Kernel-Audit-API-Calls", etw.GUID(AUDIT), params=so_eventos(2)),
     ]
     job = etw.ETW(session_name=SESSION, providers=provedores, event_callback=callback, event_id_filters=[1, 2])
     job.start()
     log("caixa-preta.log", f"{agora()} vigia ligado (pid {os.getpid()}), {len(cache)} processos conhecidos")
     try:
         while True:
-            time.sleep(3600)
+            time.sleep(60)
+            limpar_cache()
+            if os.path.exists(os.path.join(LOGDIR, "contar")):
+                with lock:
+                    nomes = collections.Counter(i.get("nome") for t, i in starts if t > time.time() - 60)
+                log("contagem.log", f"{agora()} {dict(contagem)} threads={threading.active_count()} top={nomes.most_common(8)}")
+            contagem.clear()
     finally:
         job.stop()
 
