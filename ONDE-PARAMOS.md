@@ -160,3 +160,12 @@
   do Node (`report.*.json`, pilhas nativa e JS) em `logs/` em erro fatal; heartbeat ganhou `handles`.
 - Vigia: filtro no próprio ETW + só lê detalhes de electron/claude/python → ~23% de 1 núcleo (~1,5% do PC), 58 MB.
   O PC cria ~25 processos/s (bash, curl, cmd, clink de hooks/barra de status dos chats).
+
+## 08/10 — causa achada: o serviço de terminais ESTOURA A MEMÓRIA
+- `logs/daemon-stderr.log`: "FATAL ERROR ... JavaScript heap out of memory" nas quedas de 07/10 19:25 e 08/10 11:02
+  (código 134 e 0xC0000374 = mesma coisa). Heap vai de ~20 MB a ~4 GB em menos de 30 s, não é vazamento lento.
+- Gatilho provável: um "checkpoint" (foto do terminal p/ restaurar depois) trava >30 s (`takePendingOutput timed out`
+  no main-console.log) e enche a memória. Código do serviço é do Orca original (fork não mexeu).
+- Upstream (1482 commits à frente) não tem correção clara; o mais perto é 07c237939 (serializador do checkpoint).
+- Depois da queda das 11:02 o serviço só voltou 11:25 (23 min sem terminais).
+- Próximo: gravar foto da memória perto do limite (heap snapshot) p/ ver qual sessão/objeto enche.
