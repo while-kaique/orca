@@ -1,5 +1,6 @@
 import type { Session } from './session'
 import type { TakePendingOutputResult, TerminalSnapshot } from './types'
+import { withSnapshotBreadcrumb } from './pc-desk-snapshot-breadcrumb'
 
 export async function confirmTerminalHostForegroundProcess(
   session: Session | undefined
@@ -28,7 +29,9 @@ export function getTerminalHostSnapshot(
   if (!session || !session.isAlive) {
     return null
   }
-  return session.getSnapshot(opts)
+  return withSnapshotBreadcrumb(session.sessionId, session.getAppliedSize(), () =>
+    session.getSnapshot(opts)
+  )
 }
 
 export async function getSettledTerminalHostSnapshot(
@@ -39,7 +42,9 @@ export async function getSettledTerminalHostSnapshot(
     return null
   }
   await session.settleShellOwnershipConfirmation()
-  return session.getSnapshot(opts)
+  return withSnapshotBreadcrumb(session.sessionId, session.getAppliedSize(), () =>
+    session.getSnapshot(opts)
+  )
 }
 
 export function getTerminalHostPartialEscapeTail(session: Session | undefined): string {
@@ -66,5 +71,10 @@ export function takeTerminalHostPendingOutput(
   if (!session || !session.isAlive) {
     return null
   }
-  return session.takePendingOutput(includeSnapshot, opts)
+  if (!includeSnapshot) {
+    return session.takePendingOutput(false, opts)
+  }
+  return withSnapshotBreadcrumb(session.sessionId, session.getAppliedSize(), () =>
+    session.takePendingOutput(true, opts)
+  )
 }

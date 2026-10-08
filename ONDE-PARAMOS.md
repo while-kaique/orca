@@ -169,3 +169,8 @@
 - Upstream (1482 commits à frente) não tem correção clara; o mais perto é 07c237939 (serializador do checkpoint).
 - Depois da queda das 11:02 o serviço só voltou 11:25 (23 min sem terminais).
 - Próximo: gravar foto da memória perto do limite (heap snapshot) p/ ver qual sessão/objeto enche.
+- **Feito (08/10 tarde):** daemon agora (a) grava `Heap-*.heapsnapshot` em `%APPDATA%\orca-fork\` ao chegar perto do limite
+  de memória e (b) escreve `logs/daemon-snapshot-atual.txt` antes de cada foto de terminal ("FOTOGRAFANDO sessao=..." —
+  se o daemon morrer, o arquivo aponta o culpado) + `logs/daemon-snapshot-lento.log` p/ fotos >2 s ou >100 MB.
+  Código: `pc-desk-snapshot-breadcrumb.ts`. Só vale para o daemon que nascer depois de remontar o app.
+  Na próxima queda: ler `daemon-snapshot-atual.txt` e abrir o .heapsnapshot no Chrome DevTools (aba Memory).

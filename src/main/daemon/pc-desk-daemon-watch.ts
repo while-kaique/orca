@@ -12,7 +12,9 @@
 
 import { dirname } from 'node:path'
 import { monitorEventLoopDelay } from 'node:perf_hooks'
+import { setHeapSnapshotNearHeapLimit } from 'node:v8'
 import type { DaemonFileLog } from './daemon-file-log'
+import { configureSnapshotBreadcrumb } from './pc-desk-snapshot-breadcrumb'
 
 const HEARTBEAT_MS = 30_000
 const MB = 1024 * 1024
@@ -24,6 +26,11 @@ export function startDaemonHeartbeat(log: DaemonFileLog, logFilePath?: string): 
     if (logFilePath && process.report) {
       process.report.directory = dirname(logFilePath)
       process.report.reportOnFatalError = true
+    }
+    if (logFilePath) {
+      configureSnapshotBreadcrumb(dirname(logFilePath))
+      // 08/10: estouro de memória súbito; grava Heap-*.heapsnapshot na pasta de trabalho do daemon (userData).
+      setHeapSnapshotNearHeapLimit(1)
     }
     const lag = monitorEventLoopDelay({ resolution: 50 })
     lag.enable()
