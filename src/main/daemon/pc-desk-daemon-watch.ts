@@ -12,12 +12,19 @@
 
 import { dirname } from 'node:path'
 import { monitorEventLoopDelay } from 'node:perf_hooks'
-import { setHeapSnapshotNearHeapLimit } from 'node:v8'
+import { getHeapStatistics, setHeapSnapshotNearHeapLimit, writeHeapSnapshot } from 'node:v8'
 import type { DaemonFileLog } from './daemon-file-log'
-import { configureSnapshotBreadcrumb } from './pc-desk-snapshot-breadcrumb'
+import {
+  appendSnapshotHistory,
+  configureSnapshotBreadcrumb,
+  getSnapshotInFlight
+} from './pc-desk-snapshot-breadcrumb'
 
 const HEARTBEAT_MS = 30_000
 const MB = 1024 * 1024
+const GUARD_MS = 1_000
+const GUARD_WARN_MB = 1_000
+const GUARD_DUMP_MB = 1_500
 
 /** Roda dentro do daemon. Fail-open: qualquer erro aqui só desliga o monitoramento. */
 export function startDaemonHeartbeat(log: DaemonFileLog, logFilePath?: string): void {
@@ -31,6 +38,9 @@ export function startDaemonHeartbeat(log: DaemonFileLog, logFilePath?: string): 
       configureSnapshotBreadcrumb(dirname(logFilePath))
       // 08/10: estouro de memória súbito; grava Heap-*.heapsnapshot na pasta de trabalho do daemon (userData).
       setHeapSnapshotNearHeapLimit(1)
+    }
+    if (logFilePath) {
+      startHeapGuard(dirname(logFilePath))
     }
     const lag = monitorEventLoopDelay({ resolution: 50 })
     lag.enable()
@@ -58,4 +68,32 @@ export function startDaemonHeartbeat(log: DaemonFileLog, logFilePath?: string): 
   } catch {
     // idem
   }
+}
+
+// 09/10: o heap vai de ~30 MB a 4 GB em <50 s, rápido demais para o heartbeat de 30 s e para o aviso do V8.
+function startHeapGuard(dir: string): void {
+  let warned = false
+  let dumped = false
+  const timer = setInterval(() => {
+    try {
+      const usedMB = getHeapStatistics().used_heap_size / MB
+      if (!warned && usedMB > GUARD_WARN_MB) {
+        warned = true
+        appendSnapshotHistory(
+          `${new Date().toISOString()} ALERTA-MEMORIA pid=${process.pid} heapMB=${Math.round(usedMB)} ` +
+            `fotografando=${getSnapshotInFlight() ?? 'nenhuma'}
+`
+        )
+      }
+      if (!dumped && usedMB > GUARD_DUMP_MB) {
+        dumped = true
+        const file = writeHeapSnapshot(`${dir}/Heap-guarda-${Date.now()}.heapsnapshot`)
+        appendSnapshotHistory(`${new Date().toISOString()} FOTO-HEAP ${file}
+`)
+      }
+    } catch {
+      // monitoramento nunca derruba o daemon
+    }
+  }, GUARD_MS)
+  timer.unref()
 }
