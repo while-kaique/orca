@@ -1,3 +1,4 @@
+import { countPtyBytes } from './pc-desk-pulse'
 import { shellReadyMarkerComesFromLineEditor } from '../../shared/shell-ready-marker-timing'
 import {
   installDeviceAttributesResponder,
@@ -109,6 +110,7 @@ export class SessionShellReadyBarrier {
   }
 
   ingestSubprocessData(data: string): void {
+    countPtyBytes(this.deps.sessionId, data.length)
     let releaseStartupDeviceAttributes = false
     if (this._state === 'pending' && this.scanState) {
       const scanned = scanShellStartupOutput(this.scanState, data)

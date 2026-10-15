@@ -19,6 +19,7 @@ import {
   configureSnapshotBreadcrumb,
   getSnapshotInFlight
 } from './pc-desk-snapshot-breadcrumb'
+import { startPulse } from './pc-desk-pulse'
 
 const HEARTBEAT_MS = 30_000
 const MB = 1024 * 1024
@@ -41,6 +42,7 @@ export function startDaemonHeartbeat(log: DaemonFileLog, logFilePath?: string): 
     }
     if (logFilePath) {
       startHeapGuard(dirname(logFilePath))
+      startPulse(dirname(logFilePath))
     }
     const lag = monitorEventLoopDelay({ resolution: 50 })
     lag.enable()

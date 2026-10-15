@@ -174,3 +174,22 @@
   se o daemon morrer, o arquivo aponta o culpado) + `logs/daemon-snapshot-lento.log` p/ fotos >2 s ou >100 MB.
   Código: `pc-desk-snapshot-breadcrumb.ts`. Só vale para o daemon que nascer depois de remontar o app.
   Na próxima queda: ler `daemon-snapshot-atual.txt` e abrir o .heapsnapshot no Chrome DevTools (aba Memory).
+
+## 15/10 16:57 — nova queda do serviço (falta de memória de novo)
+- Saída 0xE0000008 = código de falta de memória do Chromium. Último sinal de vida 16:53:35 (heap 22 MB, normal);
+  foto de memória começou 16:54:11 e saiu com 0 byte (não havia memória para gravá-la). Morreu 16:57:10.
+- NÃO foi durante foto de terminal: no `daemon-snapshot-historico.log` a última foto (16:30) tem INICIO+FIM.
+- Suspeito: terminal do gohelp-chatbot (sessão 868a868e…@@70df6a48). Às 16:50–16:51 o Claude dele disparou
+  16 subagentes em paralelo; eles terminaram entre 16:52:27 e 16:54:40, janela exata do travamento.
+  Todos os timeouts de `takePendingOutput` no main-console são dessa sessão.
+- Furos da instrumentação: foto de heap sai vazia; `daemon-snapshot-atual.txt` é sobrescrito pelo daemon novo.
+- Próximo: reproduzir (1 terminal, Claude dispara ~16 subagentes) vigiando o heap do daemon; trocar a foto de heap
+  por limite de bytes por sessão no ingest do terminal.
+- **Teste 15/10 17:35–17:43:** Claude novo com 16 subagentes em segundo plano, terminando um a um ("Waiting for N background
+  agents"). Serviço ficou entre 240 e 257 MB, sem queda. Os 16 subagentes sozinhos NÃO reproduzem. Falta o ingrediente
+  da sessão real (horas de histórico, saídas grandes de ferramenta). Vigia: scratchpad da sessão e79db112 (vigia.ps1).
+- **Pulso (15/10 18:00):** `src/main/daemon/pc-desk-pulse.ts`. Uma thread separada grava a cada 1 s
+  `logs/daemon-pulso-atual.txt` e, no histórico `logs/daemon-pulso.log`, a memória, a última operação que começou
+  (pedido + sessão, ou dados de terminal) e os bytes por terminal no último segundo. Continua escrevendo com o laço principal
+  travado (testado: 80 MB → 1,6 GB anotados com "parado=Ns"). Só vale para o serviço que nascer depois de remontar o app.
+  **Na próxima queda: ler o fim de `daemon-pulso.log`**; a linha com "parado" crescendo diz a operação e a sessão culpadas.

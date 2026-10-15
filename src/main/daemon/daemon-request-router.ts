@@ -6,6 +6,7 @@ import type { DaemonPtySpawnPreparations } from './daemon-pty-spawn-preparations
 import type { DaemonServerLifecycle } from './daemon-server-lifecycle'
 import type { DaemonSessionAttachments } from './daemon-session-attachments'
 import type { DaemonSessionBackgroundRouting } from './daemon-session-background-routing'
+import { markPulse } from './pc-desk-pulse'
 import { recordDaemonStreamBacklogEvent } from './daemon-stream-backlog-probe'
 import type { DaemonStreamDataBatcher } from './daemon-stream-data-batcher'
 import type { DaemonTerminalAdmission } from './daemon-terminal-admission'
@@ -32,6 +33,16 @@ export class DaemonRequestRouter {
 
   async route(clientId: string, request: DaemonRequest): Promise<unknown> {
     const client = this.options.connections.get(clientId)
+    const payload: unknown = 'payload' in request ? request.payload : undefined
+    markPulse(
+      `req ${request.type}`,
+      payload &&
+        typeof payload === 'object' &&
+        'sessionId' in payload &&
+        typeof payload.sessionId === 'string'
+        ? payload.sessionId
+        : undefined
+    )
     switch (request.type) {
       case 'startHistorySeedTransfer': {
         if (!client?.authenticatedPairEstablished || client.streamSocket === null) {
