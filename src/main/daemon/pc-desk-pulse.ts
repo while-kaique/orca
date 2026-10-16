@@ -58,12 +58,33 @@ export function countPtyBytes(sessionId: string, bytes: number): void {
 const WORKER_SOURCE = `
 const { workerData } = require('node:worker_threads')
 const { appendFileSync, writeFileSync, statSync, renameSync } = require('node:fs')
-const { sab, logPath, nowPath, startedAt, mainPid } = workerData
+const inspector = require('node:inspector')
+const { sab, logPath, nowPath, stackPath, startedAt, mainPid } = workerData
 const ints = new Int32Array(sab, 0, 4)
 const bytes = new Uint8Array(sab)
 const dec = new TextDecoder()
 const read = (off, len) => dec.decode(bytes.slice(off, off + len))
-let lastSeq = -1, stuck = 0, lastRssMB = 0, lastLine = 0
+let lastSeq = -1, stuck = 0, lastRssMB = 0, lastLine = 0, captured = false
+// 16/10: travado em laço síncrono; pausa a thread principal pelo inspector e grava a pilha dela.
+function captureMainStack(rssMB) {
+  captured = true
+  try {
+    const s = new inspector.Session()
+    s.connectToMainThread()
+    s.on('Debugger.paused', (m) => {
+      try {
+        const frames = m.params.callFrames.slice(0, 40).map((f) =>
+          (f.functionName || '(anonima)') + ' ' + f.url + ':' + (f.location.lineNumber + 1) + ':' + (f.location.columnNumber + 1))
+        appendFileSync(stackPath, new Date().toISOString() + ' pid=' + mainPid + ' rssMB=' + rssMB +
+          ' parado=' + stuck + 's\\n  ' + frames.join('\\n  ') + '\\n')
+      } catch {}
+      s.post('Debugger.resume', () => { try { s.post('Debugger.disable', () => s.disconnect()) } catch {} })
+    })
+    s.post('Debugger.enable', () => s.post('Debugger.pause'))
+  } catch (e) {
+    try { appendFileSync(stackPath, new Date().toISOString() + ' falhou: ' + e + '\\n') } catch {}
+  }
+}
 setInterval(() => {
   try {
     const seq = Atomics.load(ints, 0)
@@ -77,6 +98,12 @@ setInterval(() => {
     const line = now + ' pid=' + mainPid + ' rssMB=' + rssMB + ' parado=' + stuck + 's' +
       ' ultimaOp="' + op + '" haS=' + opAgeS + ' ultimoSegundo=[' + top + ']\\n'
     writeFileSync(nowPath, line)
+    if (!captured && stuck >= 5) captureMainStack(rssMB)
+    // Travado e inchando: morrer já poupa ~2 min de terminais congelados; o app sobe outro daemon.
+    if (stuck >= 20 && rssMB >= 3000) {
+      appendFileSync(logPath, line.replace('\\n', ' ENCERRANDO\\n'))
+      process.kill(mainPid)
+    }
     // Histórico: sempre que a memória mexe, quando o laço principal parece travado, ou a cada 60 s.
     if (Math.abs(rssMB - lastRssMB) >= 50 || rssMB >= 800 || stuck >= 2 || Date.now() - lastLine >= 60000) {
       try { if (statSync(logPath).size > 4194304) renameSync(logPath, logPath + '.1') } catch {}
@@ -101,6 +128,7 @@ export function startPulse(logsDir: string): void {
         sab,
         logPath: join(logsDir, 'daemon-pulso.log'),
         nowPath: join(logsDir, 'daemon-pulso-atual.txt'),
+        stackPath: join(logsDir, 'daemon-pulso-pilha.log'),
         startedAt,
         mainPid: process.pid
       },
