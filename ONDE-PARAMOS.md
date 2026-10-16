@@ -193,3 +193,13 @@
   (pedido + sessão, ou dados de terminal) e os bytes por terminal no último segundo. Continua escrevendo com o laço principal
   travado (testado: 80 MB → 1,6 GB anotados com "parado=Ns"). Só vale para o serviço que nascer depois de remontar o app.
   **Na próxima queda: ler o fim de `daemon-pulso.log`**; a linha com "parado" crescendo diz a operação e a sessão culpadas.
+
+## 16/10 13:23 — queda pega pelo pulso
+- Serviço parou às 13:21:10 logo após `req inspectProcess` do terminal motor-conteudo-cms@@a3d8114f e ficou travado
+  158 s (terminais congelados) com a memória indo de 254 MB a 11,8 GB; morreu 13:23:49 (0xE0000008).
+- 11,8 GB passa do limite de 4 GB do JS: parte é memória nativa. Último segundo antes: 4,7 KB nesse terminal.
+- `inspectProcess` no Windows: `getStrictProcessTableSnapshotWithAge` roda `ps` (falha rápido no Windows) —
+  o laço exato ainda não está provado.
+- **Commit 07c8b527b:** parado 5 s → o pulso pausa a thread principal pelo inspector e grava a pilha em
+  `logs/daemon-pulso-pilha.log` (testado). Parado 20 s com ≥3 GB → encerra o serviço (o app sobe outro).
+  **Na próxima queda: ler `daemon-pulso-pilha.log`** e abrir `out/main/<arquivo>` na linha:coluna indicada.
