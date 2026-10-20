@@ -70,13 +70,23 @@ export function collectDescendantsFromIndex<Row extends ProcessIdentityRow>(
   rootPid: number
 ): (Row & { depth: number })[] {
   const descendants: (Row & { depth: number })[] = []
-  const stack = (index.childrenByPpid.get(rootPid) ?? []).map((row) => ({ row, depth: 1 }))
+  // Why: Windows recycles PIDs, so a capture can hold a ppid cycle (A's ppid is B, B's ppid
+  // is A). Without this guard the walk never ends and grows the stack until the daemon OOMs.
+  const visited = new Set<number>([rootPid])
+  const stack: { row: Row; depth: number }[] = []
+  const pushChildren = (pid: number, depth: number): void => {
+    for (const child of index.childrenByPpid.get(pid) ?? []) {
+      if (!visited.has(child.pid)) {
+        visited.add(child.pid)
+        stack.push({ row: child, depth })
+      }
+    }
+  }
+  pushChildren(rootPid, 1)
   while (stack.length > 0) {
     const { row, depth } = stack.pop()!
     descendants.push({ ...row, depth })
-    for (const child of index.childrenByPpid.get(row.pid) ?? []) {
-      stack.push({ row: child, depth: depth + 1 })
-    }
+    pushChildren(row.pid, depth + 1)
   }
   return descendants
 }
