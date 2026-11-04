@@ -12,12 +12,17 @@ const MANAGED_CODEX_HOME = 'C:\\Orca Managed\\codex-runtime-home'
 
 for (const shell of WINDOWS_POWERSHELLS) {
   describe.runIf(isAvailable(shell))(`${shell} managed home bootstrap`, () => {
-    it.each(['FullLanguage', 'ConstrainedLanguage'] as const)(
-      'restores CODEX_HOME and continues startup in %s mode',
-      (languageMode) => {
+    it.each([
+      ['FullLanguage', 'inline'],
+      ['ConstrainedLanguage', 'inline'],
+      ['FullLanguage', 'file'],
+      ['ConstrainedLanguage', 'file']
+    ] as const)(
+      'restores CODEX_HOME and continues startup in %s mode (%s bootstrap)',
+      (languageMode, delivery) => {
         const cwd = mkdtempSync(join(tmpdir(), 'orca-powershell-clm-'))
         try {
-          expect(runBootstrap(shell, languageMode, cwd)).toContain(
+          expect(runBootstrap(shell, languageMode, cwd, delivery)).toContain(
             `mode=${languageMode};codexHome=${MANAGED_CODEX_HOME};orcaHome=${MANAGED_CODEX_HOME};startupCount=2;cwd=${cwd}`
           )
         } finally {
@@ -31,20 +36,38 @@ for (const shell of WINDOWS_POWERSHELLS) {
 function runBootstrap(
   shell: (typeof WINDOWS_POWERSHELLS)[number],
   languageMode: 'FullLanguage' | 'ConstrainedLanguage',
-  cwd: string
+  cwd: string,
+  delivery: 'inline' | 'file'
 ): string {
-  const launch = resolveWindowsShellLaunchArgs(
-    shell,
-    cwd,
-    process.env.USERPROFILE ?? cwd,
-    undefined,
-    '$env:ORCA_TEST_STARTUP_COUNT = 1 + [int]$env:ORCA_TEST_STARTUP_COUNT'
-  )
+  const previousUserDataPath = process.env.ORCA_USER_DATA_PATH
+  if (delivery === 'file') {
+    process.env.ORCA_USER_DATA_PATH = join(cwd, 'user-data')
+  } else {
+    delete process.env.ORCA_USER_DATA_PATH
+  }
+  let launch: ReturnType<typeof resolveWindowsShellLaunchArgs>
+  try {
+    launch = resolveWindowsShellLaunchArgs(
+      shell,
+      cwd,
+      process.env.USERPROFILE ?? cwd,
+      undefined,
+      '$env:ORCA_TEST_STARTUP_COUNT = 1 + [int]$env:ORCA_TEST_STARTUP_COUNT'
+    )
+  } finally {
+    if (previousUserDataPath === undefined) {
+      delete process.env.ORCA_USER_DATA_PATH
+    } else {
+      process.env.ORCA_USER_DATA_PATH = previousUserDataPath
+    }
+  }
   expect(launch.startupCommandDeliveredInShellArgs).toBe(true)
   const encodedCommandIndex = launch.shellArgs.indexOf('-EncodedCommand')
   expect(encodedCommandIndex).toBeGreaterThanOrEqual(0)
   const encodedCommand = launch.shellArgs[encodedCommandIndex + 1]
   expect(encodedCommand).toBeTruthy()
+  const decoded = Buffer.from(encodedCommand, 'base64').toString('utf16le')
+  expect(decoded.includes('Invoke-Expression (Get-Content -LiteralPath')).toBe(delivery === 'file')
 
   return execFileSync(
     shell,

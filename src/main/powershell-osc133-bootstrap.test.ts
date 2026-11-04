@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   encodePowerShellCommand,
@@ -6,6 +7,8 @@ import {
 import { getShellLaunchConfig } from './daemon/shell-ready'
 import { resolveWindowsShellLaunchArgs } from './providers/windows-shell-args'
 import { STARTUP_COMMAND_FEATURES } from './shell-startup-launch-intent-fixtures'
+
+const UTF8_BOM_PREFIX = new RegExp(`^${String.fromCharCode(0xfeff)}`)
 
 describe('PowerShell OSC 133 bootstrap', () => {
   it('wraps prompt/readline without bypassing profiles or execution policy', () => {
@@ -70,8 +73,15 @@ describe('PowerShell OSC 133 bootstrap', () => {
       expect(args).not.toContain('-ExecutionPolicy')
 
       const delivered = Buffer.from(args[encodedIndex + 1] ?? '', 'base64').toString('utf16le')
+      // Windows shell args may hand the payload over as a file the command line loads.
+      const loadedPath = delivered.match(
+        /^if \(Test-Path -LiteralPath '([^']+)'\) \{ Invoke-Expression \(Get-Content -LiteralPath '\1' -Raw -Encoding UTF8\) \}\n/
+      )?.[1]
+      const payload = loadedPath
+        ? readFileSync(loadedPath, 'utf8').replace(UTF8_BOM_PREFIX, '')
+        : delivered
 
-      expect(delivered.startsWith(getPowerShellOsc133Bootstrap())).toBe(true)
+      expect(payload.startsWith(getPowerShellOsc133Bootstrap())).toBe(true)
     })
   })
 })

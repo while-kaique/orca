@@ -8,6 +8,8 @@ import { resolveWindowsShellLaunchArgs } from './windows-shell-args'
 // Why resolved rather than hardcoded: the wrapper tree is content-addressed.
 import { getShellReadyWrapperRoot } from './local-pty-shell-ready-wrapper-root'
 
+const UTF8_BOM_PREFIX = new RegExp(`^${String.fromCharCode(0xfeff)}`)
+
 const CODEX_LAUNCH_PREFLIGHT = 'C:\\Program Files\\Orca\\orca.exe'
 const CMD_CODEX_LAUNCH_PREFLIGHT =
   'if defined ORCA_CODEX_LAUNCH_PREFLIGHT call %ORCA_CODEX_LAUNCH_PREFLIGHT_CMD_QUOTE%%ORCA_CODEX_LAUNCH_PREFLIGHT%%ORCA_CODEX_LAUNCH_PREFLIGHT_CMD_QUOTE% agent hooks prepare-codex > nul 2>&1'
@@ -21,9 +23,19 @@ function expectedWslArgs(linuxCwd: string, distro?: string): string[] {
   return distro ? ['-d', distro, ...shellArgs] : shellArgs
 }
 
+const BOOTSTRAP_FILE_LOADER =
+  /^if \(Test-Path -LiteralPath '([^']+)'\) \{ Invoke-Expression \(Get-Content -LiteralPath '\1' -Raw -Encoding UTF8\) \}\n/
+
+/** The script PowerShell actually runs: the bootstrap file loader expanded to the file's content. */
 function decodePowerShellCommand(result: ReturnType<typeof resolveWindowsShellLaunchArgs>): string {
   expect(result.shellArgs.slice(0, 3)).toEqual(['-NoLogo', '-NoExit', '-EncodedCommand'])
-  return Buffer.from(result.shellArgs[3] ?? '', 'base64').toString('utf16le')
+  const decoded = Buffer.from(result.shellArgs[3] ?? '', 'base64').toString('utf16le')
+  const loader = decoded.match(BOOTSTRAP_FILE_LOADER)
+  if (!loader) {
+    return decoded
+  }
+  const bootstrap = readFileSync(loader[1], 'utf8').replace(UTF8_BOM_PREFIX, '')
+  return `${bootstrap}${decoded.slice(loader[0].length)}`
 }
 
 function expectedPowerShellRestoreCwdCommand(cwdLiteral: string): string {

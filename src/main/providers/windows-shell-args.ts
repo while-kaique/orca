@@ -8,10 +8,8 @@ import {
 } from '../../shared/wsl-login-shell-command'
 import { getBashWrapperLaunchArgs } from './local-pty-shell-ready'
 import { ensureShellReadyWrappersAt } from './local-pty-shell-ready-wrapper-generation'
-import {
-  encodePowerShellCommand,
-  getPowerShellOsc133Bootstrap
-} from '../powershell-osc133-bootstrap'
+import { encodePowerShellCommand } from '../powershell-osc133-bootstrap'
+import { getPowerShellOsc133BootstrapSource } from './powershell-osc133-bootstrap-file'
 import { quoteStartupArg } from '../../shared/tui-agent-startup-shell'
 
 /** cmd.exe's own documented ceiling; callers that go through sshd budget below it. */
@@ -116,7 +114,8 @@ function getPowerShellEncodedCommand(
   encodedCommand: string
   startupCommandDeliveredInShellArgs?: boolean
 } {
-  const bootstrap = `${getPowerShellOsc133Bootstrap()}${getPowerShellRestoreCwdCommand(cwd)}`
+  // Why a file loader: a ~15KB encoded command line costs seconds of Defender scan inside a synchronous spawn.
+  const bootstrap = `${getPowerShellOsc133BootstrapSource()}${getPowerShellRestoreCwdCommand(cwd)}`
   if (!startupCommand || startupCommand.length > STARTUP_COMMAND_TEXT_MAX_CHARS) {
     return { encodedCommand: encodePowerShellCommand(bootstrap) }
   }
