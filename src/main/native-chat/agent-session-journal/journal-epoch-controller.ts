@@ -1,78 +1,66 @@
 import type {
   AgentJournalCursor,
   AgentSessionJournalIdentity
-} from '../../../shared/agent-session-journal-types'
-import type Database from '../../sqlite/sync-database'
-import { replaceJournalEpoch, type JournalReplacementItem } from './journal-epoch-replacement'
+} from '../../../shared/agent-session/journal/agent-session-journal-identity'
+import { agentSessionJournalProviderHandle } from '../../../shared/agent-session/lifecycle/agent-session-provider-handle-encoding'
+import type { JournalReducerState } from './journal-reducer'
+import type { JournalHostDatabase } from './journal-host-database'
+import type { JournalReplacementItem } from './journal-epoch-replacement'
 import { publishNewEpoch } from './journal-epoch-rollover'
 import type { JournalLoad } from './journal-open'
 import type { AgentJournalEpochReason } from './journal-row-schema'
-import { assertJournalFence, assertJournalWritable } from './journal-write-guards'
+import type { JournalOperationReceipt, JournalRowWriter } from './journal-row-writer'
+import { rewindJournalContext } from './journal-context-rewind'
 
 export class JournalEpochController {
   constructor(
     private readonly deps: {
+      inputReceipt: Parameters<typeof rewindJournalContext>[0]['inputReceipt']
+      cards: Parameters<typeof rewindJournalContext>[0]['cards']
       identity: AgentSessionJournalIdentity
       now: () => number
       mintEpoch: () => string
-      serialize: <T>(run: () => Promise<T>) => Promise<T>
-      database: () => { db: Database.Database }
-      readOnly: () => boolean
-      setReadOnly: (readOnly: boolean) => void
-      highestFence: () => number
-      cursor: () => AgentJournalCursor
+      database: () => JournalHostDatabase
+      state: () => JournalReducerState
+      writer: JournalRowWriter
       adopt: (loaded: JournalLoad) => void
     }
   ) {}
 
-  start(reason: AgentJournalEpochReason, fence: number): void {
+  start(reason: AgentJournalEpochReason, fence: number, expectedEpoch: string | null): void {
     publishNewEpoch({
-      db: this.deps.database().db,
-      sessionId: this.deps.identity.sessionId,
-      providerHandle: this.deps.identity.providerHandle,
+      expectedEpoch,
+      database: this.deps.database(),
+      identity: this.deps.identity,
       epoch: this.deps.mintEpoch(),
       reason,
       fence,
       now: this.deps.now(),
+      queue: { cards: [], receipt: { write: () => {}, committed: () => {} } },
       onPublished: this.deps.adopt
     })
   }
 
-  /**
-   * Every reason takes the same writable guard. A latched store refuses a roll
-   * like any other write, and `schema_unreadable` has no production caller.
-   *
-   * Serialized like every other write, so the discard cannot land between an
-   * admitted append's sequence assignment and its commit.
-   */
   roll(reason: AgentJournalEpochReason, fence: number): Promise<AgentJournalCursor> {
-    return this.deps.serialize(async () => {
-      assertJournalWritable(this.deps.readOnly(), this.deps.identity.sessionId)
-      this.start(reason, fence)
-      this.deps.setReadOnly(false)
-      return this.deps.cursor()
-    })
+    return this.replace(reason, fence, [])
   }
 
   replace(
     reason: AgentJournalEpochReason,
     fence: number,
-    items: readonly JournalReplacementItem[]
+    items: readonly JournalReplacementItem[],
+    receipt?: (cursor: AgentJournalCursor) => JournalOperationReceipt,
+    providerHandle = agentSessionJournalProviderHandle(this.deps.identity)
   ): Promise<AgentJournalCursor> {
-    return this.deps.serialize(async () => {
-      assertJournalWritable(this.deps.readOnly(), this.deps.identity.sessionId)
-      assertJournalFence(fence, this.deps.highestFence())
-      replaceJournalEpoch({
-        db: this.deps.database().db,
-        identity: this.deps.identity,
-        reason,
-        fence,
-        items,
-        now: this.deps.now,
-        mintEpoch: this.deps.mintEpoch,
-        onPublished: this.deps.adopt
-      })
-      return this.deps.cursor()
+    return rewindJournalContext({
+      state: this.deps.state,
+      writer: this.deps.writer,
+      cards: this.deps.cards,
+      fence,
+      items,
+      receipt,
+      inputReceipt: this.deps.inputReceipt,
+      boundary: { reason, providerHandle }
     })
   }
 }

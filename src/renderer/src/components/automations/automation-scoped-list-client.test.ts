@@ -2,20 +2,30 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AUTOMATION_OWNER_CONFLICT_CODES } from '../../../../shared/automation-owner-conflict'
 import {
   AUTOMATION_LIST_HOST_SCOPE_RUNTIME_CAPABILITY,
+  AUTOMATION_SURFACE_RUNTIME_CAPABILITY,
+  AUTOMATION_EXTRA_AGENT_ARGS_RUNTIME_CAPABILITY,
   AUTOMATION_OWNER_FENCING_RUNTIME_CAPABILITY,
   AUTOMATION_CREATE_IDEMPOTENCY_RUNTIME_CAPABILITY
 } from '../../../../shared/protocol-version'
+
+import type { AutomationCreateInput } from '../../../../shared/automations-types'
+import { AUTOMATION_LAUNCH_SETUP_RUNTIME_CAPABILITY } from '../../../../shared/automation-runtime-capabilities'
+import { applyAutomationLaunchSetupPatch } from '../../../../shared/automation-launch-setup'
+import {
+  encodeAutomationLaunchEdit,
+  foldAutomationSourceEdit
+} from '../../../../shared/automation-launch-source-edits'
+import { automationCopyLaunchSetup, automationDraftLaunchSetup } from './automation-launch-surface'
+import { buildAutomationEditDraft } from './automation-edit-draft'
+import { editAutomationLegacyDraft } from './automation-launch-draft'
+import { makeAutomation } from './automations-page-fixtures'
 
 const callRuntimeRpc = vi.fn()
 const getRuntimeEnvironmentStatus = vi.fn()
 
 vi.mock('@/runtime/runtime-rpc-client', () => ({
   callRuntimeRpc: (...args: unknown[]) => callRuntimeRpc(...args),
-  getRuntimeEnvironmentStatus: (...args: unknown[]) => getRuntimeEnvironmentStatus(...args),
-  // Why: the real matcher is exercised in runtime-rpc-result's own tests; here it only needs to be honest about the tail token.
-  hasRuntimeRpcErrorCode: (error: unknown, code: string) =>
-    typeof (error as { message?: unknown })?.message === 'string' &&
-    (error as { message: string }).message.trimEnd().endsWith(`: ${code}`)
+  getRuntimeEnvironmentStatus: (...args: unknown[]) => getRuntimeEnvironmentStatus(...args)
 }))
 
 const DESKTOP = { kind: 'desktop' } as const
@@ -116,6 +126,7 @@ describe('listScopedAutomations', () => {
     await expect(listScopedAutomations(RUNTIME, { kind: 'self' })).rejects.toThrow(
       'runtime_environment_revision_changed'
     )
+    expect(callRuntimeRpc).toHaveBeenCalledTimes(1)
   })
 
   it('does not query a host that never advertised host scope', async () => {
@@ -129,10 +140,10 @@ describe('listScopedAutomations', () => {
 
   // An unreachable host proves nothing about its version, so it must not be reported as too old.
   it('propagates an unreachable authority instead of calling it incompatible', async () => {
-    const { listScopedAutomations, AutomationHostScopeUnsupportedError } = await client()
+    const { listScopedAutomations } = await client()
     getRuntimeEnvironmentStatus.mockRejectedValue(new Error('runtime_unavailable'))
-    await expect(listScopedAutomations(RUNTIME, { kind: 'self' })).rejects.not.toBeInstanceOf(
-      AutomationHostScopeUnsupportedError
+    await expect(listScopedAutomations(RUNTIME, { kind: 'self' })).rejects.toThrow(
+      'runtime_unavailable'
     )
   })
 })
@@ -140,19 +151,24 @@ describe('listScopedAutomations', () => {
 describe('capability probe dedupe', () => {
   it('shares one in-flight probe across concurrent calls to the same incarnation', async () => {
     const { listScopedAutomations } = await client()
-    getRuntimeEnvironmentStatus.mockImplementation(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0))
-      return ALL_CAPABILITIES
+    let completeProbe = (_status: typeof ALL_CAPABILITIES): void => {}
+    const probe = new Promise<typeof ALL_CAPABILITIES>((resolve) => {
+      completeProbe = resolve
     })
+    getRuntimeEnvironmentStatus.mockReturnValue(probe)
     callRuntimeRpc.mockResolvedValue({ automations: [], items: [], orphanCount: 0 })
-    await Promise.all([
+    const requests = [
       listScopedAutomations(RUNTIME, { kind: 'self' }),
       listScopedAutomations(RUNTIME, { kind: 'orphan' })
-    ])
+    ]
+    expect(getRuntimeEnvironmentStatus).toHaveBeenCalledTimes(1)
+    expect(callRuntimeRpc).not.toHaveBeenCalled()
+    completeProbe(ALL_CAPABILITIES)
+    await Promise.all(requests)
     expect(getRuntimeEnvironmentStatus).toHaveBeenCalledTimes(1)
   })
 
-  it('never re-asks about a capability the incarnation already confirmed', async () => {
+  it('caches confirmed list capabilities and re-probes mutations', async () => {
     const { listScopedAutomations, updateAutomationForOwner } = await client()
     getRuntimeEnvironmentStatus.mockResolvedValue(ALL_CAPABILITIES)
     callRuntimeRpc.mockResolvedValue({
@@ -163,10 +179,9 @@ describe('capability probe dedupe', () => {
     })
     await listScopedAutomations(RUNTIME, { kind: 'self' })
     await listScopedAutomations(RUNTIME, { kind: 'orphan' })
-    // A different capability confirmed by the same status answer is also cached.
+    expect(getRuntimeEnvironmentStatus).toHaveBeenCalledTimes(1)
     await updateAutomationForOwner(SSH_OWNER, 'a1', { enabled: false })
-    // Mutations intentionally re-probe: owner fencing must not trust a positive
-    // answer after an in-place runtime replacement under the same pairing.
+    // Mutations re-probe because in-place runtime replacement can invalidate capabilities under the same pairing.
     expect(getRuntimeEnvironmentStatus).toHaveBeenCalledTimes(2)
   })
 
@@ -191,8 +206,7 @@ describe('capability probe dedupe', () => {
     expect(getRuntimeEnvironmentStatus).toHaveBeenCalledTimes(2)
   })
 
-  // The fence depends on this: a server downgraded in place ignores
-  // `expectedOwner`, so a confirmation must not outlive its observation window.
+  // Capability confirmations expire because downgraded servers may ignore expectedOwner.
   it('re-asks once a confirmation ages out', async () => {
     vi.useFakeTimers()
     try {
@@ -288,7 +302,7 @@ describe('owner-fenced mutations', () => {
   })
 
   it('fences a desktop mutation over the local runtime target with the same precondition', async () => {
-    const { deleteAutomationForOwner, updateAutomationForOwner } = await client()
+    const { updateAutomationForOwner } = await client()
     callRuntimeRpc.mockResolvedValue({ automation: { id: 'a1' } })
     await updateAutomationForOwner({ authority: DESKTOP, selector: { kind: 'self' } }, 'a1', {
       enabled: true
@@ -300,13 +314,10 @@ describe('owner-fenced mutations', () => {
       expect.anything()
     )
     expect(getRuntimeEnvironmentStatus).not.toHaveBeenCalled()
-    expect(typeof deleteAutomationForOwner).toBe('function')
   })
 })
 
-// The orphan arm used to live in the caller with its own transport choice and no
-// capability probe. These pin it to the owned arm's behaviour so the two cannot
-// drift apart again.
+// Share orphan and owned transport/probe behavior rather than maintaining a separate unfenced orphan arm.
 describe('orphan-fenced mutations', () => {
   it('fences on the orphan precondition over the same runtime transport', async () => {
     const { deleteOrphanAutomation } = await client()
@@ -334,11 +345,9 @@ describe('orphan-fenced mutations', () => {
 
   // An unreachable host is a retry, not an upgrade prompt — the orphan arm inherits this.
   it('propagates an unreachable authority instead of calling it incompatible', async () => {
-    const { deleteOrphanAutomation, AutomationHostScopeUnsupportedError } = await client()
+    const { deleteOrphanAutomation } = await client()
     getRuntimeEnvironmentStatus.mockRejectedValue(new Error('runtime_unavailable'))
-    await expect(deleteOrphanAutomation(RUNTIME, 'a1')).rejects.not.toBeInstanceOf(
-      AutomationHostScopeUnsupportedError
-    )
+    await expect(deleteOrphanAutomation(RUNTIME, 'a1')).rejects.toThrow('runtime_unavailable')
   })
 
   it('routes a desktop orphan over the local runtime target, unprobed', async () => {
@@ -367,8 +376,7 @@ describe('orphan-fenced mutations', () => {
     expect(getRuntimeEnvironmentStatus).not.toHaveBeenCalled()
   })
 
-  // History is the one action an orphan keeps (ORPHAN_ACTIONS), so it must reach
-  // the transport rather than resolving as "no host to run on".
+  // Orphans retain history without an execution host; the read must still reach transport.
   it('reads an orphan run history over the runtime transport', async () => {
     const { listOrphanAutomationRuns } = await client()
     callRuntimeRpc.mockResolvedValue({ runs: [{ id: 'r1' }] })
@@ -394,24 +402,14 @@ describe('orphan-fenced mutations', () => {
     )
   })
 
-  // Read-only, so it deliberately takes the owned read's probe behaviour — which
-  // today is no probe. Pinned so the two arms cannot diverge silently.
-  it('probes on the orphan history read exactly as often as the owned read does', async () => {
+  // Keep orphan and owned read-only history arms equally unprobed.
+  it('does not probe either owned or orphan history reads', async () => {
     const { listAutomationRunsForOwner, listOrphanAutomationRuns } = await client()
     callRuntimeRpc.mockResolvedValue({ runs: [] })
     await listAutomationRunsForOwner(SSH_OWNER, 'a1')
-    const ownedProbes = getRuntimeEnvironmentStatus.mock.calls.length
-    getRuntimeEnvironmentStatus.mockClear()
+    expect(getRuntimeEnvironmentStatus).not.toHaveBeenCalled()
     await listOrphanAutomationRuns(RUNTIME, 'a1')
-    expect(getRuntimeEnvironmentStatus.mock.calls.length).toBe(ownedProbes)
-  })
-
-  it('cannot be handed an owner precondition — the fence is not a parameter', async () => {
-    const { updateOrphanAutomation, ORPHAN_OWNER_PRECONDITION } = await client()
-    callRuntimeRpc.mockResolvedValue({ automation: { id: 'a1' } })
-    await updateOrphanAutomation(DESKTOP, 'a1', { enabled: false })
-    expect(callRuntimeRpc.mock.calls[0]?.[2]?.expectedOwner).toEqual(ORPHAN_OWNER_PRECONDITION)
-    expect(updateOrphanAutomation.length).toBe(3)
+    expect(getRuntimeEnvironmentStatus).not.toHaveBeenCalled()
   })
 })
 
@@ -431,4 +429,136 @@ describe('matchAutomationOwnerConflict', () => {
     ).toBe(AUTOMATION_OWNER_CONFLICT_CODES.targetRemoved)
     expect(matchAutomationOwnerConflict(new Error('timeout'))).toBeNull()
   })
+})
+
+const OWNER = { authority: RUNTIME, selector: { kind: 'self' } } as const
+const LEGACY_HOST = {
+  capabilities: [
+    AUTOMATION_OWNER_FENCING_RUNTIME_CAPABILITY,
+    AUTOMATION_CREATE_IDEMPOTENCY_RUNTIME_CAPABILITY
+  ]
+}
+const CURRENT_HOST = {
+  capabilities: [...LEGACY_HOST.capabilities, AUTOMATION_EXTRA_AGENT_ARGS_RUNTIME_CAPABILITY]
+}
+const INPUT: AutomationCreateInput = {
+  creationKey: 'move-1',
+  name: 'Docs pass',
+  prompt: 'go',
+  agentId: 'claude',
+  projectId: 'repo-1',
+  workspaceMode: 'new_per_run',
+  timezone: 'UTC',
+  rrule: 'FREQ=DAILY',
+  dtstart: 1
+}
+
+describe('authored launch setup capability', () => {
+  it.each(['move', 'create', 'clear'] as const)(
+    'sends pending supplemental-only %s through the legacy destination contract',
+    async (operation) => {
+      const current = makeAutomation({ surface: 'terminal', extraAgentArgs: '--add-dir docs' })
+      let draft = buildAutomationEditDraft(current)
+      if (operation === 'create') {
+        draft = editAutomationLegacyDraft(draft, '--add-dir docs', false)
+      }
+      draft = editAutomationLegacyDraft(
+        draft,
+        operation === 'clear' ? '' : '--add-dir docs --add-dir fixtures',
+        true
+      )
+      const source = operation === 'create' ? null : current
+      const updates = automationDraftLaunchSetup(draft, 'terminal', source)
+      const input = automationCopyLaunchSetup(source, updates, { ...INPUT, ...updates })
+      const { createAutomationForDestination } = await client()
+      getRuntimeEnvironmentStatus.mockResolvedValue(CURRENT_HOST)
+      callRuntimeRpc.mockResolvedValue({ automation: { id: 'a1' } })
+      await createAutomationForDestination(RUNTIME, input, { selector: { kind: 'self' } })
+      expect(callRuntimeRpc.mock.calls[0]?.[2]).toMatchObject({
+        extraAgentArgs: operation === 'clear' ? '' : '--add-dir docs --add-dir fixtures'
+      })
+      expect(callRuntimeRpc.mock.calls[0]?.[2]).not.toHaveProperty('launchSetupPatch')
+    }
+  )
+
+  it.each([
+    { sources: { arguments: { kind: 'inherit' as const } } },
+    { copy: { surface: 'terminal' as const, extraAgentArgs: '--add-dir docs' } }
+  ])('keeps empty-result modern intent strict across copying: %j', async (launchSetupPatch) => {
+    const current = makeAutomation({ surface: 'terminal', agentArgs: '--verbose' })
+    const input = automationCopyLaunchSetup(
+      current,
+      { launchSetupPatch },
+      { ...INPUT, launchSetupPatch }
+    )
+    const { createAutomationForDestination } = await client()
+    getRuntimeEnvironmentStatus.mockResolvedValue(CURRENT_HOST)
+    await expect(
+      createAutomationForDestination(RUNTIME, input, { selector: { kind: 'self' } })
+    ).rejects.toThrow('Update Orca')
+    expect(callRuntimeRpc).not.toHaveBeenCalled()
+  })
+
+  it('moves a reopened supplemental-only edit through the existing extra-args capability', async () => {
+    const current = makeAutomation({ surface: 'terminal', extraAgentArgs: '--add-dir docs' })
+    const { patch } = foldAutomationSourceEdit('claude', current, undefined, {
+      kind: 'supplemental',
+      value: '--add-dir fixtures'
+    })
+    const reopened = makeAutomation({
+      ...current,
+      ...applyAutomationLaunchSetupPatch(
+        {
+          launchSetupPatch: encodeAutomationLaunchEdit(patch, 'terminal')
+        },
+        current
+      )
+    })
+    const input = automationCopyLaunchSetup(reopened, {}, INPUT)
+    const { createAutomationForDestination } = await client()
+    getRuntimeEnvironmentStatus.mockResolvedValue(CURRENT_HOST)
+    callRuntimeRpc.mockResolvedValue({ automation: { id: 'a1' } })
+    await createAutomationForDestination(RUNTIME, input, { selector: { kind: 'self' } })
+    expect(callRuntimeRpc.mock.calls[0]?.[2]).toMatchObject({
+      extraAgentArgs: '--add-dir fixtures'
+    })
+  })
+  it.each([
+    { arguments: { kind: 'empty' as const } },
+    {
+      sources: {
+        arguments: { kind: 'value' as const, value: '--opaque' },
+        extraAgentArgs: '--add-dir docs',
+        retiredChoices: ['model']
+      }
+    },
+    { choices: { options: { fastMode: 'true' } } },
+    { copy: { agentArgs: null, launchPreferences: { model: null } } }
+  ])(
+    'preserves a complete strict setup and refuses older destinations: %j',
+    async (launchSetupPatch) => {
+      const { createAutomationForDestination, updateAutomationForOwner } = await client()
+      getRuntimeEnvironmentStatus.mockResolvedValue({
+        capabilities: [...CURRENT_HOST.capabilities, AUTOMATION_SURFACE_RUNTIME_CAPABILITY]
+      })
+      await expect(
+        createAutomationForDestination(
+          RUNTIME,
+          { ...INPUT, launchSetupPatch },
+          { selector: { kind: 'self' } }
+        )
+      ).rejects.toThrow('Update Orca')
+      expect(callRuntimeRpc).not.toHaveBeenCalled()
+      getRuntimeEnvironmentStatus.mockResolvedValue({
+        capabilities: [
+          ...CURRENT_HOST.capabilities,
+          AUTOMATION_SURFACE_RUNTIME_CAPABILITY,
+          AUTOMATION_LAUNCH_SETUP_RUNTIME_CAPABILITY
+        ]
+      })
+      callRuntimeRpc.mockResolvedValue({ automation: { id: 'a1' } })
+      await updateAutomationForOwner(OWNER, 'a1', { launchSetupPatch })
+      expect(callRuntimeRpc.mock.calls[0]?.[2]).toMatchObject({ updates: { launchSetupPatch } })
+    }
+  )
 })

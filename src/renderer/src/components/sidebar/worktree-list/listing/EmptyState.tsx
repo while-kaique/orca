@@ -3,6 +3,7 @@ import { CircleX } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { usePcDeskMode } from '@/lib/pc-desk-mode'
+import { useAppStore } from '@/store'
 
 export function SidebarWorktreeListEmptyState({
   hasFilters,
@@ -12,6 +13,7 @@ export function SidebarWorktreeListEmptyState({
   onClearFilters: () => void
 }): React.JSX.Element {
   const hugContent = usePcDeskMode()
+  const discoveryCompleted = useAppStore((s) => s.startupWorktreeRefreshCompleted)
   return (
     <div
       data-worktree-sidebar-container
@@ -20,9 +22,11 @@ export function SidebarWorktreeListEmptyState({
     >
       <div className="worktree-sidebar-scrollbar flex h-full flex-col overflow-y-auto overflow-x-hidden pl-1 scrollbar-sleek pt-px">
         <div className="flex flex-col items-center gap-2 px-4 py-6 text-center text-[11px] text-muted-foreground">
-          <span>
-            {translate('auto.components.sidebar.WorktreeList.b7acbf038b', 'No workspaces found')}
-          </span>
+          {discoveryCompleted && (
+            <span>
+              {translate('auto.components.sidebar.WorktreeList.b7acbf038b', 'No workspaces found')}
+            </span>
+          )}
           {hasFilters && (
             <Button
               variant="secondary"

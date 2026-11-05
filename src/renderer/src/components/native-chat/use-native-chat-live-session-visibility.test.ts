@@ -3,7 +3,7 @@
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { NativeChatMessage } from '../../../../shared/native-chat-types'
+import type { NativeChatMessage } from '../../../../shared/native-chat/native-chat-types'
 import { useAppStore } from '@/store'
 import { NATIVE_CHAT_INITIAL_LIMIT, nextNativeChatLimit } from './native-chat-pagination'
 
@@ -142,8 +142,8 @@ describe('useNativeChatLiveSession visibility', () => {
     expect(latest?.status).toBe('working')
 
     const readsAfterHide = transport.readSession.mock.calls.length
-    staleLoadEarlier?.()
-    latest?.loadEarlier()
+    void staleLoadEarlier?.()
+    void latest?.loadEarlier()
     expect(transport.readSession).toHaveBeenCalledTimes(readsAfterHide)
 
     const rendersAfterHide = renders.mock.calls.length
@@ -307,7 +307,7 @@ describe('useNativeChatLiveSession visibility', () => {
     await render(BASE_ARGS)
     await emit(0, { type: 'snapshot', messages: initialMessages, hasMore: true })
     await act(async () => {
-      latest?.loadEarlier()
+      void latest?.loadEarlier()
       await Promise.resolve()
       await Promise.resolve()
     })
@@ -375,7 +375,9 @@ describe('useNativeChatLiveSession visibility', () => {
 
     await render(BASE_ARGS)
     await emit(0, { type: 'snapshot', messages: initialMessages, hasMore: true })
-    await act(async () => latest?.loadEarlier())
+    await act(async () => {
+      void latest?.loadEarlier()
+    })
     expect(transport.readSession).toHaveBeenCalledTimes(2)
 
     await render({ ...BASE_ARGS, enabled: false })

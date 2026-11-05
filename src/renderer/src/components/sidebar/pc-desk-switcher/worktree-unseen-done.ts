@@ -1,5 +1,5 @@
 import type { AppState } from '@/store'
-import { parseAgentStatusPaneIdentity } from '@/lib/agent-status-worktree-attribution'
+import { parseAgentStatusPaneIdentity } from '../../../../../shared/agent-status/identity/agent-status-worktree-attribution'
 
 type UnseenDoneInput = Pick<
   AppState,

@@ -1,3 +1,16 @@
+import {
+  expectGoalRowsThroughHydration,
+  expectAtomicRewindCompletion,
+  expectGoalRowRewindRecovery,
+  expectLargeRetainedPrefixRewind,
+  expectSupersededRewindReplay,
+  expectRetainedPrefixRewindReplay
+} from './structured-agent-session-rewind-replay.test-fixture'
+import { expectRawStopNoteRewindRecovery } from './structured-agent-session-rewind-stop-note.test-fixture'
+import {
+  AGENT_JOURNAL_THREAD_SCOPE,
+  type AgentJournalItemBody
+} from '../../../shared/agent-session/journal/agent-session-journal-types'
 import { AgentSessionJournal } from '../agent-session-journal/journal-store'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -6,10 +19,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   agentJournalItemKey,
   agentJournalSubmissionKey
-} from '../../../shared/agent-session-journal-item-key'
-import { computeAgentSessionPayloadFingerprint } from '../../../shared/agent-session-mutation-envelope'
-import { AgentSessionRecordStore } from '../../runtime/agent-session-record-store'
-import { AgentSessionRewindRefusal } from './structured-agent-session-adapter'
+} from '../../../shared/agent-session/journal/agent-session-journal-item-key'
+import { computeAgentSessionPayloadFingerprint } from '../../../shared/agent-session/lifecycle/agent-session-mutation-envelope'
+import {
+  expectUsageLimitRewindCancellation,
+  expectUsageLimitCompletionRollback,
+  expectReopenedUsageLimitCancellation
+} from './structured-agent-session-rewind-usage-limit.test-fixture'
+import { agentSessionFailureFact } from '../../../shared/agent-session/failures/agent-session-failure'
+import { agentSessionFailureWords } from '../../../shared/agent-session/failures/agent-session-failure-words'
+import { nativeChatTurnMembership } from '../../../shared/native-chat/transcript/native-chat-turn-membership'
+import type { AgentSessionRecordStore } from '../../runtime/agent-session/records/agent-session-record-store'
+import { openTestAgentSessionRecordStore } from '../../runtime/agent-session/records/agent-session-record-store-test-harness'
 import { StructuredAgentSessionHost } from './structured-agent-session-host'
 import type {
   StructuredAgentSessionAdapter,
@@ -26,8 +47,17 @@ import {
   hostTestOperationId,
   resetHostTestOperationIds
 } from './structured-agent-session-host-test-data'
+import {
+  closeTestJournalHostDatabases,
+  openTestJournalHostDatabase
+} from '../agent-session-journal/journal-host-database-test-support'
+import { createStructuredAgentSessionLogger } from './structured-agent-session-logger'
+import { codexProviderHandle } from '../../../shared/agent-session/lifecycle/agent-session-provider-handle-encoding'
+import { claudeAndCodexDeclared } from './structured-agent-session-adapter-router-test-support'
+import { startsWhenPublished } from './structured-agent-session-instant-start.test-support'
 
 const caller = { callerKey: 'desktop' }
+let clock = HOST_TEST_NOW
 let directory: string
 let store: AgentSessionRecordStore
 let host: StructuredAgentSessionHost
@@ -36,108 +66,95 @@ let adapter: StructuredAgentSessionAdapter
 let acquires: StructuredAgentSessionAcquireInput[]
 const rewind = vi.fn<NonNullable<StructuredAgentSessionAdapter['rewind']>>()
 const recoverRewind = vi.fn<NonNullable<StructuredAgentSessionAdapter['recoverRewind']>>()
-let failClaude = false
 
 beforeEach(async () => {
+  clock = HOST_TEST_NOW
   resetHostTestOperationIds()
   rewind.mockReset().mockResolvedValue({ ok: true })
-  recoverRewind.mockReset().mockResolvedValue({
-    ok: true,
-    items: [
-      {
-        identity: { provider: 'codex', threadId: HOST_TEST_THREAD, turnId: 'kept', ordinal: 0 },
-        body: hostTestMessage('verified history')
-      }
-    ]
-  })
-  failClaude = false
+  recoverRewind.mockReset().mockResolvedValue({ ok: true })
   acquires = []
   directory = await mkdtemp(join(tmpdir(), 'orca-rewind-'))
-  store = await AgentSessionRecordStore.open({
-    directory: join(directory, 'store'),
-    hostId: 'local'
-  })
-  adapter = {
-    supportsCreate: (_location, agent) => agent === 'codex' || agent === 'claude',
-    supportsLocation: () => true,
-    acquire: async (input) => {
-      acquires.push(input)
-      if (input.rewind && failClaude) {
-        throw new AgentSessionRewindRefusal('provider-refused')
-      }
-      if (input.rewind) {
-        await input.rewind.onProved?.(input.rewind.targetUuid)
-      }
-      await input.rewindRecovery?.onProved()
-      sink = input.events!
-      const handle = input.identity.providerHandle
-      return {
-        process: {
-          hostId: 'local',
-          pid: 4000 + acquires.length,
-          processStartTimeMs: HOST_TEST_NOW,
-          spawnToken: input.spawnToken
-        },
-        acquisitionGeneration: `generation-${acquires.length}`,
-        link: {
-          linkId: `link-${acquires.length}`,
-          mintedAtFence: input.fence,
-          observedAt: HOST_TEST_NOW,
-          origin: acquires.length === 1 ? 'created' : 'resumed',
-          handle:
-            handle.kind === 'claude'
-              ? {
-                  provider: 'claude',
-                  sessionId: handle.sessionId,
-                  leafUuid: input.rewind?.targetUuid ?? 'tip'
-                }
-              : { provider: 'codex', threadId: HOST_TEST_THREAD }
+  store = await openTestAgentSessionRecordStore(directory)
+  adapter = startsWhenPublished(
+    {
+      supportsCreate: (_location, agent) => agent === 'codex',
+      supportsLocation: () => true,
+      open: async () => ({
+        reportedOptions: { model: '' }
+      }),
+      acquire: async (input) => {
+        acquires.push(input)
+        sink = input.events!
+        return {
+          process: {
+            hostId: 'local',
+            pid: 4000 + acquires.length,
+            processStartTimeMs: HOST_TEST_NOW,
+            spawnToken: input.spawnToken
+          },
+          acquisitionGeneration: `generation-${acquires.length}`,
+          link: {
+            linkId: `link-${acquires.length}`,
+            mintedAtFence: input.fence,
+            observedAt: HOST_TEST_NOW,
+            origin: acquires.length === 1 ? 'created' : 'resumed',
+            handle: codexProviderHandle(HOST_TEST_THREAD)
+          }
         }
-      }
+      },
+      dispatch: vi.fn(async (): Promise<AgentSessionDispatchOutcome> => ({
+        state: 'unknown',
+        reason: 'test'
+      })),
+      cancelTurn: async () => ({ cancelled: false }),
+      answerPrompt: async () => {},
+      setOption: async () => {},
+      rewindSupport: () => ({ supported: true }),
+      rewind,
+      recoverRewind,
+      releaseAcquisition: async () => true,
+      closeSession: async () => true
     },
-    dispatch: vi.fn(async (): Promise<AgentSessionDispatchOutcome> => ({
-      state: 'unknown',
-      reason: 'test'
-    })),
-    cancelTurn: async () => ({ cancelled: false }),
-    answerPrompt: async () => {},
-    setOption: async () => {},
-    rewindSupport: () => ({ supported: true }),
-    rewind,
-    recoverRewind,
-    releaseAcquisition: async () => true,
-    closeSession: async () => true
-  }
+    () => host
+  )
   host = new StructuredAgentSessionHost({
+    agents: claudeAndCodexDeclared(),
+    logger: createStructuredAgentSessionLogger(),
     store,
     adapter,
-    journalRoot: directory,
+    journalDatabase: openTestJournalHostDatabase(directory),
     claimKeyId: 'key',
-    now: () => HOST_TEST_NOW,
+    now: () => clock,
     probeOwner: async () => ({ outcome: 'exit-observed' })
   })
 })
 afterEach(async () => {
   await host.flushAllStreamedEvents()
+  await closeTestJournalHostDatabases()
   await rm(directory, { recursive: true, force: true })
 })
 
-async function seed(provider: 'codex' | 'claude' = 'codex', acceptedSubmissions = false) {
-  const params =
-    provider === 'codex'
-      ? hostTestAttachParams(null)
-      : hostTestAttachParams(null, {
-          provider,
-          agent: provider,
-          accountHome: { variable: 'CLAUDE_CONFIG_DIR', path: '/claude' },
-          providerHandle: { kind: 'claude', sessionId: 'claude-session', leafUuid: 'tip' }
-        })
-  expect(await host.attach(caller, params)).toMatchObject({ ok: true })
-  const keys = ['kept', 'drop', 'tip'].map((uuid) =>
-    provider === 'codex'
-      ? { provider, threadId: HOST_TEST_THREAD, turnId: uuid, ordinal: 0 }
-      : { provider, sessionId: 'claude-session', uuid }
-  )
+/** Await startup reconciliation; unresolved rewind fails startup in its own stop step. */
+async function attachAndStart(fence: number | null) {
+  const attached = await host.attach(caller, hostTestAttachParams(fence))
+  const { serialize } = host.collaboratorsForTests()
+  await serialize(HOST_TEST_SESSION, async () => {})
+  await serialize(HOST_TEST_SESSION, async () => {})
+  return attached
+}
+
+function startedChild() {
+  return host.collaboratorsForTests().sessions.get(HOST_TEST_SESSION)?.child ?? null
+}
+
+async function seed(acceptedSubmissions = false) {
+  expect(await host.attach(caller, hostTestAttachParams(null))).toMatchObject({ ok: true })
+  const keys = ['kept', 'drop', 'tip'].map((turnId) => ({
+    provider: 'codex' as const,
+    threadId: HOST_TEST_THREAD,
+    turnId,
+    ordinal: 0
+  }))
   let selectedItemId = agentJournalItemKey(keys[1]!)
   for (const [i, identity] of keys.entries()) {
     const body = {
@@ -165,20 +182,25 @@ async function seed(provider: 'codex' | 'claude' = 'codex', acceptedSubmissions 
           }
         })
       ).toMatchObject({ ok: true })
+      await vi.waitFor(async () =>
+        expect(
+          (await host.journalSnapshot(HOST_TEST_SESSION)).submissions.find(
+            (entry) => entry.clientMessageId === clientOperationId
+          )?.dispatchState
+        ).toBe('accepted')
+      )
       if (i === 1) {
         selectedItemId = agentJournalSubmissionKey(clientOperationId)
       }
     } else {
-      sink.appendItem(identity, body)
+      sink.appendItem(identity, body, { turnScope: AGENT_JOURNAL_THREAD_SCOPE })
     }
   }
   await host.flushStreamedEvents(HOST_TEST_SESSION)
   return selectedItemId
 }
-function params(
-  itemId: string,
-  expectedEpoch = host.journalSnapshot(HOST_TEST_SESSION).cursor.epoch
-) {
+async function params(itemId: string, epoch?: string) {
+  const expectedEpoch = epoch ?? (await host.journalSnapshot(HOST_TEST_SESSION)).cursor.epoch
   return {
     itemId,
     expectedEpoch,
@@ -195,92 +217,208 @@ function params(
   }
 }
 
-describe('host rewind', () => {
-  it.each(['codex', 'claude'] as const)(
-    'resolves accepted %s user submissions to provider targets',
-    async (provider) => {
-      const target = await seed(provider, true)
-      expect(target.startsWith('orca:')).toBe(true)
-      expect(await host.rewind(caller, params(target))).toMatchObject({ ok: true })
-      expect(host.journalSnapshot(HOST_TEST_SESSION).items).toHaveLength(1)
-      if (provider === 'codex') {
-        expect(rewind).toHaveBeenCalledWith(expect.objectContaining({ beforeTurnId: 'drop' }))
-      } else {
-        expect(acquires[1]?.rewind).toMatchObject({ targetUuid: 'kept', dropsTurn: 'drop' })
-      }
-    }
-  )
+const LATE = { provider: 'codex' as const, threadId: HOST_TEST_THREAD, turnId: 'late', ordinal: 0 }
 
-  it('retains the preceding accepted Claude prompt when rewinding its assistant response', async () => {
-    await seed('claude', true)
-    const target = agentJournalItemKey({
-      provider: 'claude',
-      sessionId: 'claude-session',
-      uuid: 'tip'
-    })
-    expect(await host.rewind(caller, params(target))).toMatchObject({ ok: true })
-    expect(acquires[1]?.rewind).toMatchObject({ targetUuid: 'drop' })
-    expect(host.journalSnapshot(HOST_TEST_SESSION).items).toHaveLength(2)
+describe('host rewind', () => {
+  it('keeps an older limited turn idle when rewind removes its superseding message', async () => {
+    vi.spyOn(store, 'cancelUsageLimitContinue').mockRejectedValue(
+      new Error('optional cancel unavailable')
+    )
+    host.deps.usageLimitAutoContinue = {
+      isEnabled: () => true,
+      isWorkspaceAsleep: () => false,
+      subscribe: () => () => {}
+    }
+    const target = await seed()
+    await store.setSessionTabVisibility(HOST_TEST_SESSION, true)
+    await expectUsageLimitRewindCancellation({ host, store, target, params, clock })
+    const retained = (await host.journalSnapshot(HOST_TEST_SESSION)).items.find(
+      (item) => item.body.kind === 'message' && item.body.role === 'user'
+    )!
+    rewind.mockResolvedValueOnce({ ok: false, reason: 'provider-refused' })
+    expect(await host.rewind(caller, await params(retained.itemId))).toMatchObject({ ok: false })
+    expect(store.getRecord(HOST_TEST_SESSION)?.rewind?.phase).toBe('refused')
+    await host.flushAllStreamedEvents()
+    store = await openTestAgentSessionRecordStore(directory)
+    host = new StructuredAgentSessionHost({ ...host.deps, store })
+    clock += 75_000
+    await expectReopenedUsageLimitCancellation(host, store)
   })
+
+  it('answers a saved rewind after floor damage without another provider rewind', async () => {
+    const request = await params(await seed())
+    expect(await host.rewind(caller, request)).toMatchObject({ ok: true })
+    await host.flushAllStreamedEvents()
+    openTestJournalHostDatabase(directory)
+      .db.prepare(
+        "UPDATE agent_session_records SET record_json = json_set(record_json, '$.lease.minimumNextFence', 'bad') WHERE session_id = ?"
+      )
+      .run(HOST_TEST_SESSION)
+    const reopened = await openTestAgentSessionRecordStore(directory)
+    const restored = new StructuredAgentSessionHost({ ...host.deps, store: reopened })
+    const effects = rewind.mock.calls.length
+    expect(await restored.rewind(caller, request)).toMatchObject({
+      ok: true,
+      replayed: true,
+      fence: reopened.getConversation(HOST_TEST_SESSION)?.currentFence
+    })
+    expect(rewind).toHaveBeenCalledTimes(effects)
+    await restored.flushAllStreamedEvents()
+  })
+
+  it('replays the original ordinary rewind after another rewind replaces its record', () =>
+    expectSupersededRewindReplay({ host, store, rewind, recoverRewind, seed, params }))
+
+  it('retains the raw Stop failure and recovers a committed rewind against raw bodies', async () => {
+    await expectRawStopNoteRewindRecovery({ host, store, rewind })
+  })
+
+  it('resolves accepted codex user submissions to provider targets', async () => {
+    const target = await seed(true)
+    expect(target.startsWith('orca:')).toBe(true)
+    expect(await host.rewind(caller, await params(target))).toMatchObject({ ok: true })
+    expect((await host.journalSnapshot(HOST_TEST_SESSION)).items).toHaveLength(1)
+    expect(rewind).toHaveBeenCalledWith(expect.objectContaining({ beforeTurnId: 'drop' }))
+  })
+
+  it('omits a stopped submission between the kept turn and the rewind target', async () => {
+    expect(await host.attach(caller, hostTestAttachParams(null))).toMatchObject({ ok: true })
+    const kept = { ...LATE, turnId: 'kept' }
+    const target = { ...LATE, turnId: 'target' }
+    sink.appendItem(kept, hostTestMessage('kept'), { turnScope: AGENT_JOURNAL_THREAD_SCOPE })
+    await host.flushStreamedEvents(HOST_TEST_SESSION)
+    const body = hostTestMessage('stopped')
+    const clientOperationId = hostTestOperationId()
+    vi.mocked(adapter.dispatch).mockResolvedValueOnce({
+      state: 'rejected',
+      ...agentSessionFailureWords(agentSessionFailureFact('cancelled'), { surface: 'rejection' })
+    })
+    expect(
+      await host.send(caller, {
+        body,
+        envelope: {
+          sessionId: HOST_TEST_SESSION,
+          clientOperationId,
+          expectedRuntimeFence: store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence,
+          payloadFingerprint: computeAgentSessionPayloadFingerprint({
+            method: 'agentSession.send',
+            sessionId: HOST_TEST_SESSION,
+            fields: { body }
+          })
+        }
+      })
+    ).toMatchObject({ ok: true })
+    await vi.waitFor(async () =>
+      expect((await host.journalSnapshot(HOST_TEST_SESSION)).submissions).toEqual([
+        expect.objectContaining({ clientMessageId: clientOperationId, dispatchState: 'rejected' })
+      ])
+    )
+    sink.appendItem(target, hostTestMessage('target'), { turnScope: AGENT_JOURNAL_THREAD_SCOPE })
+    await host.flushStreamedEvents(HOST_TEST_SESSION)
+    expect(
+      (await host.journalSnapshot(HOST_TEST_SESSION)).items.map(({ itemId }) => itemId)
+    ).toEqual([
+      agentJournalItemKey(kept),
+      agentJournalSubmissionKey(clientOperationId),
+      agentJournalItemKey(target)
+    ])
+    expect(await host.rewind(caller, await params(agentJournalItemKey(target)))).toMatchObject({
+      ok: true
+    })
+    expect(
+      (await host.journalSnapshot(HOST_TEST_SESSION)).items.map(({ itemId }) => itemId)
+    ).toEqual([agentJournalItemKey(kept)])
+  })
+
   it('finishes a durable provider success on reattach without repeating the provider mutation', async () => {
     const target = await seed()
-    const request = params(target)
+    const request = await params(target)
+    const before = await host.journalSnapshot(HOST_TEST_SESSION)
+    const completion = store.conversationReceipts.rewind
     const replace = vi
-      .spyOn(AgentSessionJournal.prototype, 'replaceEpochItems')
-      .mockRejectedValueOnce(new Error('disk failed'))
+      .spyOn(store.conversationReceipts, 'rewind')
+      .mockImplementationOnce((...args) => ({
+        ...completion(...args),
+        write: () => {
+          throw new Error('disk failed')
+        }
+      }))
     await expect(host.rewind(caller, request)).rejects.toThrow('disk failed')
+    expect(await host.journalSnapshot(HOST_TEST_SESSION)).toEqual(before)
     expect(store.getRecord(HOST_TEST_SESSION)?.rewind?.phase).toBe('provider-succeeded')
     replace.mockRestore()
     const fence = store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence
-    expect(await host.attach(caller, hostTestAttachParams(fence))).toMatchObject({ ok: true })
-    expect(host.journalSnapshot(HOST_TEST_SESSION).items).toHaveLength(1)
+    expect(await attachAndStart(fence)).toMatchObject({ ok: true })
+    expect((await host.journalSnapshot(HOST_TEST_SESSION)).items).toHaveLength(1)
     expect(store.getRecord(HOST_TEST_SESSION)?.rewind?.phase).toBe('completed')
     expect(await host.rewind(caller, request)).toMatchObject({ ok: true, replayed: true })
     expect(rewind).toHaveBeenCalledTimes(1)
   })
 
+  it('completes an older already-replaced pending record without another provider mutation', async () => {
+    const target = await seed()
+    const request = await params(target)
+    const replace = AgentSessionJournal.prototype.replaceEpochItems
+    const oldCompletionGap = vi
+      .spyOn(AgentSessionJournal.prototype, 'replaceEpochItems')
+      .mockImplementationOnce(async function (
+        this: AgentSessionJournal,
+        reason,
+        fence,
+        items,
+        _receipt,
+        handle
+      ) {
+        // Older hosts published the replacement before saving record completion.
+        await replace.call(this, reason, fence, items, undefined, handle)
+        throw new Error('old completion gap')
+      })
+    await expect(host.rewind(caller, request)).rejects.toThrow('old completion gap')
+    oldCompletionGap.mockRestore()
+    const committed = await host.journalSnapshot(HOST_TEST_SESSION)
+    expect(committed.cursor.epoch).not.toBe(request.expectedEpoch)
+    expect(store.getRecord(HOST_TEST_SESSION)?.rewind?.phase).toBe('provider-succeeded')
+    const repeated = vi.spyOn(AgentSessionJournal.prototype, 'replaceEpochItems')
+    expect(
+      await attachAndStart(store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence)
+    ).toMatchObject({ ok: true })
+    expect(await host.journalSnapshot(HOST_TEST_SESSION)).toEqual(committed)
+    expect(store.getRecord(HOST_TEST_SESSION)?.rewind?.phase).toBe('completed')
+    expect(repeated).not.toHaveBeenCalled()
+    repeated.mockRestore()
+    expect(rewind).toHaveBeenCalledTimes(1)
+    expect(await host.rewind(caller, request)).toMatchObject({ ok: true, replayed: true })
+  })
+
   it('retries complete hydration after native acknowledgement without committing partial history', async () => {
     const target = await seed()
-    const before = host.journalSnapshot(HOST_TEST_SESSION)
-    rewind.mockImplementation(async (input) => {
-      await input.onReverted?.()
+    const before = await host.journalSnapshot(HOST_TEST_SESSION)
+    rewind.mockImplementation(async () => {
       throw new Error('history unavailable')
     })
-    await expect(host.rewind(caller, params(target))).rejects.toThrow('history unavailable')
-    expect(host.journalSnapshot(HOST_TEST_SESSION)).toEqual(before)
-    expect(store.getRecord(HOST_TEST_SESSION)?.rewind).toMatchObject({
-      phase: 'prepared',
-      providerApplied: true
-    })
+    await expect(host.rewind(caller, await params(target))).rejects.toThrow('history unavailable')
+    expect(await host.journalSnapshot(HOST_TEST_SESSION)).toEqual(before)
+    expect(store.getRecord(HOST_TEST_SESSION)?.rewind).toMatchObject({ phase: 'prepared' })
     recoverRewind.mockRejectedValueOnce(new Error('history still unavailable'))
-    await expect(
-      host.attach(
-        caller,
-        hostTestAttachParams(store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence)
-      )
-    ).rejects.toThrow('history still unavailable')
+    expect(
+      await attachAndStart(store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence)
+    ).toMatchObject({ ok: true })
+    // The start's owner stops the child once its required rewind read failed.
+    await vi.waitFor(() => expect(startedChild()).toBeNull())
     expect(store.getRecord(HOST_TEST_SESSION)?.rewind?.phase).toBe('prepared')
     expect(
-      await host.attach(
-        caller,
-        hostTestAttachParams(store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence)
-      )
+      await attachAndStart(store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence)
     ).toMatchObject({ ok: true })
-    expect(host.journalSnapshot(HOST_TEST_SESSION).items).toHaveLength(1)
-    expect(host.journalSnapshot(HOST_TEST_SESSION).items[0]?.body).toEqual(
-      hostTestMessage('verified history')
+    expect((await host.journalSnapshot(HOST_TEST_SESSION)).items).toHaveLength(1)
+    // Personal messages retain Orca’s original text through provider reconstruction.
+    expect((await host.journalSnapshot(HOST_TEST_SESSION)).items[0]?.body).toEqual(
+      hostTestMessage('0')
     )
     expect(recoverRewind).toHaveBeenCalledTimes(2)
     expect(rewind).toHaveBeenCalledTimes(1)
   })
-  it('fences stale owners and the second of two concurrent rewinds', async () => {
+  it('refuses the second of two concurrent rewinds by the epoch it targets', async () => {
     const target = await seed()
-    const stale = params(target)
-    stale.envelope.expectedRuntimeFence++
-    expect(await host.rewind(caller, stale)).toMatchObject({
-      ok: false,
-      refusal: { code: 'agent_session_checkpoint_stale' }
-    })
     let finish!: () => void
     rewind.mockImplementation(
       () =>
@@ -288,99 +426,141 @@ describe('host rewind', () => {
           finish = () => resolve({ ok: true })
         })
     )
-    const first = host.rewind(caller, params(target))
-    const second = host.rewind(caller, params(target))
-    await vi.waitFor(() => expect(finish).toBeTypeOf('function'))
+    const first = host.rewind(caller, await params(target))
+    const second = host.rewind(caller, await params(target))
+    await vi.waitFor(async () => expect(finish).toBeTypeOf('function'))
     finish()
     expect(await first).toMatchObject({ ok: true })
     expect(await second).toMatchObject({ ok: false, refusal: { rewindReason: 'stale-epoch' } })
     expect(rewind).toHaveBeenCalledTimes(1)
   })
-  it('replaces the epoch with the retained prefix and replays without another provider call', async () => {
+  it('rewinds a chat whose kept part is far past the old 2 MB limit', () =>
+    expectLargeRetainedPrefixRewind({ host, store, rewind, sink: () => sink, params }))
+  it('replaces the epoch with the retained prefix and replays without another provider call', () =>
+    expectRetainedPrefixRewindReplay({ host, rewind, seed, params }))
+  it('keeps when each kept message was first seen, not when the rewind re-read it', async () => {
     const target = await seed()
-    const request = params(target)
-    const result = await host.rewind(caller, request)
-    expect(result).toMatchObject({ ok: true })
-    expect(host.journalSnapshot(HOST_TEST_SESSION).items).toHaveLength(1)
-    expect(host.journalSnapshot(HOST_TEST_SESSION).cursor.epoch).not.toBe(request.expectedEpoch)
-    expect(await host.rewind(caller, request)).toMatchObject({ ok: true, replayed: true })
-    expect(rewind).toHaveBeenCalledTimes(1)
+    const kept = (await host.journalSnapshot(HOST_TEST_SESSION)).items[0]!
+    clock = HOST_TEST_NOW + 60_000
+    expect(await host.rewind(caller, await params(target))).toMatchObject({ ok: true })
+    const [after] = (await host.journalSnapshot(HOST_TEST_SESSION)).items
+    expect(after).toMatchObject({ itemId: kept.itemId, observedAt: kept.observedAt })
+    expect(after!.observedAt).not.toBe(clock)
   })
-  it('reacquires Claude at the retained cursor with the same session and a new lease fence', async () => {
-    const target = await seed('claude')
-    const before = store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence
-    expect(await host.rewind(caller, params(target))).toMatchObject({ ok: true })
-    const emit = vi.fn()
-    const unsubscribe = host.subscribe({ id: 'after-rewind', sessionId: HOST_TEST_SESSION, emit })
-    emit.mockClear()
+  it("rewinds after the chat's event sink failed, its error never failing the rewind", async () => {
+    const target = await seed()
+    const request = await params(target)
+    const refused = vi
+      .spyOn(AgentSessionJournal.prototype, 'appendItem')
+      .mockRejectedValueOnce(new Error('disk full'))
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     sink.appendItem(
-      { provider: 'claude', sessionId: 'claude-session', uuid: 'next' },
-      hostTestMessage('next')
+      { provider: 'codex', threadId: HOST_TEST_THREAD, turnId: 'tip', ordinal: 1 },
+      hostTestMessage('refused'),
+      { turnScope: AGENT_JOURNAL_THREAD_SCOPE }
     )
-    sink.publish()
-    await host.flushStreamedEvents(HOST_TEST_SESSION)
-    expect(emit).toHaveBeenCalledWith(expect.objectContaining({ type: 'batch' }))
-    unsubscribe()
-    expect(acquires[1]?.rewind).toMatchObject({
-      targetUuid: 'kept',
-      previousLeafUuid: 'tip',
-      dropsTurn: 'drop'
-    })
-    expect(store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence).toBeGreaterThan(before)
-    expect(store.getRecord(HOST_TEST_SESSION)!.lease.ownerProcess?.pid).toBe(4002)
-    expect(host.journalSnapshot(HOST_TEST_SESSION).items).toHaveLength(2)
+    await vi.waitFor(() => expect(refused).toHaveBeenCalled())
+    refused.mockRestore()
+
+    expect(await host.rewind(caller, request)).toMatchObject({ ok: true })
+    expect((await host.journalSnapshot(HOST_TEST_SESSION)).items).toHaveLength(1)
   })
-  it('recovers a Claude refusal with one plain resume and preserves the journal', async () => {
-    const target = await seed('claude')
-    failClaude = true
-    const before = host.journalSnapshot(HOST_TEST_SESSION)
-    expect(await host.rewind(caller, params(target))).toMatchObject({
-      ok: false,
-      refusal: { rewindReason: 'provider-refused' }
-    })
-    expect(acquires).toHaveLength(3)
-    expect(acquires[2]?.rewind).toBeUndefined()
-    expect(host.journalSnapshot(HOST_TEST_SESSION)).toEqual(before)
-    expect(store.getRecord(HOST_TEST_SESSION)!.lease.claimStatus).toBe('live')
-  })
+
   it('refuses a rewind racing an active turn before provider execution', async () => {
     const target = await seed()
     sink.appendItem(
       { provider: 'orca', clientMessageId: 'active' },
-      { kind: 'status', text: 'working', turnLifecycle: { turnId: 'active', state: 'running' } }
+      { kind: 'status', text: 'working', turnLifecycle: { turnId: 'active', state: 'running' } },
+      { turnScope: AGENT_JOURNAL_THREAD_SCOPE }
     )
-    expect(await host.rewind(caller, params(target))).toMatchObject({
+    expect(await host.rewind(caller, await params(target))).toMatchObject({
       ok: false,
       refusal: { rewindReason: 'busy' }
     })
     expect(rewind).not.toHaveBeenCalled()
   })
+  it('is busy exactly while the chat shows a sent message unanswered', async () => {
+    const target = await seed()
+    const body = hostTestMessage('unanswered')
+    const clientOperationId = hostTestOperationId()
+    await host.send(caller, {
+      body,
+      envelope: {
+        ...(await params(target)).envelope,
+        clientOperationId,
+        payloadFingerprint: computeAgentSessionPayloadFingerprint({
+          method: 'agentSession.send',
+          sessionId: HOST_TEST_SESSION,
+          fields: { body }
+        })
+      }
+    })
+    const sent = async () =>
+      (await host.journalSnapshot(HOST_TEST_SESSION)).submissions.find(
+        (entry) => entry.clientMessageId === clientOperationId
+      )
+    await vi.waitFor(async () => expect((await sent())?.dispatchState).toBe('unknown'))
+    expect(await host.rewind(caller, await params(target))).toMatchObject({
+      ok: false,
+      refusal: { rewindReason: 'busy' }
+    })
+    await host.settleLateDispatch({
+      sessionId: HOST_TEST_SESSION,
+      clientMessageId: clientOperationId,
+      providerIdentity: LATE
+    })
+    expect(await host.rewind(caller, await params(target))).toMatchObject({ ok: true })
+    expect(rewind).toHaveBeenCalledOnce()
+  })
   it('refuses stale epochs and targets from another provider', async () => {
     const target = await seed()
-    expect(await host.rewind(caller, params(target, 'old-epoch'))).toMatchObject({
+    expect(await host.rewind(caller, await params(target, 'old-epoch'))).toMatchObject({
       ok: false,
       refusal: { rewindReason: 'stale-epoch' }
     })
-    expect(await host.rewind(caller, params('claude:foreign'))).toMatchObject({
+    expect(await host.rewind(caller, await params('claude:foreign'))).toMatchObject({
       ok: false,
       refusal: { rewindReason: 'invalid-target' }
     })
     expect(rewind).not.toHaveBeenCalled()
   })
-  it('keeps a failed hydration epoch intact and blocks sends and duplicate rewind', async () => {
+  it('refuses an older client unresolved target without mutation and keeps ordinary Rewind usable', async () => {
     const target = await seed()
-    const request = params(target)
-    const before = host.journalSnapshot(HOST_TEST_SESSION)
+    sink.appendItem(
+      LATE,
+      { ...hostTestMessage('outside follow-up'), role: 'user' },
+      {
+        turnScope: { kind: 'unknown' }
+      }
+    )
+    await host.flushStreamedEvents(HOST_TEST_SESSION)
+    const before = await host.journalSnapshot(HOST_TEST_SESSION)
+    const record = store.getRecord(HOST_TEST_SESSION)
+    expect(await host.rewind(caller, await params(agentJournalItemKey(LATE)))).toMatchObject({
+      ok: false,
+      refusal: { rewindReason: 'invalid-target' }
+    })
+    expect(await host.journalSnapshot(HOST_TEST_SESSION)).toEqual(before)
+    expect(store.getRecord(HOST_TEST_SESSION)).toEqual(record)
+    expect(rewind).not.toHaveBeenCalled()
+    expect(await host.rewind(caller, await params(target))).toMatchObject({ ok: true })
+    expect(rewind).toHaveBeenCalledOnce()
+  })
+  it('keeps a failed hydration epoch intact and blocks sends and duplicate rewind while it stays unknown', async () => {
+    const target = await seed()
+    const request = await params(target)
+    const before = await host.journalSnapshot(HOST_TEST_SESSION)
     rewind.mockRejectedValue(new Error('hydration failed'))
     await expect(host.rewind(caller, request)).rejects.toThrow('hydration failed')
-    expect(host.journalSnapshot(HOST_TEST_SESSION)).toEqual(before)
+    expect(await host.journalSnapshot(HOST_TEST_SESSION)).toEqual(before)
     expect(await host.rewind(caller, request)).toMatchObject({
       ok: false,
       refusal: { code: 'agent_session_operation_unknown' }
     })
+    recoverRewind.mockResolvedValueOnce({ ok: false, reason: 'outcome-unknown' })
     const body = hostTestMessage('new prompt')
     const envelope = {
-      ...params(target).envelope,
+      ...(await params(target)).envelope,
       payloadFingerprint: computeAgentSessionPayloadFingerprint({
         method: 'agentSession.send',
         sessionId: HOST_TEST_SESSION,
@@ -393,10 +573,7 @@ describe('host rewind', () => {
     })
     expect(adapter.dispatch).not.toHaveBeenCalled()
     expect(
-      await host.attach(
-        caller,
-        hostTestAttachParams(store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence)
-      )
+      await attachAndStart(store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence)
     ).toMatchObject({ ok: true })
     expect(store.getRecord(HOST_TEST_SESSION)?.rewind?.phase).toBe('completed')
     expect(await host.rewind(caller, request)).toMatchObject({ ok: true, replayed: true })
@@ -405,28 +582,110 @@ describe('host rewind', () => {
 
   it('clears an unapplied prepared rewind after observing the target still present', async () => {
     const target = await seed()
-    const before = host.journalSnapshot(HOST_TEST_SESSION)
+    const before = await host.journalSnapshot(HOST_TEST_SESSION)
     rewind.mockRejectedValueOnce(new Error('read failed before revert'))
-    await expect(host.rewind(caller, params(target))).rejects.toThrow('read failed')
+    await expect(host.rewind(caller, await params(target))).rejects.toThrow('read failed')
     recoverRewind.mockResolvedValueOnce({ ok: false, reason: 'provider-refused' })
     expect(
-      await host.attach(
-        caller,
-        hostTestAttachParams(store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence)
-      )
+      await attachAndStart(store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence)
     ).toMatchObject({ ok: true })
-    expect(host.journalSnapshot(HOST_TEST_SESSION)).toEqual(before)
+    expect(await host.journalSnapshot(HOST_TEST_SESSION)).toEqual(before)
     expect(store.getRecord(HOST_TEST_SESSION)?.rewind?.phase).toBe('refused')
-    expect(await host.rewind(caller, params(target))).toMatchObject({ ok: true })
+    expect(await host.rewind(caller, await params(target))).toMatchObject({ ok: true })
+  })
+
+  it('settles an acknowledged revert the provider did not keep, so the chat attaches and sends', async () => {
+    const target = await seed()
+    const before = await host.journalSnapshot(HOST_TEST_SESSION)
+    rewind.mockImplementationOnce(async () => {
+      throw new Error('history unavailable')
+    })
+    await expect(host.rewind(caller, await params(target))).rejects.toThrow('history unavailable')
+    expect(store.getRecord(HOST_TEST_SESSION)?.rewind).toMatchObject({ phase: 'prepared' })
+    recoverRewind.mockResolvedValueOnce({ ok: false, reason: 'provider-refused' })
+    expect(
+      await attachAndStart(store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence)
+    ).toMatchObject({ ok: true })
+    expect(await host.journalSnapshot(HOST_TEST_SESSION)).toEqual(before)
+    expect(store.getRecord(HOST_TEST_SESSION)?.rewind?.phase).toBe('refused')
+    const body = hostTestMessage('after the refused rewind')
+    expect(
+      await host.send(caller, {
+        body,
+        envelope: {
+          sessionId: HOST_TEST_SESSION,
+          clientOperationId: hostTestOperationId(),
+          expectedRuntimeFence: store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence,
+          payloadFingerprint: computeAgentSessionPayloadFingerprint({
+            method: 'agentSession.send',
+            sessionId: HOST_TEST_SESSION,
+            fields: { body }
+          })
+        }
+      })
+    ).toMatchObject({ ok: true })
   })
 
   it('keeps host-stamped turn and goal rows through a Codex provider hydration', async () => {
+    await expectGoalRowsThroughHydration({ host, store, sink: () => sink, params })
+  })
+
+  it('refuses an unsupported item before saving, preserving known history through a Codex provider hydration', async () => {
     expect(await host.attach(caller, hostTestAttachParams(null))).toMatchObject({ ok: true })
     const message = (turnId: string) => ({
       provider: 'codex' as const,
       threadId: HOST_TEST_THREAD,
       turnId,
       ordinal: 0
+    })
+    const newerRow = { provider: 'orca' as const, clientMessageId: 'newer-card' }
+    const newerBody: AgentJournalItemBody = JSON.parse(
+      JSON.stringify({ kind: 'plan-card', steps: [{ text: 'by a newer build' }] })
+    )
+    sink.appendItem(message('kept'), hostTestMessage('kept'), {
+      turnScope: AGENT_JOURNAL_THREAD_SCOPE
+    })
+    await host.flushStreamedEvents(HOST_TEST_SESSION)
+    const journal = host.collaboratorsForTests().sessions.get(HOST_TEST_SESSION)!.journal
+    const before = journal.snapshot()
+    const database = openTestJournalHostDatabase(directory)
+    const saved = () =>
+      database.db
+        .prepare('SELECT * FROM journal_outcomes ORDER BY generation,seq,field,entry_key')
+        .all()
+    const bytes = saved()
+    await expect(
+      journal.appendItem(newerRow, newerBody, {
+        fence: store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence,
+        turnScope: AGENT_JOURNAL_THREAD_SCOPE
+      })
+    ).rejects.toMatchObject({ code: 'journal_row_rejected' })
+    expect(journal.snapshot()).toEqual(before)
+    expect(saved()).toEqual(bytes)
+    sink.appendItem(message('drop'), hostTestMessage('drop'), {
+      turnScope: AGENT_JOURNAL_THREAD_SCOPE
+    })
+    await host.flushStreamedEvents(HOST_TEST_SESSION)
+
+    expect(
+      await host.rewind(caller, await params(agentJournalItemKey(message('drop'))))
+    ).toMatchObject({ ok: true })
+
+    expect(
+      (await host.journalSnapshot(HOST_TEST_SESSION)).items.map(({ itemId, body }) => ({
+        itemId,
+        body
+      }))
+    ).toEqual([{ itemId: agentJournalItemKey(message('kept')), body: hostTestMessage('kept') }])
+  })
+
+  it('keeps each retained turn opened by its original canonical source', async () => {
+    expect(await host.attach(caller, hostTestAttachParams(null))).toMatchObject({ ok: true })
+    const message = (turnId: string, ordinal = 0) => ({
+      provider: 'codex' as const,
+      threadId: HOST_TEST_THREAD,
+      turnId,
+      ordinal
     })
     const turnRow = (turnId: string) => ({
       provider: 'legacy' as const,
@@ -434,200 +693,91 @@ describe('host rewind', () => {
       sessionId: HOST_TEST_SESSION,
       recordId: `turn-lifecycle:${turnId}`
     })
-    const goalRow = {
-      provider: 'orca' as const,
-      clientMessageId: `codex-goal:${'a'.repeat(64)}:${'b'.repeat(64)}:${'c'.repeat(64)}`
-    }
-    const goalBody = {
-      kind: 'status' as const,
-      text: 'Goal set: Keep the retained evidence.',
-      providerFrame: {
-        provider: 'codex',
-        kind: 'notification:thread/goal/updated',
-        payload: { head: '{}', byteLength: 2, digest: 'd'.repeat(64), truncated: false }
-      }
-    }
-    const keptTurn = {
-      kind: 'turn' as const,
-      turnId: 'kept',
-      state: 'completed' as const,
-      userItemId: agentJournalItemKey(message('kept')),
-      startedAt: HOST_TEST_NOW - 9_000,
-      completedAt: HOST_TEST_NOW - 4_000,
-      durationMs: 5_000
-    }
-    sink.appendItem(message('kept'), hostTestMessage('kept'))
-    sink.appendItem(goalRow, goalBody)
-    sink.appendItem(turnRow('kept'), keptTurn)
-    sink.appendItem(message('drop'), hostTestMessage('drop'))
-    sink.appendItem(turnRow('drop'), { ...keptTurn, turnId: 'drop', durationMs: 1_000 })
-    sink.appendItem(message('tip'), { ...hostTestMessage('tip'), role: 'assistant' })
-    await host.flushStreamedEvents(HOST_TEST_SESSION)
-    // The provider preflight knows only its own items, never the host's turn rows.
-    const items = [{ identity: message('kept'), body: hostTestMessage('kept from provider') }]
-    rewind.mockImplementationOnce(async (input) => {
-      await input.onPrepared?.(items)
-      await input.onReverted?.()
-      return { ok: true, items }
-    })
-
-    expect(await host.rewind(caller, params(agentJournalItemKey(message('drop'))))).toMatchObject({
-      ok: true
-    })
-
-    expect(
-      host.journalSnapshot(HOST_TEST_SESSION).items.map(({ itemId, body }) => ({ itemId, body }))
-    ).toEqual([
-      { itemId: agentJournalItemKey(message('kept')), body: hostTestMessage('kept from provider') },
-      { itemId: agentJournalItemKey(goalRow), body: goalBody },
-      { itemId: agentJournalItemKey(turnRow('kept')), body: keptTurn }
-    ])
-    expect(store.getRecord(HOST_TEST_SESSION)?.rewind?.phase).toBe('completed')
-  })
-
-  it('keeps a host goal row when interrupted Codex rewind recovery rebuilds provider history', async () => {
-    expect(await host.attach(caller, hostTestAttachParams(null))).toMatchObject({ ok: true })
-    const message = (turnId: string) => ({
-      provider: 'codex' as const,
-      threadId: HOST_TEST_THREAD,
-      turnId,
-      ordinal: 0
-    })
-    const goalRow = {
-      provider: 'orca' as const,
-      clientMessageId: `codex-goal:${'1'.repeat(64)}:${'2'.repeat(64)}:${'3'.repeat(64)}`
-    }
-    const goalBody = {
-      kind: 'status' as const,
-      text: 'Goal set: Survive recovery.',
-      providerFrame: {
-        provider: 'codex',
-        kind: 'notification:thread/goal/updated',
-        payload: { head: '{}', byteLength: 2, digest: '4'.repeat(64), truncated: false }
-      }
-    }
-    sink.appendItem(message('kept'), hostTestMessage('kept'))
-    sink.appendItem(goalRow, goalBody)
-    sink.appendItem(message('drop'), hostTestMessage('drop'))
-    sink.appendItem(message('tip'), { ...hostTestMessage('tip'), role: 'assistant' })
-    await host.flushStreamedEvents(HOST_TEST_SESSION)
-    rewind.mockImplementationOnce(async (input) => {
-      await input.onReverted?.()
-      throw new Error('lost after provider revert')
-    })
-
-    await expect(host.rewind(caller, params(agentJournalItemKey(message('drop'))))).rejects.toThrow(
-      'lost after provider revert'
-    )
-    recoverRewind.mockResolvedValueOnce({
-      ok: true,
-      items: [{ identity: message('kept'), body: hostTestMessage('kept from recovery') }]
-    })
-    expect(
-      await host.attach(
-        caller,
-        hostTestAttachParams(store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence)
-      )
-    ).toMatchObject({ ok: true })
-
-    expect(
-      host.journalSnapshot(HOST_TEST_SESSION).items.map(({ itemId, body }) => ({ itemId, body }))
-    ).toEqual([
-      { itemId: agentJournalItemKey(message('kept')), body: hostTestMessage('kept from recovery') },
-      { itemId: agentJournalItemKey(goalRow), body: goalBody }
-    ])
-    expect(store.getRecord(HOST_TEST_SESSION)?.rewind?.phase).toBe('completed')
-  })
-
-  it('recovers against the complete provider preflight when the local journal omitted an older turn', async () => {
-    const target = await seed()
-    const items = ['older', 'kept'].map((turnId) => ({
-      identity: { provider: 'codex' as const, threadId: HOST_TEST_THREAD, turnId, ordinal: 0 },
-      body: hostTestMessage(turnId)
-    }))
-    rewind.mockImplementationOnce(async (input) => {
-      await input.onPrepared?.(items)
-      await input.onReverted?.()
-      throw new Error('lost after revert')
-    })
-    await expect(host.rewind(caller, params(target))).rejects.toThrow('lost after revert')
-    recoverRewind.mockResolvedValueOnce({ ok: true, items })
-    expect(
-      await host.attach(
-        caller,
-        hostTestAttachParams(store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence)
-      )
-    ).toMatchObject({ ok: true })
-    expect(host.journalSnapshot(HOST_TEST_SESSION).items).toHaveLength(2)
-    expect(store.getRecord(HOST_TEST_SESSION)?.rewind?.phase).toBe('completed')
-  })
-
-  it.each(['turn', 'item'] as const)(
-    'never commits a recovered prefix that omits an expected retained %s',
-    async (missing) => {
-      const target = await seed()
-      const before = host.journalSnapshot(HOST_TEST_SESSION)
-      const items = [0, 1].map((ordinal) => ({
-        identity: {
-          provider: 'codex' as const,
-          threadId: HOST_TEST_THREAD,
-          turnId: 'kept',
-          ordinal
-        },
-        body: hostTestMessage(String(ordinal))
-      }))
-      rewind.mockImplementationOnce(async (input) => {
-        await input.onPrepared?.(items)
-        throw new Error('reply lost')
+    for (const turnId of ['kept', 'drop']) {
+      const body = hostTestMessage(turnId)
+      const clientOperationId = hostTestOperationId()
+      vi.mocked(adapter.dispatch).mockResolvedValueOnce({
+        state: 'accepted',
+        providerIdentity: message(turnId)
       })
-      await expect(host.rewind(caller, params(target))).rejects.toThrow('reply lost')
-      recoverRewind.mockResolvedValueOnce({
-        ok: true,
-        items: missing === 'turn' ? [] : items.slice(0, 1)
-      })
-      const replace = vi.spyOn(AgentSessionJournal.prototype, 'replaceEpochItems')
-      await expect(
-        host.attach(
-          caller,
-          hostTestAttachParams(store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence)
-        )
-      ).rejects.toThrow('proof-mismatch')
-      expect(replace).not.toHaveBeenCalled()
-      replace.mockRestore()
-      expect(store.getRecord(HOST_TEST_SESSION)?.rewind?.expectedEpoch).toBe(before.cursor.epoch)
-      expect(store.getRecord(HOST_TEST_SESSION)?.rewind?.phase).toBe('prepared')
-    }
-  )
-
-  it('settles the existing epoch after a crash between journal commit and record completion', async () => {
-    const target = await seed()
-    const request = params(target)
-    const transition = store.transitionHandoff.bind(store)
-    const checkpoint = vi
-      .spyOn(store, 'transitionHandoff')
-      .mockImplementation((sessionId, update) =>
-        transition(sessionId, (record) => {
-          const next = update(record)
-          if (next.rewind?.phase === 'completed') {
-            throw new Error('completion write failed')
+      expect(
+        await host.send(caller, {
+          body,
+          envelope: {
+            sessionId: HOST_TEST_SESSION,
+            clientOperationId,
+            expectedRuntimeFence: store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence,
+            payloadFingerprint: computeAgentSessionPayloadFingerprint({
+              method: 'agentSession.send',
+              sessionId: HOST_TEST_SESSION,
+              fields: { body }
+            })
           }
-          return next
         })
+      ).toMatchObject({ ok: true })
+      await vi.waitFor(async () =>
+        expect(
+          (await host.journalSnapshot(HOST_TEST_SESSION)).submissions.find(
+            (entry) => entry.clientMessageId === clientOperationId
+          )?.dispatchState
+        ).toBe('accepted')
       )
-    await expect(host.rewind(caller, request)).rejects.toThrow('completion write failed')
-    const committed = host.journalSnapshot(HOST_TEST_SESSION)
-    expect(committed.cursor.epoch).not.toBe(request.expectedEpoch)
-    checkpoint.mockRestore()
-    const replace = vi.spyOn(AgentSessionJournal.prototype, 'replaceEpochItems')
+      sink.appendItem(
+        turnRow(turnId),
+        {
+          kind: 'turn',
+          turnId,
+          state: 'completed',
+          outcome: 'success',
+          userItemId: agentJournalSubmissionKey(clientOperationId),
+          startedAt: HOST_TEST_NOW - 2_000,
+          completedAt: HOST_TEST_NOW - 1_000
+        },
+        { turnScope: AGENT_JOURNAL_THREAD_SCOPE }
+      )
+      sink.appendItem(
+        message(turnId, 1),
+        { ...hostTestMessage(`answer ${turnId}`), role: 'assistant' },
+        { turnScope: { kind: 'turn', turnItemId: agentJournalItemKey(turnRow(turnId)) } }
+      )
+      await host.flushStreamedEvents(HOST_TEST_SESSION)
+    }
+    const target = (await host.journalSnapshot(HOST_TEST_SESSION)).submissions.at(-1)!
     expect(
-      await host.attach(
-        caller,
-        hostTestAttachParams(store.getRecord(HOST_TEST_SESSION)!.lease.runtimeFence)
-      )
+      await host.rewind(caller, await params(agentJournalSubmissionKey(target.clientMessageId)))
     ).toMatchObject({ ok: true })
-    expect(host.journalSnapshot(HOST_TEST_SESSION)).toEqual(committed)
-    expect(replace).not.toHaveBeenCalled()
-    replace.mockRestore()
-    expect(await host.rewind(caller, request)).toMatchObject({ ok: true, replayed: true })
+
+    const rebuilt = await host.journalSnapshot(HOST_TEST_SESSION)
+    const membership = nativeChatTurnMembership(
+      rebuilt.items.flatMap(({ itemId, body }) =>
+        body.kind === 'message' ? [{ id: itemId, role: body.role }] : []
+      ),
+      rebuilt
+    )
+    const opener = agentJournalSubmissionKey(rebuilt.submissions[0]!.clientMessageId)
+    expect(membership.turnKeys).toEqual([opener, opener])
+  })
+
+  it('keeps a host goal row when interrupted Codex rewind recovery rebuilds provider history', () =>
+    expectGoalRowRewindRecovery({ host, store, rewind, sink: () => sink, params, attachAndStart }))
+
+  it('commits context and completion atomically before a post-commit crash', async () => {
+    await expectAtomicRewindCompletion({ host, store, seed, params, attachAndStart })
+  })
+
+  it('rolls back a failed logical rewind completion and recovers usage-limit cancellation once', async () => {
+    ;({ host, store } = await expectUsageLimitCompletionRollback({
+      host,
+      store,
+      seed,
+      params,
+      attachAndStart,
+      directory,
+      rewind,
+      now: () => clock,
+      advanceClock: () => {
+        clock += 75_000
+      }
+    }))
   })
 })

@@ -1,4 +1,6 @@
+import { useTranslation } from 'react-i18next'
 import React, { useState } from 'react'
+import { useRepoSshGate } from '@/hooks/use-repo-ssh-gate'
 import {
   CircleX,
   Ellipsis,
@@ -26,7 +28,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
-import { getRepositoryIconSectionId } from '@/components/settings/repository-settings-targets'
+import { getRepositoryIconSectionId } from '@/components/settings/repository/repository-settings-targets'
+import { WslMoveProjectMenuItem } from '@/components/wsl-move/WslMoveProjectMenuItem'
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
 import type { Repo } from '../../../../../../shared/repo-types'
 import type { WorktreeVisibilityDefaults } from '../../../../../../shared/global-settings-types'
@@ -38,7 +41,13 @@ import {
 import {
   REPO_HEADER_ACTION_BUTTON_CLASS,
   REPO_HEADER_ACTION_REVEAL_CLASS
-} from '../../repo-header-action-button-class'
+} from './repo-header-action-button-class'
+import { getRepoHeaderCreateState } from './repo-header-create-state'
+import {
+  handleRepoHeaderActionPointerDown,
+  stopRepoHeaderKeyboardToggle,
+  stopRepoHeaderMenuEvent
+} from './header-event-guards'
 import { usePcDeskMode } from '@/lib/pc-desk-mode'
 import {
   clearPcDeskProjectMenuRequest,
@@ -46,12 +55,6 @@ import {
 } from '../../pc-desk-switcher/pc-desk-project-menu-request'
 import { closePcDeskProject } from '../../pc-desk-switcher/close-pc-desk-project'
 import { PcDeskCloseProjectButton } from '../../pc-desk-switcher/pc-desk-close-buttons'
-import type { getRepoHeaderCreateState } from '../../repo-header-create-state'
-import {
-  handleRepoHeaderActionPointerDown,
-  stopRepoHeaderKeyboardToggle,
-  stopRepoHeaderMenuEvent
-} from './header-event-guards'
 
 function getWorktreeVisibilityMenuLabel(
   repo: Repo,
@@ -62,7 +65,15 @@ function getWorktreeVisibilityMenuLabel(
     isLegacyRepoForExternalWorktreeVisibility(repo),
     visibilityDefaults
   )
-  return visibility === 'show' ? 'Hide non-Orca worktrees' : 'Show hidden worktrees'
+  return visibility === 'show'
+    ? translate(
+        'auto.components.sidebar.repoHeaderProjectActions.hideNonOrcaWorktrees',
+        'Hide non-Orca worktrees'
+      )
+    : translate(
+        'auto.components.sidebar.repoHeaderProjectActions.showHiddenWorktrees',
+        'Show hidden worktrees'
+      )
 }
 
 export type RepoHeaderProjectActions = {
@@ -73,10 +84,12 @@ export type RepoHeaderProjectActions = {
   onMoveProjectToGroup: (repo: Repo, groupId: string) => void
   onRemoveProjectFromGroup: (repo: Repo) => void
   onRemoveProject: (repo: Repo) => void
-  onCreateForRepo: (projectId: string) => void
+  /** `pinHost`: the header's rows all sit on its repo's host, so that registration names the host. */
+  onCreateForRepo: (repo: Repo, options: { pinHost: boolean }) => void
 }
 
-export function RepoHeaderProjectActionsMenu({
+// Memoized: the sidebar re-renders every header row when the active workspace changes.
+export const RepoHeaderProjectActionsMenu = React.memo(function RepoHeaderProjectActionsMenu({
   repo,
   label,
   projectGroups,
@@ -87,6 +100,9 @@ export function RepoHeaderProjectActionsMenu({
   projectGroups: readonly ProjectGroup[]
   actions: RepoHeaderProjectActions
 }): React.JSX.Element {
+  // Memoized: subscribe so a language change still repaints its labels.
+  useTranslation()
+  // Fork (PC-desk): right-click on the header opens this menu; the menu stays visible.
   const pcDeskMode = usePcDeskMode()
   const menuRequested = usePcDeskProjectMenuRequested(repo.id)
   const [open, setOpen] = useState(false)
@@ -196,6 +212,7 @@ export function RepoHeaderProjectActionsMenu({
               {translate('auto.components.sidebar.WorktreeList.64e55f7f01', 'Remove from group')}
             </DropdownMenuItem>
           ) : null}
+          <WslMoveProjectMenuItem repo={repo} />
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onSelect={() => actions.onRemoveProject(repo)}>
             <Trash2 className="size-3.5" />
@@ -206,19 +223,23 @@ export function RepoHeaderProjectActionsMenu({
       {pcDeskMode ? <PcDeskCloseProjectButton repo={repo} label={label} /> : null}
     </>
   )
-}
+})
 
-export function RepoHeaderCreateWorkspaceButton({
+export const RepoHeaderCreateWorkspaceButton = React.memo(function RepoHeaderCreateWorkspaceButton({
   repo,
   label,
-  createState,
+  pinHost = false,
   onCreateForRepo
 }: {
   repo: Repo
   label: string
-  createState: ReturnType<typeof getRepoHeaderCreateState> | null
-  onCreateForRepo: (projectId: string) => void
+  pinHost?: boolean
+  onCreateForRepo: RepoHeaderProjectActions['onCreateForRepo']
 }): React.JSX.Element {
+  // Memoized: subscribe so a language change still repaints its labels.
+  useTranslation()
+  const sshGate = useRepoSshGate(repo)
+  const createState = getRepoHeaderCreateState({ repo, label, sshGate })
   const fallbackLabel = translate(
     'auto.components.sidebar.WorktreeList.bb85cd86ba',
     'Create workspace for {{value0}}',
@@ -264,7 +285,7 @@ export function RepoHeaderCreateWorkspaceButton({
             onClick={(event) => {
               event.preventDefault()
               event.stopPropagation()
-              onCreateForRepo(repo.id)
+              onCreateForRepo(repo, { pinHost })
             }}
           >
             <Plus className="size-3" />
@@ -276,4 +297,4 @@ export function RepoHeaderCreateWorkspaceButton({
       </TooltipContent>
     </Tooltip>
   )
-}
+})

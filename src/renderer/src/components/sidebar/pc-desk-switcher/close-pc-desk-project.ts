@@ -19,7 +19,8 @@ export function closePcDeskWorktrees(worktreeIds: readonly string[]): void {
         closeTerminalTab(tab.entityId, { force: true, skipRunningProcessConfirm: true })
       } else {
         // Why no force: unsaved files still get their save prompt.
-        closeItem(tab.id, { skipEmptyCheck: true, skipRunningProcessConfirm: true })
+        // Without whenEmptied the close skips the empty-workspace step, as skipEmptyCheck did.
+        closeItem(tab.id, { skipRunningProcessConfirm: true })
       }
     }
     // Terminal tabs from older sessions may have no unified tab record.

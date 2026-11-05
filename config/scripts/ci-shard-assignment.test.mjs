@@ -1,20 +1,7 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { BaseSequencer } from 'vitest/node'
+import { describe, expect, it } from 'vitest'
 import { balanceFiles } from './ci-shard-assignment.mjs'
-import { discoverE2eFiles, planE2e } from './ci-e2e-shard-plan.mjs'
+import { discoverE2eFiles, planE2e, verifyE2eSelection } from './ci-e2e-shard-plan.mjs'
 import { parseTimingLog } from './ci-shard-timing-import.mjs'
-import TimingSequencer from './ci-unit-sequencer.mjs'
-
-const directories = []
-afterEach(() => {
-  vi.unstubAllEnvs()
-  for (const directory of directories.splice(0)) {
-    rmSync(directory, { recursive: true, force: true })
-  }
-})
 
 describe('timing-weighted shard selection', () => {
   it('distributes long files, includes unknowns exactly once, and ignores discovery order', () => {
@@ -35,35 +22,6 @@ describe('timing-weighted shard selection', () => {
     ])
     expect(() => balanceFiles(['a', 'a'], 8, {})).toThrow('Duplicate')
     expect(() => balanceFiles(['a'], 0, {})).toThrow('count')
-  })
-
-  it('uses the post-filter Vitest discovery unchanged across eight shards and retains default sort', async () => {
-    const directory = mkdtempSync(join(tmpdir(), 'orca-unit-shards-'))
-    directories.push(directory)
-    vi.stubEnv('ORCA_SHARD_MANIFEST', join(directory, 'assignment.json'))
-    const specs = Array.from({ length: 37 }, (_, i) => ({
-      moduleId: resolve(`src/fixture-${i}.test.ts`)
-    }))
-    const selected = []
-    for (let index = 1; index <= 8; index++) {
-      const sequencer = new TimingSequencer({
-        config: { root: process.cwd(), shard: { index, count: 8 } }
-      })
-      expect(sequencer.sort).toBe(BaseSequencer.prototype.sort)
-      selected.push(...(await sequencer.shard(specs)))
-      const manifest = JSON.parse(readFileSync(join(directory, 'assignment.json'), 'utf8'))
-      expect(manifest.selectedShard).toBe(index)
-      expect(manifest.baselineSha256).toMatch(/^[a-f0-9]{64}$/)
-    }
-    expect(new Set(selected).size).toBe(specs.length)
-    expect(selected).toHaveLength(specs.length)
-    expect(new Set(selected)).toEqual(new Set(specs))
-  })
-
-  it('wires a constructor into the opt-in Vitest config', async () => {
-    vi.stubEnv('ORCA_BALANCE_UNIT_SHARDS', '1')
-    const { default: config } = await import('../vitest.config')
-    expect(config.test.sequence.sequencer).toBe(TimingSequencer)
   })
 
   it('keeps nested/serial E2E files atomic and fails closed on discovery errors', () => {
@@ -92,6 +50,39 @@ describe('timing-weighted shard selection', () => {
         suites: [{ specs: [spec('a', 'one.spec.ts'), spec('a', 'one.spec.ts')] }]
       })
     ).toThrow('Duplicate')
+  })
+
+  it('plans only general E2E specs and rejects unexpected dedicated selections', () => {
+    const spec = (id, file) => ({ id, file, tests: [{ projectName: 'electron-headless' }] })
+    const report = {
+      suites: [
+        {
+          specs: [
+            spec('general', 'general.spec.ts'),
+            spec('layout', 'workspace-layout-oracle-headless.spec.ts'),
+            spec('ssh', 'ssh-orcad-terminal.spec.ts')
+          ]
+        }
+      ]
+    }
+    expect(Object.keys(discoverE2eFiles(report))).toEqual([
+      'general.spec.ts',
+      'ssh-orcad-terminal.spec.ts',
+      'workspace-layout-oracle-headless.spec.ts'
+    ])
+    const assignment = { ...planE2e(report, 1, { timings: {} }), selectedShard: 1 }
+    expect(assignment.shards[0].files).toEqual(['general.spec.ts'])
+    expect(Object.keys(assignment.testsByFile)).toEqual(['general.spec.ts'])
+    const general = report.suites[0].specs[0]
+    expect(() => verifyE2eSelection(assignment, { suites: [{ specs: [general] }] })).not.toThrow()
+    for (const dedicated of report.suites[0].specs.slice(1)) {
+      expect(() =>
+        verifyE2eSelection(assignment, { suites: [{ specs: [general, dedicated] }] })
+      ).toThrow('differs')
+    }
+    expect(() =>
+      planE2e({ suites: [{ specs: report.suites[0].specs.slice(1) }] }, 1, { timings: {} })
+    ).toThrow('no general E2E tests')
   })
 
   it('imports ANSI unit timings and E2E failures without counting headful reruns', () => {

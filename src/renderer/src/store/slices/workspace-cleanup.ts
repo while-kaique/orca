@@ -9,11 +9,11 @@ import {
   type WorkspaceCleanupScanProgress,
   type WorkspaceCleanupScanResult,
   type WorkspaceCleanupUnverifiedRemovalConsent
-} from '../../../../shared/workspace-cleanup'
+} from '../../../../shared/workspace-cleanup/workspace-cleanup'
 import {
   getWorkspaceCleanupCandidateHostId,
   getWorkspaceCleanupCandidateIdentity
-} from '../../../../shared/workspace-cleanup-host-identity'
+} from '../../../../shared/workspace-cleanup/workspace-cleanup-host-identity'
 import { hydrateWorkspaceCleanupScanFromCache } from './workspace-cleanup-cache-hydration'
 import {
   applyWorkspaceCleanupDismissal,
@@ -27,6 +27,7 @@ import {
   type WorkspaceCleanupRemoveOptions,
   type WorkspaceCleanupRemoveResult
 } from './workspace-cleanup-removal'
+import { createBrowserUuid } from '@/lib/browser-uuid'
 
 export type { WorkspaceCleanupFailure, WorkspaceCleanupRemoveOptions, WorkspaceCleanupRemoveResult }
 export { enrichWorkspaceCleanupCandidates, WORKSPACE_CLEANUP_ENRICHMENT_CONCURRENCY }
@@ -150,7 +151,7 @@ export const createWorkspaceCleanupSlice: StateCreator<AppState, [], [], Workspa
     if (existing.has(identity)) {
       return null
     }
-    const attemptId = crypto.randomUUID()
+    const attemptId = createBrowserUuid()
     existing.set(identity, attemptId)
     return attemptId
   },

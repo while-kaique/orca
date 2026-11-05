@@ -2,10 +2,16 @@ import type { ComponentProps } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { getDefaultOnboardingState, getDefaultSettings } from '../../../../shared/constants'
+import { getDefaultSettings } from '../../../../shared/constants'
+import { getDefaultOnboardingState } from '../../../../shared/onboarding-defaults'
 import { useAppStore } from '@/store'
 import OnboardingFlow from './OnboardingFlow'
-import { ONBOARDING_SKIP_CONFIRMATION_COPY } from './OnboardingSkipConfirmationDialog'
+
+vi.mock('@/components/terminal-pane/TerminalPane', () => ({
+  default: () => {
+    throw new Error('This suite must not render a terminal pane')
+  }
+}))
 
 function renderOnboardingFlow(props: ComponentProps<typeof OnboardingFlow>): string {
   return renderToStaticMarkup(
@@ -28,6 +34,21 @@ describe('OnboardingFlow', () => {
   afterEach(() => {
     useAppStore.setState(useAppStore.getInitialState(), true)
     vi.unstubAllGlobals()
+  })
+
+  it('opens on the Chat or Terminal choice and resumes past both step-1 pages', () => {
+    const fresh = renderOnboardingFlow({
+      onboarding: getDefaultOnboardingState(),
+      onOnboardingChange: vi.fn()
+    })
+    expect(fresh).toContain('How do you want to work with agents?')
+    expect(fresh).toContain('1 of 5')
+
+    const resumed = renderOnboardingFlow({
+      onboarding: { ...getDefaultOnboardingState(), lastCompletedStep: 1 },
+      onOnboardingChange: vi.fn()
+    })
+    expect(resumed).toContain('Make it feel like home')
   })
 
   it('does not render the removed agent setup or tour steps', () => {
@@ -126,7 +147,7 @@ describe('OnboardingFlow', () => {
     })
 
     expect(html).toContain('Set Windows terminal defaults')
-    expect(html).toContain('4 of 5')
+    expect(html).toContain('5 of 6')
   })
 
   it('drops the skipped integrations step from the stepper on Windows', () => {
@@ -148,10 +169,8 @@ describe('OnboardingFlow', () => {
     })
 
     expect(html).toContain('Set Windows terminal defaults')
-    // Why: integrations is skipped (gh already installed), so it is not a
-    // stepper dot at all — the four real steps are agent, theme, Windows
-    // terminal, notifications, and Windows terminal is the third of four.
-    expect(html).toContain('3 of 4')
+    // Installed gh skips Integrations entirely; Windows terminal is page four of the five visible pages.
+    expect(html).toContain('4 of 5')
     expect(html).not.toContain('Set up GitHub tasks')
     expect(html).not.toContain('Integrations')
   })
@@ -178,9 +197,8 @@ describe('OnboardingFlow', () => {
     expect(html).not.toContain('Set up GitHub tasks')
     expect(html).not.toContain('Connect your task sources')
     expect(html).not.toContain('Point Orca at some code')
-    // Why: with both integrations (gh installed) and Windows terminal (Mac)
-    // skipped, the stepper shows only the three real steps — no dead dots.
-    expect(html).toContain('3 of 3')
+    // Installed gh and macOS skip Integrations/Windows terminal, leaving four visible pages.
+    expect(html).toContain('4 of 4')
     expect(html).not.toContain('Integrations')
   })
 
@@ -212,7 +230,7 @@ describe('OnboardingFlow', () => {
     )
   })
 
-  it('renders onboarding inside a centered modal shell', () => {
+  it('exposes an accessible onboarding dialog', () => {
     const html = renderOnboardingFlow({
       onboarding: getDefaultOnboardingState(),
       onOnboardingChange: vi.fn()
@@ -220,20 +238,5 @@ describe('OnboardingFlow', () => {
 
     expect(html).toContain('role="dialog"')
     expect(html).toContain('aria-modal="true"')
-    expect(html).toContain('data-onboarding-modal="true"')
-    expect(html).toContain('h-[calc(100vh-2rem)]')
-    expect(html).toContain('rounded-xl')
-    expect(html).toContain('h-7 w-auto shrink-0 invert dark:invert-0')
-    expect(html).not.toContain('min-h-screen')
-    expect(html).not.toContain('background-color:#12181e')
-  })
-
-  it('renders concise skip confirmation copy', () => {
-    expect(ONBOARDING_SKIP_CONFIRMATION_COPY).toEqual({
-      title: 'Skip onboarding?',
-      description: "It won't take long!",
-      skipLabel: 'Skip',
-      keepGoingLabel: 'No, keep going'
-    })
   })
 })

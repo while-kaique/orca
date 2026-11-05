@@ -1,5 +1,5 @@
 import type { RuntimeMobileSessionTabsSnapshot } from '../../shared/runtime-types'
-import type { WorkspaceSessionState } from '../../shared/workspace-session-state-types'
+import type { WorkspaceSessionState } from '../../shared/workspace-session/workspace-session-state-types'
 import { collectPersistedTerminalLeafIds } from './mobile-session-layout-projection'
 
 type PersistedTerminalTabIdentity = {
@@ -64,6 +64,37 @@ function isRetainedTerminalTabRetirementIdentity(
       (binding.incarnationId === null || binding.incarnationId === previous.incarnationId)
     )
   })
+}
+
+/** An immutable snapshot of one partition's copy of a tab: row, bindings and incarnations. */
+export type PersistedTerminalTabCopy = PersistedTerminalTabIdentity | null
+
+export function capturePersistedTerminalTabCopy(
+  session: WorkspaceSessionState | null | undefined,
+  worktreeId: string,
+  tabId: string
+): PersistedTerminalTabCopy {
+  return capturePersistedTerminalTabRetirementIdentity(session ?? null, worktreeId, tabId)
+}
+
+export function isSamePersistedTerminalTabCopy(
+  left: PersistedTerminalTabCopy,
+  right: PersistedTerminalTabCopy
+): boolean {
+  if (!left || !right) {
+    return left === right
+  }
+  return (
+    left.createdAt === right.createdAt &&
+    left.generation === right.generation &&
+    left.ptyId === right.ptyId &&
+    left.remoteSessionId === right.remoteSessionId &&
+    left.leaves.size === right.leaves.size &&
+    [...left.leaves].every(([leafId, binding]) => {
+      const other = right.leaves.get(leafId)
+      return other?.ptyId === binding.ptyId && other.incarnationId === binding.incarnationId
+    })
+  )
 }
 
 type TerminalTabRetirementState = {

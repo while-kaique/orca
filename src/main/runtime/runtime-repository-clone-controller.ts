@@ -1,24 +1,29 @@
 import { randomUUID } from 'node:crypto'
+import { refuseWslHostWindowsDrivePath } from './wsl-host-windows-drive-guard'
 import { mkdir } from 'node:fs/promises'
 import { DEFAULT_REPO_BADGE_COLOR } from '../../shared/constants'
 import { LOCAL_EXECUTION_HOST_ID, type ExecutionHostId } from '../../shared/execution-host'
 import type { Repo } from '../../shared/repo-types'
-import { getGitCloneFailureMessage } from '../../shared/git-clone-failure-message'
+import { isFolderRepo } from '../../shared/repo-kind'
+import { getGitCloneFailureMessage } from '../../shared/git/remotes/git-clone-failure-message'
 import {
   cleanupClaimedCloneTarget,
   claimCloneTarget,
   deriveValidatedClonePath,
-  getClonePathComparisonKey
+  getClonePathComparisonKey,
+  getSavedProjectPathKeys
 } from '../git/repo-clone-path'
-import { gitSpawnAfterWindowsEnvironmentReady, nonInteractiveGitEnv } from '../git/runner'
-import { runWithGitReadCacheInvalidation } from '../git/status'
-import { invalidateAuthorizedRootsCache } from '../ipc/filesystem-auth'
-import { isFolderRepo } from '../../shared/repo-kind'
-import { detectRepoIconAndUpstream } from '../repo-icon-autodetect'
-import { getRepoName } from '../git/repo'
-import { prepareLocalWorktreeRootForRepo } from '../worktree-root-preparation'
+import { gitSpawnAfterWindowsEnvironmentReady, promptGuardGitEnv } from '../git/runner'
+import { reuseSavedCloneTarget } from '../git/saved-clone-target'
+import { runWithGitReadCacheInvalidation } from '../git/source-control/git-read-cache-invalidation'
+import { invalidateAuthorizedRootsCache } from '../ipc/worktrees/removal/registered-worktree-roots-cache'
+import { detectRepoIconAndUpstream } from '../repository-icons/repo-icon-autodetect'
+import { getRepoName, inspectGitRepoForRegistrationAsync } from '../git/repo'
+import { prepareLocalWorktreeRootForRepo } from '../workspaces/creation/worktree-root-preparation'
 import type { RuntimeStore } from './runtime-store-contract'
-import { runtimeRepoMatchesExecutionHost } from './runtime-worktree-selection'
+import { runtimeRepoIsRegistrationCandidate } from './runtime-worktree-selection'
+import { resolveClonedFolderConversion } from '../workspaces/catalog/folder-repo-git-conversion'
+import { findExtraFolderWorkspaceIds } from '../workspaces/catalog/folder-workspace-meta-presence'
 
 type RuntimeRepositoryCloneDependencies = {
   getStore: () => RuntimeStore | null
@@ -46,6 +51,7 @@ export class RuntimeRepositoryCloneController {
       throw new Error('Clone destination is required')
     }
     const clonePath = deriveValidatedClonePath({ url: trimmedUrl, destination: trimmedDestination })
+    await refuseWslHostWindowsDrivePath(trimmedDestination)
     const clonePathKey = getClonePathComparisonKey(clonePath)
     const previous = this.inFlightByPath.get(clonePathKey) ?? Promise.resolve()
     let release!: () => void
@@ -60,13 +66,7 @@ export class RuntimeRepositoryCloneController {
     try {
       await previous
       return await runWithGitReadCacheInvalidation(() =>
-        this.cloneAfterPathLock(
-          trimmedUrl,
-          trimmedDestination,
-          clonePath,
-          clonePathKey,
-          executionHostId
-        )
+        this.cloneAfterPathLock(trimmedUrl, trimmedDestination, clonePath, executionHostId)
       )
     } finally {
       release()
@@ -80,21 +80,24 @@ export class RuntimeRepositoryCloneController {
     trimmedUrl: string,
     trimmedDestination: string,
     clonePath: string,
-    clonePathKey: string,
     executionHostId?: ExecutionHostId | null
   ): Promise<Repo> {
     const store = this.deps.getStore()
     if (!store) {
       throw new Error('runtime_unavailable')
     }
-    const existingBeforeClone = store.getRepos().find((repo) => {
-      return (
-        getClonePathComparisonKey(repo.path) === clonePathKey &&
-        runtimeRepoMatchesExecutionHost(repo, executionHostId)
-      )
-    })
-    if (existingBeforeClone && !isFolderRepo(existingBeforeClone)) {
-      return existingBeforeClone
+    let savedPathKeys = await getSavedProjectPathKeys(clonePath)
+    // Git runs here; an SSH row with the same path refers to another machine.
+    const findSaved = (): Repo | undefined =>
+      store.getRepos().find((repo) => {
+        return (
+          savedPathKeys.includes(getClonePathComparisonKey(repo.path)) &&
+          runtimeRepoIsRegistrationCandidate(repo, executionHostId)
+        )
+      })
+    const reused = await reuseSavedCloneTarget(findSaved, trimmedUrl, LOCAL_EXECUTION_HOST_ID)
+    if (reused) {
+      return reused
     }
 
     await mkdir(trimmedDestination, { recursive: true })
@@ -105,8 +108,10 @@ export class RuntimeRepositoryCloneController {
         ['clone', '--progress', '--', trimmedUrl, clonePath],
         {
           cwd: trimmedDestination,
+          // Host Git on purpose: the clone makes a new repo no project owns, even inside one.
+          hostGit: true,
           admissionTier: 'interactive',
-          env: nonInteractiveGitEnv(),
+          env: promptGuardGitEnv(),
           stdio: ['ignore', 'ignore', 'pipe']
         }
       )
@@ -143,15 +148,20 @@ export class RuntimeRepositoryCloneController {
       proc.on('close', (code, signal) => void finish(code, signal))
     })
 
-    const existing = store.getRepos().find((repo) => {
-      return (
-        getClonePathComparisonKey(repo.path) === clonePathKey &&
-        runtimeRepoMatchesExecutionHost(repo, executionHostId)
-      )
-    })
+    savedPathKeys = await getSavedProjectPathKeys(clonePath)
+    const existing = findSaved()
     if (existing) {
-      if (isFolderRepo(existing)) {
-        const updated = store.updateRepo(existing.id, { kind: 'git' })
+      const conversion = await resolveClonedFolderConversion(store, existing)
+      const current = findSaved()
+      if (
+        current &&
+        conversion &&
+        findExtraFolderWorkspaceIds(current, store.getAllWorktreeMeta()).length === 0 &&
+        current.path === existing.path &&
+        isFolderRepo(current) &&
+        runtimeRepoIsRegistrationCandidate(current, executionHostId)
+      ) {
+        const updated = store.updateRepo(current, { kind: 'git', ...conversion })
         if (updated) {
           await prepareLocalWorktreeRootForRepo(store, updated)
           invalidateAuthorizedRootsCache()
@@ -159,18 +169,25 @@ export class RuntimeRepositoryCloneController {
           return updated
         }
       }
-      return existing
+      // Recloning replaced the project root; invalidate cached worktree/authorized-root answers from before it returned.
+      if (current) {
+        await prepareLocalWorktreeRootForRepo(store, current)
+        invalidateAuthorizedRootsCache()
+        this.invalidate(current.id)
+        return current
+      }
     }
-    // `cloneRepo` ran `git clone` in this process (see `assertCloneHostIsSupported`), so the
-    // checkout is here regardless of the host id stamped on the row.
+    // cloneRepo validated and cloned locally; runtime row stamps do not change where files live.
+    // Register Git's checkout path so the clone stays its own selected checkout.
+    const repoPath = (await inspectGitRepoForRegistrationAsync(clonePath)).rootPath
     const detected = await detectRepoIconAndUpstream({
-      repoPath: clonePath,
+      repoPath,
       kind: 'git',
       executionHostId: LOCAL_EXECUTION_HOST_ID
     })
     const repo: Repo = {
       id: randomUUID(),
-      path: clonePath,
+      path: repoPath,
       displayName: getRepoName(clonePath),
       badgeColor: DEFAULT_REPO_BADGE_COLOR,
       ...(executionHostId != null ? { executionHostId } : {}),

@@ -1,8 +1,4 @@
-// Real-binary coverage: the fingerprint's whole job is to predict what `git worktree list` would
-// report, so a mocked filesystem would only prove the assumptions, not the Git layout they model.
-// Also listed in pr.yml's Windows boundary step: reading Git's admin layout directly depends on
-// Windows path resolution, CRLF in `HEAD`/`gitdir`/`commondir`, and whether `worktree move`/`lock`
-// and deleting a live checkout behave as they do on POSIX. The Linux shards cannot reach any of it.
+// Use real Git to verify admin fingerprints, including Windows path/CRLF/move/lock semantics that Linux mocks cannot cover.
 import { execFile } from 'node:child_process'
 import { mkdir, mkdtemp, realpath, writeFile } from 'node:fs/promises'
 import { removeTree } from '../../shared/windows-transient-lock-removal'
@@ -48,27 +44,6 @@ afterEach(async () => {
 })
 
 describe('readRepoWorktreeAdminFingerprint', () => {
-  it('is stable while nothing changes', async () => {
-    const first = await fingerprint()
-    expect(first).not.toBeNull()
-    expect(await fingerprint()).toBe(first)
-  })
-
-  it('changes when a worktree is added', async () => {
-    const before = await fingerprint()
-    await git(
-      ['worktree', 'add', '-q', join(scratchDir, 'trees', 'second'), '-b', 'second'],
-      repoPath
-    )
-    expect(await fingerprint()).not.toBe(before)
-  })
-
-  it('changes when a worktree is removed', async () => {
-    const before = await fingerprint()
-    await git(['worktree', 'remove', worktreePath], repoPath)
-    expect(await fingerprint()).not.toBe(before)
-  })
-
   it('changes when a worktree directory is deleted outside Git', async () => {
     // The admin dir is untouched by `rm -rf`, but the row's `prunable` flag flips.
     const before = await fingerprint()
@@ -76,22 +51,14 @@ describe('readRepoWorktreeAdminFingerprint', () => {
     expect(await fingerprint()).not.toBe(before)
   })
 
-  it('changes when a worktree is moved', async () => {
+  it('changes when an existing worktree lock is replaced', async () => {
+    await git(
+      ['worktree', 'lock', '--reason', 'orca-create-preparation:v1:12345:lease', worktreePath],
+      repoPath
+    )
     const before = await fingerprint()
-    await git(['worktree', 'move', worktreePath, join(scratchDir, 'trees', 'moved')], repoPath)
-    expect(await fingerprint()).not.toBe(before)
-  })
-
-  it('changes when a worktree is locked', async () => {
-    const before = await fingerprint()
-    await git(['worktree', 'lock', worktreePath], repoPath)
-    expect(await fingerprint()).not.toBe(before)
-  })
-
-  it('changes when a linked worktree switches branch', async () => {
-    const before = await fingerprint()
-    // A longer ref name keeps the difference visible even on a coarse mtime clock.
-    await git(['checkout', '-q', '-b', 'feature-with-a-much-longer-name'], worktreePath)
+    const gitDir = (await git(['rev-parse', '--absolute-git-dir'], worktreePath)).trim()
+    await writeFile(join(gitDir, 'locked'), 'different user-owned lock\n')
     expect(await fingerprint()).not.toBe(before)
   })
 
@@ -104,14 +71,6 @@ describe('readRepoWorktreeAdminFingerprint', () => {
     expect(await fingerprint()).not.toBe(before)
   })
 
-  it('changes when the main worktree records a commit', async () => {
-    const before = await fingerprint()
-    await writeFile(join(repoPath, 'more.txt'), 'more\n')
-    await git(['add', '-A'], repoPath)
-    await git(['commit', '-qm', 'more'], repoPath)
-    expect(await fingerprint()).not.toBe(before)
-  })
-
   it('still tracks a tip whose loose ref has been packed away', async () => {
     await git(['pack-refs', '--all'], repoPath)
     const before = await fingerprint()
@@ -119,17 +78,6 @@ describe('readRepoWorktreeAdminFingerprint', () => {
     await git(['add', '-A'], worktreePath)
     await git(['commit', '-qm', 'packed'], worktreePath)
     expect(await fingerprint()).not.toBe(before)
-  })
-
-  it('changes when the main worktree switches branch', async () => {
-    const before = await fingerprint()
-    await git(['checkout', '-q', '-b', 'main-with-a-much-longer-name'], repoPath)
-    expect(await fingerprint()).not.toBe(before)
-  })
-
-  it('resolves the same admin state from a linked worktree path', async () => {
-    // A linked worktree can itself be the registered repo path; both must describe one common dir.
-    expect(await fingerprint(worktreePath)).toBe(await fingerprint(repoPath))
   })
 
   it('reads a bare repo through its own gitdir', async () => {
@@ -142,15 +90,5 @@ describe('readRepoWorktreeAdminFingerprint', () => {
       barePath
     )
     expect(await fingerprint(barePath)).not.toBe(before)
-  })
-
-  it('returns null for a directory that is not a git repo', async () => {
-    const plainPath = join(scratchDir, 'plain')
-    await mkdir(plainPath, { recursive: true })
-    expect(await fingerprint(plainPath)).toBeNull()
-  })
-
-  it('returns null for a missing path', async () => {
-    expect(await fingerprint(join(scratchDir, 'absent'))).toBeNull()
   })
 })

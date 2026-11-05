@@ -43,6 +43,9 @@ if not errorlevel 1 goto ensure
 if exist "%BUILD_KEY%" del "%BUILD_KEY%"
 rem Apaga a montagem antiga: se o build nem rodar (ex.: log preso), a chave nao e gravada.
 if exist "%~dp0out\main\index.js" del "%~dp0out\main\index.js"
+rem Desde a 1.4.249 o app importa pacotes internos (src\packages) ja compilados; o build oficial roda isto antes.
+call node config\scripts\build-workspace-packages.mjs >> "%LOG%" 2>&1
+if errorlevel 1 (set "PREP_FAILED=1" & exit /b 1)
 call node config\scripts\run-electron-vite-build.mjs >> "%LOG%" 2>&1
 if errorlevel 1 (set "PREP_FAILED=1" & exit /b 1)
 if not exist "%~dp0out\main\index.js" (set "PREP_FAILED=1" & exit /b 1)

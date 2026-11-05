@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useAppStore } from '@/store'
 import { usePcDeskMode } from '@/lib/pc-desk-mode'
 import type { Repo } from '../../../../../shared/repo-types'
-import { REPO_HEADER_ACTION_BUTTON_CLASS } from '../repo-header-action-button-class'
+import { REPO_HEADER_ACTION_BUTTON_CLASS } from '../worktree-list/rows/repo-header-action-button-class'
 import {
   handleRepoHeaderActionPointerDown,
   stopRepoHeaderKeyboardToggle

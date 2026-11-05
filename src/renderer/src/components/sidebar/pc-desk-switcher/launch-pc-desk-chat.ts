@@ -2,6 +2,7 @@ import { toast } from 'sonner'
 import { useAppStore } from '@/store'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
+import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
 import { resolveDefaultAgentForNewTab } from '@/lib/agent-tab-shortcuts'
 import type { Repo } from '../../../../../shared/repo-types'
 import { resolvePcDeskMainWorktreeId } from './pc-desk-main-worktree-id'
@@ -21,6 +22,7 @@ export function launchPcDeskChat(worktreeId: string): boolean {
     return false
   }
   const result = launchAgentInNewTab({
+    requestId: newAgentLaunchRequestId(),
     agent,
     worktreeId,
     groupId:

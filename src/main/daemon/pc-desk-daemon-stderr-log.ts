@@ -19,7 +19,11 @@ export function keepDaemonStderrInFile(stream: UnrefableStream | null | undefine
     const file = join(getLogsDirectory(), 'daemon-stderr.log')
     stream.on('data', (chunk: Buffer) => {
       const text = chunk.toString('utf8').slice(-MAX_CHUNK_CHARS)
-      appendFile(file, `[${new Date().toISOString()}] ${text}${text.endsWith('\n') ? '' : '\n'}`, () => {})
+      appendFile(
+        file,
+        `[${new Date().toISOString()}] ${text}${text.endsWith('\n') ? '' : '\n'}`,
+        () => {}
+      )
     })
     stream.on('error', () => {})
     stream.unref?.()

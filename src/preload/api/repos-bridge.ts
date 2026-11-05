@@ -1,8 +1,4 @@
 import { ipcRenderer } from 'electron'
-import type {
-  HostRepoCatalogSnapshot,
-  ListReposForExecutionHostArgs
-} from '../../shared/host-repo-catalog-contract'
 import type { BaseRefDefaultResult, BaseRefSearchResult } from '../../shared/repo-types'
 import type { ExecutionHostId } from '../../shared/execution-host'
 import type { PreloadApi } from '../api-types'
@@ -15,12 +11,11 @@ import type {
 export const reposApi = {
   list: () => ipcRenderer.invoke('repos:list'),
 
-  listForExecutionHost: (args: ListReposForExecutionHostArgs): Promise<HostRepoCatalogSnapshot> =>
-    ipcRenderer.invoke('repos:listForExecutionHost', args),
+  listWslMoved: () => ipcRenderer.invoke('repos:listWslMoved'),
+
+  listHostCatalogSnapshots: () => ipcRenderer.invoke('repos:listHostCatalogSnapshots'),
 
   add: (args) => ipcRenderer.invoke('repos:add', args),
-
-  addRemote: (args) => ipcRenderer.invoke('repos:addRemote', args),
 
   create: (args) => ipcRenderer.invoke('repos:create', args),
 
@@ -39,8 +34,6 @@ export const reposApi = {
   setPcDeskSmartTitles: (enabled: boolean): Promise<void> =>
     ipcRenderer.invoke('repos:setPcDeskSmartTitles', enabled),
 
-  remove: (args) => ipcRenderer.invoke('repos:remove', args),
-
   removeForHost: (args) => ipcRenderer.invoke('repos:removeForHost', args),
 
   reorder: (args) => ipcRenderer.invoke('repos:reorder', args),
@@ -57,10 +50,6 @@ export const reposApi = {
 
   clone: (args) => ipcRenderer.invoke('repos:clone', args),
 
-  cloneRemote: (args) => ipcRenderer.invoke('repos:cloneRemote', args),
-
-  createRemote: (args) => ipcRenderer.invoke('repos:createRemote', args),
-
   cloneAbort: () => ipcRenderer.invoke('repos:cloneAbort'),
 
   onCloneProgress: (callback: (data: { phase: string; percent: number }) => void): (() => void) => {
@@ -71,9 +60,6 @@ export const reposApi = {
     ipcRenderer.on('repos:clone-progress', listener)
     return () => ipcRenderer.removeListener('repos:clone-progress', listener)
   },
-
-  getGitUsername: (args: { repoId: string }): Promise<string> =>
-    ipcRenderer.invoke('repos:getGitUsername', args),
 
   getBaseRefDefault: (args: {
     repoId: string

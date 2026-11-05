@@ -1,5 +1,5 @@
-import { parsePaneKey } from '../../../../shared/stable-pane-id'
-import { isWebTerminalSurfaceTabId } from '../../../../shared/terminal-surface-id'
+import { parsePaneKey } from '../../../../shared/workspace-layout/stable-pane-id'
+import { isWebTerminalSurfaceTabId } from '../../../../shared/workspace-layout/terminal-surface-id'
 import type { WebSessionTabsBatchContext, WebSessionTabsSyncState } from './state'
 import { batchAgentPaneKeysForTabs } from './agent-status-primitives'
 import { hostSessionTabIdsByLocalTabForWorktree } from './tracking-mappings'
@@ -36,7 +36,8 @@ export function collectUnhydratedMirroredTabRetractions(args: {
     if (
       entry?.worktreeId === args.worktreeId &&
       (entry.connectionId === args.environmentId ||
-        (args.environmentId === 'local' && (entry.connectionId === null || entry.connectionId === undefined))) &&
+        (args.environmentId === 'local' &&
+          (entry.connectionId === null || entry.connectionId === undefined))) &&
       tabId &&
       candidates.has(tabId)
     ) {

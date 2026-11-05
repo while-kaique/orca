@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import { ipcMain } from 'electron'
-import { spawnProcess } from '../../../shared/child-process/run-process'
+import { spawnProcess } from '@orca/process-host'
 import { resolveCliCommand } from '../../../shared/node-cli-command-resolution'
 import {
   buildPcDeskSessionTitlePrompt,
@@ -31,8 +31,7 @@ const CLAUDE_SESSION_TITLE_ARGS = [
 
 let lastResolvedProgram = ''
 
-// Why not spawnSourceControlAgent: it wraps npm `.cmd` shims in cmd.exe, which failed with ENOENT
-// from Orca's main process; spawnProcess reads the shim and starts claude.exe directly.
+// Own spawner (same direct-exe path as spawnSourceControlAgent on Windows) so errors can name the program it tried.
 const spawnSessionTitleAgent: SpawnSourceControlAgent = (input) => {
   const env = input.env ?? process.env
   const program =
@@ -58,9 +57,7 @@ export async function suggestPcDeskSessionTitle(
     },
     cwd: request.cwd,
     env: undefined,
-    emptyResultName: 'session title',
     operation: 'session-title',
-    holdHomeLockUntilExit: false,
     spawnAgent: spawnSessionTitleAgent
   })
   const result = await execution.result

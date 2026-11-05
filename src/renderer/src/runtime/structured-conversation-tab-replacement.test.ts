@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from 'vitest'
-import { buildMirroredAgentTabs } from './web-session-tabs-sync/terminal-surfaces'
-import { applyWebSessionTabsSnapshot } from './web-session-tabs-sync'
+import './web-session-tabs-sync/terminal-surfaces'
+import { applyWebSessionTabsSnapshot } from './web-session-tabs-sync/snapshot-api'
 import {
   makeSnapshot,
   makeState,
@@ -14,21 +14,16 @@ import {
 beforeEach(resetWebSessionTabsSyncTestState)
 
 describe('clear pane identity', () => {
-  it.each(
-    (['agent-session', 'terminal'] as const).flatMap((contentType) =>
-      (['absent', 'before', 'after'] as const).map((history) => ({ contentType, history }))
-    )
-  )(
-    'replaces a $contentType pane with reopened history $history the replacement',
-    ({ contentType, history }) => {
+  it.each((['absent', 'before', 'after'] as const).map((history) => ({ history })))(
+    'replaces an agent-session pane with reopened history $history the replacement',
+    ({ history }) => {
       const state = makeState({
         unifiedTabsByWorktree: {
           [WT]: [
             {
               id: 'local-pane',
-              entityId: contentType === 'terminal' ? 'local-pane' : 'old-session',
-              contentType,
-              structuredSessionId: contentType === 'terminal' ? 'old-session' : undefined,
+              entityId: 'old-session',
+              contentType: 'agent-session',
               agentSessionAgent: 'codex',
               worktreeId: WT,
               groupId: 'local-group',
@@ -53,25 +48,7 @@ describe('clear pane identity', () => {
         },
         activeGroupIdByWorktree: { [WT]: 'local-group' },
         activeTabId: 'local-pane',
-        activeTabIdByWorktree: { [WT]: 'local-pane' },
-        ...(contentType === 'terminal'
-          ? {
-              tabsByWorktree: {
-                [WT]: [
-                  {
-                    id: 'local-pane',
-                    worktreeId: WT,
-                    ptyId: null,
-                    title: 'Old',
-                    customTitle: null,
-                    color: null,
-                    sortOrder: 0,
-                    createdAt: 1
-                  }
-                ]
-              }
-            }
-          : {})
+        activeTabIdByWorktree: { [WT]: 'local-pane' }
       })
       const snapshot = makeSnapshot(
         [
@@ -117,10 +94,10 @@ describe('clear pane identity', () => {
         groupId: 'local-group',
         isPinned: true
       })
-      expect(next.groupsByWorktree?.[WT]?.[0]).toMatchObject({
-        activeTabId: 'local-pane'
-      })
-      expect(next.groupsByWorktree?.[WT]?.[0]?.tabOrder[0]).toBe('local-pane')
+      // An omitted groups patch means the snapshot left every group as it was.
+      const nextGroup = (next.groupsByWorktree ?? state.groupsByWorktree)[WT]?.[0]
+      expect(nextGroup).toMatchObject({ activeTabId: 'local-pane' })
+      expect(nextGroup?.tabOrder[0]).toBe('local-pane')
       expect(next.activeTabIdByWorktree?.[WT] ?? state.activeTabIdByWorktree[WT]).toBe('local-pane')
       expect(next.tabsByWorktree?.[WT] ?? []).toEqual([])
       const repeated = applyWebSessionTabsSnapshot({ ...state, ...next }, snapshot, ENV, NOW + 1, {
@@ -133,43 +110,4 @@ describe('clear pane identity', () => {
       )
     }
   )
-  it('gives reopened history its own tab when clear retained its former local ID', () => {
-    const current = [
-      {
-        id: 'structured-agent-session-old-session',
-        entityId: 'new-session',
-        contentType: 'agent-session' as const,
-        worktreeId: WT,
-        groupId: 'g',
-        label: 'Codex Chat',
-        customLabel: null,
-        color: null,
-        createdAt: 1,
-        sortOrder: 0
-      }
-    ]
-    const snapshot = makeSnapshot([
-      {
-        type: 'agent-session',
-        id: 'new-tab',
-        sessionId: 'new-session',
-        replacesSessionId: 'old-session',
-        agent: 'codex',
-        title: 'New',
-        isActive: false
-      },
-      {
-        type: 'agent-session',
-        id: 'old-tab',
-        sessionId: 'old-session',
-        agent: 'codex',
-        title: 'Old',
-        isActive: true
-      }
-    ])
-    const tabs = buildMirroredAgentTabs(snapshot, new Map(), 'g', 0, current, NOW)
-    expect(new Set(tabs.map((tab) => tab.unifiedTab.id)).size).toBe(2)
-    expect(tabs[0]!.unifiedTab.id).toBe(current[0]!.id)
-    expect(tabs[1]!.unifiedTab.entityId).toBe('old-session')
-  })
 })

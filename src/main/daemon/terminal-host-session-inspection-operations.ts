@@ -3,12 +3,14 @@ import type { TakePendingOutputResult, TerminalSnapshot } from './types'
 import { withSnapshotBreadcrumb } from './pc-desk-snapshot-breadcrumb'
 
 export async function confirmTerminalHostForegroundProcess(
-  session: Session | undefined
+  session: Session | undefined,
+  currentSession?: () => Session | undefined
 ): Promise<string | null> {
   if (!session || !session.isAlive) {
     return null
   }
-  return session.confirmForegroundProcess()
+  const result = await session.confirmForegroundProcess()
+  return session.isAlive && (!currentSession || currentSession() === session) ? result : null
 }
 
 export async function confirmTerminalHostShellForeground(

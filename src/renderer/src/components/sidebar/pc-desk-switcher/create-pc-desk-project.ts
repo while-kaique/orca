@@ -2,7 +2,7 @@ import { toast } from 'sonner'
 import { useAppStore } from '@/store'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import { resolvePcDeskMainWorktreeId } from './pc-desk-main-worktree-id'
-import { upsertAddedRepoWithProjectHostSetup } from '../add-repo-store-upsert'
+import { upsertAddedRepoWithProjectHostSetup } from '../project-admission/completion/add-repo-store-upsert'
 import { launchPcDeskChat } from './launch-pc-desk-chat'
 
 /** Creates Desktop\Projetos\<name> as a git project (reuses repos:create) and opens a chat in it. */

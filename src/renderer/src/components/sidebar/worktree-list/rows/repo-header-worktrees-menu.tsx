@@ -20,6 +20,7 @@ import {
   stopRepoHeaderKeyboardToggle,
   stopRepoHeaderMenuEvent
 } from './header-event-guards'
+import type { RepoHeaderProjectActions } from './repo-header-project-actions'
 
 const EMPTY_WORKTREES: readonly Worktree[] = []
 
@@ -41,11 +42,13 @@ export function activateProjectFolder(repo: Pick<Repo, 'id' | 'path'>): void {
 export function RepoHeaderWorktreesMenu({
   repo,
   label,
+  pinHost,
   onCreateForRepo
 }: {
   repo: Repo
   label: string
-  onCreateForRepo: (projectId: string) => void
+  pinHost: boolean
+  onCreateForRepo: RepoHeaderProjectActions['onCreateForRepo']
 }): React.JSX.Element {
   const worktrees = useAppStore((state) => state.worktreesByRepo[repo.id] ?? EMPTY_WORKTREES)
   const linked = getLinkedWorktrees(worktrees)
@@ -105,7 +108,7 @@ export function RepoHeaderWorktreesMenu({
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => onCreateForRepo(repo.id)}>
+        <DropdownMenuItem onSelect={() => onCreateForRepo(repo, { pinHost })}>
           <Plus className="size-3.5" />
           Criar worktree nova…
         </DropdownMenuItem>

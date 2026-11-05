@@ -1,4 +1,6 @@
+import { withDurableRuntimeStore } from '../runtime-durable-store-fixture'
 import { describe, expect, it, vi } from 'vitest'
+import { committingSpawn } from '../bind-first-pane.test-fixture'
 import {
   OrcaRuntimeService,
   electronMocks,
@@ -6,12 +8,11 @@ import {
   join,
   mkdtemp,
   tmpdir,
-  waitForMobileSessionTabsEvents
+  waitForMobileSessionTabsEvents,
+  type RuntimeMobileSessionTabsResult
 } from '../orca-runtime-test-mocks.spec'
-import type {
-  RuntimeMobileSessionTabsResult,
-  WorkspaceSessionState
-} from '../orca-runtime-test-mocks.spec'
+
+import type { WorkspaceSessionState } from '../../../shared/workspace-session/workspace-session-state-types'
 import {
   HEADLESS_LEAF_ID,
   TEST_FOLDER_PROJECT_GROUP_ID,
@@ -26,6 +27,7 @@ import {
   makeHeadlessTerminalLayout,
   makeRuntimeStoreWithWorkspaceSession,
   makeWorkspaceSessionWithHeadlessTerminal,
+  spawnedPtyEnv,
   store
 } from '../orca-runtime-test-fixtures.spec'
 
@@ -39,7 +41,7 @@ describe('OrcaRuntimeService', () => {
       createFolderWorkspaceRuntimeStore(folderWorkspace, projectGroup) as never
     )
     runtime.setPtyController({
-      spawn,
+      spawn: committingSpawn(runtime, spawn),
       write: () => true,
       kill: () => true,
       getForegroundProcess: async () => null
@@ -51,7 +53,7 @@ describe('OrcaRuntimeService', () => {
     const spawnCall = spawn.mock.calls[0]?.[0] as
       | { cwd?: string; env?: Record<string, string>; worktreeId?: string }
       | undefined
-    const spawnedEnv = spawnCall?.env ?? {}
+    const spawnedEnv = spawnedPtyEnv(spawnCall)
     expect(spawnCall).toMatchObject({
       cwd: folderPath,
       worktreeId: TEST_FOLDER_WORKSPACE_KEY,
@@ -79,7 +81,7 @@ describe('OrcaRuntimeService', () => {
     const spawn = vi.fn().mockResolvedValue({ id: 'ssh:ssh-1@@remote-pty' })
     const runtime = new OrcaRuntimeService(remoteStore as never)
     runtime.setPtyController({
-      spawn,
+      spawn: committingSpawn(runtime, spawn, 'ssh:ssh-1'),
       write: () => true,
       kill: () => true,
       getForegroundProcess: async () => null
@@ -177,13 +179,15 @@ describe('OrcaRuntimeService', () => {
     const getWorkspaceSession = vi.fn((hostId?: string | null) =>
       hostId === 'ssh:ssh-1' ? sshSession : localSession
     )
-    const runtime = new OrcaRuntimeService({
-      ...store,
-      flushOrThrow: vi.fn(),
-      getRepos: () => [remoteRepo],
-      getRepo: (id: string) => (id === TEST_REPO_ID ? remoteRepo : undefined),
-      getWorkspaceSession
-    } as never)
+    const runtime = new OrcaRuntimeService(
+      withDurableRuntimeStore({
+        ...store,
+        flushOrThrow: vi.fn(),
+        getRepos: () => [remoteRepo],
+        getRepo: (id: string) => (id === TEST_REPO_ID ? remoteRepo : undefined),
+        getWorkspaceSession
+      })
+    )
     runtime.setPtyController({
       write: () => true,
       kill: () => true,
@@ -229,15 +233,17 @@ describe('OrcaRuntimeService', () => {
       sshSession = session
     })
     const kill = vi.fn(() => true)
-    const runtime = new OrcaRuntimeService({
-      ...store,
-      getRepos: () => [remoteRepo],
-      getRepo: (id: string) => (id === TEST_REPO_ID ? remoteRepo : undefined),
-      getWorkspaceSession: (hostId?: string | null) =>
-        hostId === 'ssh:ssh-1' ? sshSession : localSession,
-      setWorkspaceSession,
-      flushOrThrow: vi.fn()
-    } as never)
+    const runtime = new OrcaRuntimeService(
+      withDurableRuntimeStore({
+        ...store,
+        getRepos: () => [remoteRepo],
+        getRepo: (id: string) => (id === TEST_REPO_ID ? remoteRepo : undefined),
+        getWorkspaceSession: (hostId?: string | null) =>
+          hostId === 'ssh:ssh-1' ? sshSession : localSession,
+        setWorkspaceSession,
+        flushOrThrow: vi.fn()
+      })
+    )
     runtime.setPtyController({
       write: () => true,
       kill,
@@ -258,7 +264,7 @@ describe('OrcaRuntimeService', () => {
     const spawn = vi.fn().mockResolvedValue({ id: 'serve-mobile-pty' })
     const runtime = new OrcaRuntimeService(store)
     runtime.setPtyController({
-      spawn,
+      spawn: committingSpawn(runtime, spawn),
       write: () => true,
       kill: () => true,
       getForegroundProcess: async () => null
@@ -554,7 +560,7 @@ describe('OrcaRuntimeService', () => {
       .mockResolvedValueOnce({ id: 'laptop-split-pty' })
     const runtime = new OrcaRuntimeService(store)
     runtime.setPtyController({
-      spawn,
+      spawn: committingSpawn(runtime, spawn),
       write: () => true,
       kill: () => true,
       getForegroundProcess: async () => null
@@ -594,7 +600,7 @@ describe('OrcaRuntimeService', () => {
     const spawn = vi.fn().mockResolvedValue({ id: 'laptop-created-pty' })
     const runtime = new OrcaRuntimeService(store)
     runtime.setPtyController({
-      spawn,
+      spawn: committingSpawn(runtime, spawn),
       write: () => true,
       kill: () => true,
       getForegroundProcess: async () => null
@@ -633,7 +639,7 @@ describe('OrcaRuntimeService', () => {
     const spawn = vi.fn().mockResolvedValue({ id: 'laptop-created-pty' })
     const runtime = new OrcaRuntimeService(store)
     runtime.setPtyController({
-      spawn,
+      spawn: committingSpawn(runtime, spawn),
       write: () => true,
       kill: () => true,
       getForegroundProcess: async () => 'claude'

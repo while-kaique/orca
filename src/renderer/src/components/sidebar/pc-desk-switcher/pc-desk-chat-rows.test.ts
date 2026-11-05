@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Row } from '../worktree-list/grouping/row-types'
+import type { Row } from '../../../../../shared/sidebar-list/row-types'
 import {
   parsePcDeskChatTabIdsSignature,
   selectPcDeskChatTabIdsSignature,

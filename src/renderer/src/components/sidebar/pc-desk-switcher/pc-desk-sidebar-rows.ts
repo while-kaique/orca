@@ -1,4 +1,30 @@
-import type { Row } from '../worktree-list/grouping/row-types'
+import { useMemo } from 'react'
+import { useAppStore } from '@/store'
+import { usePcDeskMode } from '@/lib/pc-desk-mode'
+import type { Row } from '../../../../../shared/sidebar-list/row-types'
+import {
+  parsePcDeskChatTabIdsSignature,
+  selectPcDeskChatTabIdsSignature,
+  splitPcDeskRowsByChat
+} from './pc-desk-chat-rows'
+
+/** PC-desk mode: only working rows, and one row per open chat; other modes keep the rows as is. */
+export function usePcDeskSidebarRows(rows: Row[]): Row[] {
+  const pcDeskMode = usePcDeskMode()
+  const chatTabIdsSignature = useAppStore((s) =>
+    pcDeskMode ? selectPcDeskChatTabIdsSignature(s) : ''
+  )
+  return useMemo(
+    () =>
+      pcDeskMode
+        ? splitPcDeskRowsByChat(
+            keepPcDeskWorkingRows(rows),
+            parsePcDeskChatTabIdsSignature(chatTabIdsSignature)
+          )
+        : rows,
+    [pcDeskMode, chatTabIdsSignature, rows]
+  )
+}
 
 /**
  * PC-desk mode shows only what the user is working in: drop notice cards (new/imported worktrees)

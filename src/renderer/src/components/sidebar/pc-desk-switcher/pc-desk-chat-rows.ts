@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
 import type { AppState } from '@/store/types'
-import type { Row } from '../worktree-list/grouping/row-types'
+import type { Row } from '../../../../../shared/sidebar-list/row-types'
 
 /** Worktree id → its chat (terminal tab) ids, in tab order. */
 export type PcDeskChatTabIdsByWorktree = ReadonlyMap<string, readonly string[]>

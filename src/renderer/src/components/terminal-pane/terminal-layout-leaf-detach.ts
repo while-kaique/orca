@@ -1,7 +1,7 @@
 import type {
   TerminalLayoutSnapshot,
   TerminalPaneLayoutNode
-} from '../../../../shared/terminal-tab-types'
+} from '../../../../shared/workspace-layout/terminal-tab-types'
 import {
   collectLeafIdsInOrder,
   normalizeTerminalLayoutSnapshot,
@@ -94,6 +94,7 @@ export function detachTerminalLayoutLeaf(
       ptyIdsByLeafId
     }),
     expandedLeafId: layout.expandedLeafId === leafId ? null : layout.expandedLeafId,
+    ...(layout.chatLeafId && layout.chatLeafId !== leafId ? { chatLeafId: layout.chatLeafId } : {}),
     ...(ptyIdsByLeafId ? { ptyIdsByLeafId } : {}),
     ...(buffersByLeafId ? { buffersByLeafId } : {}),
     ...(scrollbackRefsByLeafId ? { scrollbackRefsByLeafId } : {}),
@@ -110,6 +111,7 @@ export function detachTerminalLayoutLeaf(
       root: { type: 'leaf', leafId },
       activeLeafId: leafId,
       expandedLeafId: null,
+      ...(layout.chatLeafId === leafId ? { chatLeafId: leafId } : {}),
       ...(detachedPtyIdsByLeafId ? { ptyIdsByLeafId: detachedPtyIdsByLeafId } : {}),
       ...(detachedBuffersByLeafId ? { buffersByLeafId: detachedBuffersByLeafId } : {}),
       ...(detachedScrollbackRefsByLeafId

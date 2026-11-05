@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { AgentHookServer } from './server'
-import { AGENT_STATUS_STALE_AFTER_MS } from '../../shared/agent-status-types'
+import { AGENT_STATUS_STALE_AFTER_MS } from '../../shared/agent-status/contracts/agent-status-freshness'
 import { selectFreshExplicitAgentStatus } from '../runtime/runtime-hook-agent-row-selection'
 import { wslHookRelayConnectionId } from '../../shared/wsl-hook-relay-contract'
 import { seedLegacyAgentStatusForTests } from '../../shared/agent-hook-listener/listener-state'
@@ -32,8 +32,7 @@ describe('the terminal handle a status row is stamped with', () => {
   })
 
   it('survives a later write that resolved no handle', () => {
-    // Only main's OSC parse resolves one; an HTTP hook post for the same pane carries none and
-    // must not erase the row's only join back to its terminal.
+    // HTTP hooks lack OSC terminal handles and must not erase the row's terminal association.
     const server = new AgentHookServer()
     ingest(server)
     ingest(server, { terminalHandle: undefined, payload: { state: 'done', prompt: 'ship it' } })
@@ -212,7 +211,12 @@ describe('the terminal handle a status row is stamped with', () => {
     }
     const childOnlyRow = {
       ...row,
-      claudeLeadBoundaryChildOnly: true
+      claudeRunningNonAgentTask: false,
+      payload: {
+        ...row.payload,
+        mainAgent: { state: 'done' as const, stateStartedAt: 1 },
+        subagents: [{ id: 'child-1', state: 'working' as const, startedAt: 1 }]
+      }
     }
     seedLegacyAgentStatusForTests(server._getStateForTests(), childOnlyRow)
     enriched.mockClear()

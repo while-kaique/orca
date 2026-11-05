@@ -1,5 +1,5 @@
 import type { BrowserWindow } from 'electron'
-import type { Store } from '../persistence'
+import type { Store } from '../persistence/loading-store/store'
 
 /**
  * Fork (PC-desk): Windows shutdown/logoff kills the app without before-quit or beforeunload,

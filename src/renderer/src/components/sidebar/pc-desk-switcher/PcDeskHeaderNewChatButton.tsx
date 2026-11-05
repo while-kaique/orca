@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { Repo } from '../../../../../shared/repo-types'
-import { REPO_HEADER_ACTION_BUTTON_CLASS } from '../repo-header-action-button-class'
+import { REPO_HEADER_ACTION_BUTTON_CLASS } from '../worktree-list/rows/repo-header-action-button-class'
 import {
   handleRepoHeaderActionPointerDown,
   stopRepoHeaderKeyboardToggle

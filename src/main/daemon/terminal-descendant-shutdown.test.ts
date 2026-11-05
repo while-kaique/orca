@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { terminateShutdownDescendants } from './terminal-descendant-shutdown'
-import { collectDescendantRows, type ProcessTableCapture } from '../pty-descendant-termination'
-import type * as DescendantTermination from '../pty-descendant-termination'
+import { collectDescendantRows } from '../pty/process-retirement/pty-descendant-termination'
+import type { ProcessTableCapture } from '../pty/process-retirement/pty-descendant-fresh-table'
+import type * as DescendantTermination from '../pty/process-retirement/pty-descendant-termination'
 
 const readProcessTable = vi.hoisted(() => vi.fn<() => Promise<ProcessTableCapture>>())
-vi.mock('../pty-descendant-termination', async (importOriginal) => {
+vi.mock('../pty/process-retirement/pty-descendant-termination', async (importOriginal) => {
   const actual = await importOriginal<typeof DescendantTermination>()
   return { ...actual, readProcessTable, sendDescendantSignal: vi.fn() }
 })
@@ -28,9 +29,10 @@ describe('terminal shutdown process-table batching', () => {
         startedAt: 'Mon Jul 13 12:54:47 2026'
       }
     ]).flat()
+    // Each scan is stamped when it starts, after the walks that produced the snapshots.
     readProcessTable
-      .mockResolvedValueOnce({ rows, capturedAtMs: Date.now() })
-      .mockResolvedValue({ rows: [], capturedAtMs: Date.now() })
+      .mockImplementationOnce(async () => ({ rows, capturedAtMs: Date.now() + 1 }))
+      .mockImplementation(async () => ({ rows: [], capturedAtMs: Date.now() + 1 }))
     const shutdowns = Array.from({ length: 20 }, (_, index) => {
       const rootPid = 100 + index
       const snapshot = collectDescendantRows(rootPid, [
