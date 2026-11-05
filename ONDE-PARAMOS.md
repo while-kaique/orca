@@ -243,3 +243,5 @@
   e o teste CLM do PowerShell (antivírus bloqueia o script do teste).
 - Para usar: fechar o Orca (meu); na pasta `orca`: `git merge --ff-only atualiza-oficial-1.4.249`;
   `pnpm install` (pnpm 12, ~9 min); abrir o atalho (remonta sozinho).
+- 05/11 tarde: juntados os 3 commits da sessão "Lentidão Bitdefender" (hooks só AskUserQuestion|ExitPlanMode,
+  preset Agent sleep 2 h) — commit `815ea9b3c1`; integração na pasta `orca` vira fast-forward.
