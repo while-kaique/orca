@@ -560,12 +560,13 @@ describe('ClaudeHookService.install', () => {
         expect(new ClaudeHookService().install().state).toBe('installed')
 
         const settings = JSON.parse(readFileSync(settingsPath, 'utf-8')) as {
-          hooks: Record<string, { hooks: TestHook[] }[]>
+          hooks: Record<string, { matcher?: string; hooks: TestHook[] }[]>
         }
         expect(JSON.stringify(settings.hooks)).not.toContain('someone-else')
-        // Fork: PreToolUse nao e mais gerenciado; o hook antigo deve sumir.
-        expect(JSON.stringify(settings.hooks.PreToolUse ?? [])).not.toContain('claude-hook')
-        expect(settings.hooks.PostToolUse[0].hooks[0].command).toBe(
+        // Fork: the stale '*' PreToolUse entry is swept and only the narrow matcher remains.
+        expect(settings.hooks.PreToolUse).toHaveLength(1)
+        expect(settings.hooks.PreToolUse[0].matcher).toBe('AskUserQuestion|ExitPlanMode')
+        expect(settings.hooks.PreToolUse[0].hooks[0].command).toBe(
           `${scriptPath.replaceAll('\\', '/')} || echo {}`
         )
         expect(new ClaudeHookService().getStatus().state).toBe('installed')
@@ -700,6 +701,7 @@ describe('ClaudeHookService.installRemote', () => {
       'SubagentStart',
       'SubagentStop',
       'TeammateIdle',
+      'PreToolUse',
       'PostToolUse',
       'PostToolUseFailure',
       'PermissionRequest'

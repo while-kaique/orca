@@ -36,6 +36,9 @@ export const OPENCLAUDE_HOOK_SETTINGS: ClaudeCompatibleHookSettings = {
   usesWindowsCompatLauncher: false
 }
 
+// Tool names whose start/finish flips the pane between 'working' and 'waiting'.
+export const PC_DESK_STATE_CHANGING_TOOLS = 'AskUserQuestion|ExitPlanMode'
+
 export const CLAUDE_EVENTS = [
   // Why: SessionStart is the only event a resumed/idle session emits before the
   // first prompt; without it the sidebar row can't exist until the user types (STA-3386).
@@ -74,13 +77,23 @@ export const CLAUDE_EVENTS = [
     eventName: 'TeammateIdle',
     definition: { hooks: [{ type: 'command', command: '' }] }
   },
-  // Why (fork, 05/11/2026): PreToolUse foi retirado. No Windows cada hook abre
-  // cmd + curl e o antivirus da empresa cobra ~1 s por processo; Pre + Post
-  // custavam ~4 s por ferramenta. PostToolUse sozinho ja mantem o painel em
-  // 'working'; perde-se so a previa da ferramenta em andamento no dashboard.
+  // Fork (PC-desk): per-tool hooks only for the tools that flip the pane state
+  // (a question waits for the user; a plan waits for approval). Why: on Windows
+  // each hook launch is cmd + curl and the company antivirus charges ~1 s per
+  // process, so '*' cost ~4 s per tool. UserPromptSubmit/Stop still bracket the turn.
+  {
+    eventName: 'PreToolUse',
+    definition: {
+      matcher: PC_DESK_STATE_CHANGING_TOOLS,
+      hooks: [{ type: 'command', command: '' }]
+    }
+  },
   {
     eventName: 'PostToolUse',
-    definition: { matcher: '*', hooks: [{ type: 'command', command: '' }] }
+    definition: {
+      matcher: PC_DESK_STATE_CHANGING_TOOLS,
+      hooks: [{ type: 'command', command: '' }]
+    }
   },
   {
     eventName: 'PostToolUseFailure',
@@ -99,9 +112,6 @@ export const CLAUDE_EVENTS = [
     definition: { hooks: [{ type: 'command', command: '' }] }
   }
 ] as const
-
-// Fork: PreToolUse was managed until 05/11/2026; sweep it from older installs.
-const RETIRED_CLAUDE_EVENTS = ['PreToolUse'] as const
 
 const CLAUDE_SESSION_END_EVENT = {
   eventName: 'SessionEnd',
@@ -241,17 +251,13 @@ export function applyManagedHooks(
     nextHooks[event.eventName] = [...cleaned, definition]
   }
 
-  // Why: events no longer managed still need their stale managed command swept on reinstall.
-  const retiredEvents = sessionEndCapable
-    ? RETIRED_CLAUDE_EVENTS
-    : [...RETIRED_CLAUDE_EVENTS, 'SessionEnd']
-  for (const eventName of retiredEvents) {
-    const current = Array.isArray(nextHooks[eventName]) ? nextHooks[eventName] : []
+  if (!sessionEndCapable) {
+    const current = Array.isArray(nextHooks.SessionEnd) ? nextHooks.SessionEnd : []
     const cleaned = removeManagedCommands(current, isManagedCommand)
     if (cleaned.length === 0) {
-      delete nextHooks[eventName]
+      delete nextHooks.SessionEnd
     } else {
-      nextHooks[eventName] = cleaned
+      nextHooks.SessionEnd = cleaned
     }
   }
 
