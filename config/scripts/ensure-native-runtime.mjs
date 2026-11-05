@@ -194,7 +194,8 @@ const APP_CONTROL_ATTEMPTS_PATH = resolve(
 
 // The exact blocked binaries (path + size + mtime), or null when any failure is not an App Control block.
 function appControlBlockFingerprint(check) {
-  if (process.platform !== 'win32' || check.ok || check.failures.length === 0) {
+  // A missing/mismatched Electron binary reports `error` with no `failures`.
+  if (process.platform !== 'win32' || check.ok || !check.failures?.length) {
     return null
   }
   const parts = []

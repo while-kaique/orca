@@ -34,12 +34,9 @@ export const NOT_REOPENED: HeldPaneReopenOutcome = { reopened: false, agentResum
 type AppState = ReturnType<typeof useAppStore.getState>
 
 /** The agent session a cold restore of this pane would resume; read-only, so pre-spawn checks can share it. */
-export function findColdRestoreResumeSource(
-  session: ConnectPanePtySession,
-  state: AppState,
-  sleepingRecordEntry = session.getSleepingRecordForPane(state)
-) {
+export function findColdRestoreResumeSource(session: ConnectPanePtySession, state: AppState) {
   const entry = state.agentStatusByPaneKey[session.cacheKey]
+  const sleepingRecordEntry = session.getSleepingRecordForPane(state)
   const sleepingRecord = sleepingRecordEntry?.record
   const liveEntry = entry && entry.state !== 'done' ? entry : null
   const agent = liveEntry ? liveEntry.agentType : sleepingRecord?.agent
@@ -58,12 +55,7 @@ export function bindBuildColdRestoreAgentResumeStartup(session: ConnectPanePtySe
       return null
     }
     const state = useAppStore.getState()
-    // Fork (PC-desk): cold restore falls back to the hydrated last status; other callers keep the sleeping record only.
-    const source = findColdRestoreResumeSource(
-      session,
-      state,
-      session.getColdRestoreRecordForPane(state)
-    )
+    const source = findColdRestoreResumeSource(session, state)
     if (!source) {
       return null
     }

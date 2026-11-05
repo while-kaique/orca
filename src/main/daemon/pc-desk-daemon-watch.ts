@@ -64,9 +64,21 @@ export function startDaemonHeartbeat(log: DaemonFileLog, logFilePath?: string): 
       }
     }, HEARTBEAT_MS)
     timer.unref()
-    process.on('exit', (code) => {
-      log.log('process-exit', { code, uptimeS: Math.round(process.uptime()) })
-    })
+    let exitLogged = false
+    const logProcessExit = (code: number | string | null | undefined): void => {
+      if (!exitLogged) {
+        exitLogged = true
+        log.log('process-exit', { code, uptimeS: Math.round(process.uptime()) })
+      }
+    }
+    // Why wrap close: since 1.4.249 writes are async and paths like the shutdown deadline close the
+    // log before process.exit; a line written after close is dropped and would read as a crash.
+    const closeLog = log.close.bind(log)
+    log.close = () => {
+      logProcessExit(process.exitCode ?? null)
+      closeLog()
+    }
+    process.on('exit', (code) => logProcessExit(code))
   } catch {
     // idem
   }

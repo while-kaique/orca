@@ -6,6 +6,12 @@ import type { Row } from '../../../../../shared/sidebar-list/row-types'
 export type PcDeskChatTabIdsByWorktree = ReadonlyMap<string, readonly string[]>
 
 const TAB_SEPARATOR = ','
+const CHAT_ROW_KEY_MARKER = '#chat:'
+
+/** True for a PC-desk row that stands for one chat of its workspace. */
+export function isPcDeskChatRowKey(rowKey: string | undefined): boolean {
+  return rowKey?.includes(CHAT_ROW_KEY_MARKER) === true
+}
 const WORKTREE_SEPARATOR = '\n'
 
 /**
@@ -47,7 +53,11 @@ export function splitPcDeskRowsByChat(
       continue
     }
     for (const tabId of tabIds) {
-      result.push({ ...row, rowKey: `${row.rowKey}#chat:${tabId}`, pcDeskTabId: tabId })
+      result.push({
+        ...row,
+        rowKey: `${row.rowKey}${CHAT_ROW_KEY_MARKER}${tabId}`,
+        pcDeskTabId: tabId
+      })
     }
   }
   return result

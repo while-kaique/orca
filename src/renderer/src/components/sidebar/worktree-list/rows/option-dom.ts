@@ -1,4 +1,5 @@
 import type React from 'react'
+import { isPcDeskChatRowKey } from '../../pc-desk-switcher/pc-desk-chat-rows'
 
 export function getWorktreeOptionId(rowKey: string): string {
   return `worktree-list-option-${encodeURIComponent(rowKey)}`
@@ -28,11 +29,16 @@ export function markSidebarWorktreeActiveImmediately(
     ? matchingIdOptions.find((option) => option.dataset.worktreeRowKey === primaryRowKey)
     : matchingIdOptions[0]
   const primaryHostIdentity = primaryOption?.dataset.worktreeHostIdentity
-  const nextOptions = primaryHostIdentity
-    ? matchingIdOptions.filter(
-        (option) => option.dataset.worktreeHostIdentity === primaryHostIdentity
-      )
-    : matchingIdOptions
+  const nextOptions = (
+    primaryHostIdentity
+      ? matchingIdOptions.filter(
+          (option) => option.dataset.worktreeHostIdentity === primaryHostIdentity
+        )
+      : matchingIdOptions
+  ).filter(
+    // Fork (PC-desk): sibling chat rows are other chats, not other occurrences of the clicked one.
+    (option) => option === primaryOption || !isPcDeskChatRowKey(option.dataset.worktreeRowKey)
+  )
   const nextOption = nextOptions[0]
   if (!nextOption) {
     return

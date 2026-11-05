@@ -24,6 +24,7 @@ import { WorktreeCardSshHostControl } from '../host/WorktreeCardSshHostControl'
 import { WorktreeHostContextBadge } from '../host/WorktreeHostContextBadge'
 import { WorktreeTitleInlineRename } from '../identity/WorktreeTitleInlineRename'
 import { cardElement } from './card-template-compiler'
+import { PcDeskCloseSlot } from '../../pc-desk-switcher/pc-desk-close-buttons'
 
 type Card = WorktreeCardController
 const part = cardElement<Card>
@@ -123,6 +124,10 @@ export const CARD_IDENTITY_PARTS = {
       onPointerDown={card.stopQuickActionPointerPropagation}
       onClick={card.handleWorkspaceQuickAction}
     />
+  )),
+  // Fork (PC-desk): hover X that closes the row's chat; renders nothing outside PC-desk mode.
+  PcDeskClose: part([], (_props, _children, { worktree }) => (
+    <PcDeskCloseSlot worktreeId={worktree.id} />
   )),
   MetaRepoBadge: part([], (_props, _children, { repo }) =>
     repo ? <WorktreeCardMetaRepoBadge repo={repo} /> : null

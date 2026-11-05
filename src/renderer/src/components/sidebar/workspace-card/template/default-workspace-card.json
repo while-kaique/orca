@@ -87,6 +87,7 @@
                 }
               ]
             },
+            { "el": "PcDeskClose" },
             {
               "el": "Row",
               "when": "vars.headerActions",

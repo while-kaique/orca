@@ -10,11 +10,7 @@ import { buildDesktopWorkspaceRowFactReader } from './desktop-workspace-row-fact
 import { sidebarWorkspaceRowFilters } from '../controls/sidebar-filter-actions'
 import { getLineageAncestorIndex, getSortedWorktreeRankIndex } from './visible-worktree-indexes'
 import { isPcDeskModeEnabled } from '@/lib/pc-desk-mode'
-import {
-  dropPcDeskClosedFolderRows,
-  pcDeskWorkspaceRowFacts,
-  pcDeskWorkspaceRowFilters
-} from './pc-desk-visible-rows'
+import { pcDeskWorkspaceRowFacts, pcDeskWorkspaceRowFilters } from './pc-desk-visible-rows'
 
 // Separate store binding avoids attention-slice import cycles; shared builders retain the filter rules.
 
@@ -58,11 +54,12 @@ export function computeVisibleWorktrees(
   const keyOf = opts.sortedByHostIdentity
     ? getWorktreeHostIdentity
     : (worktree: Worktree) => worktree.id
-  const pcDeskMode = opts.pcDeskMode ?? isPcDeskModeEnabled()
+  // Why the null check: without activity maps (board with "show sleeping") every row reads as asleep.
+  const pcDeskMode = (opts.pcDeskMode ?? isPcDeskModeEnabled()) && opts.tabsByWorktree !== null
   const filters = sidebarWorkspaceRowFilters(opts)
   const baseFacts = buildDesktopWorkspaceRowFactReader(opts)
   const facts = pcDeskMode ? pcDeskWorkspaceRowFacts(baseFacts, opts.tabsByWorktree) : baseFacts
-  const visible = selectVisibleSidebarWorktrees({
+  return selectVisibleSidebarWorktrees({
     rows: getIndexedAllWorktrees(worktreesByRepo),
     ancestorByIdentity: getLineageAncestorIndex(worktreesByRepo),
     rankOf: (worktree) => rankByKey.get(keyOf(worktree)),
@@ -74,9 +71,6 @@ export function computeVisibleWorktrees(
     preserveLineageParentOrder: opts.preserveLineageParentOrder,
     forcedVisibleWorktreeIds: opts.forcedVisibleWorktreeIds
   })
-  return pcDeskMode
-    ? dropPcDeskClosedFolderRows(visible, facts, opts.forcedVisibleWorktreeIds)
-    : visible
 }
 
 export function computeVisibleWorktreeIds(

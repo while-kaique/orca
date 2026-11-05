@@ -306,7 +306,8 @@ describe('tab strip rows', () => {
 
     renderStrip({ generatedTabTitlesEnabled: true })
 
-    expect(lastRender('terminal-1').tab?.title).toBe('Fix the login bug')
+    // Fork: generated titles are capped (session-title-cap), dropping filler words like "the".
+    expect(lastRender('terminal-1').tab?.title).toBe('Fix login bug')
   })
 
   it('re-renders a browser tab when duplicating becomes available', () => {

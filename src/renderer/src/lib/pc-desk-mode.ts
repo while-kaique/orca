@@ -5,6 +5,10 @@ const STORAGE_KEY = 'orca.fork.pcDeskMode'
 const listeners = new Set<() => void>()
 
 function readStoredValue(): boolean {
+  // Why: upstream test suites assume upstream behavior; fork tests mock this module to opt in.
+  if (import.meta.env.MODE === 'test') {
+    return false
+  }
   try {
     return globalThis.localStorage?.getItem(STORAGE_KEY) !== 'off'
   } catch {

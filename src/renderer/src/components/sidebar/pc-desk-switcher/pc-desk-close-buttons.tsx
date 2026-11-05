@@ -16,12 +16,13 @@ import { usePcDeskChatTabId } from './pc-desk-chat-rows'
 /** True in PC-desk mode while the workspace has any tab open. */
 export function usePcDeskCloseVisible(worktreeId: string): boolean {
   const pcDeskMode = usePcDeskMode()
-  const hasTabs = useAppStore(
+  // Why gate inside: every card now mounts this through the card template, PC-desk mode or not.
+  return useAppStore(
     (s) =>
-      (s.unifiedTabsByWorktree[worktreeId]?.length ?? 0) > 0 ||
-      (s.tabsByWorktree[worktreeId]?.length ?? 0) > 0
+      pcDeskMode &&
+      ((s.unifiedTabsByWorktree[worktreeId]?.length ?? 0) > 0 ||
+        (s.tabsByWorktree[worktreeId]?.length ?? 0) > 0)
   )
-  return pcDeskMode && hasTabs
 }
 
 /** Hover X on a project header: closes the chats of all its workspaces. */
@@ -96,4 +97,14 @@ export function PcDeskCloseWorktreeButton({
       </TooltipContent>
     </Tooltip>
   )
+}
+
+/** The workspace card template's slot for the row X; renders nothing outside PC-desk mode. */
+export function PcDeskCloseSlot({ worktreeId }: { worktreeId: string }): React.JSX.Element | null {
+  const visible = usePcDeskCloseVisible(worktreeId)
+  return visible ? (
+    <span className="flex shrink-0 items-center pr-1.5">
+      <PcDeskCloseWorktreeButton worktreeId={worktreeId} />
+    </span>
+  ) : null
 }

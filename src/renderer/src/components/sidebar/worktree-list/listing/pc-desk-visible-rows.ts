@@ -29,15 +29,3 @@ export function pcDeskWorkspaceRowFacts(
       (tabsByWorktree?.[worktree.id]?.length ?? 0) === 0 && facts.isSleeping(worktree)
   }
 }
-
-/** Folder workspaces skip the shared row filters, so the open-chat rule is applied to them here. */
-export function dropPcDeskClosedFolderRows(
-  rows: Worktree[],
-  facts: WorkspaceRowFactReader<Worktree>,
-  forcedVisibleWorktreeIds: readonly string[] | undefined
-): Worktree[] {
-  const forced = new Set(forcedVisibleWorktreeIds ?? [])
-  return rows.filter(
-    (row) => forced.has(row.id) || !facts.isFolderWorkspace(row) || !facts.isSleeping(row)
-  )
-}

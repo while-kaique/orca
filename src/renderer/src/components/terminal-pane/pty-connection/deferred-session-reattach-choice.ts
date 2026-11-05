@@ -31,10 +31,9 @@ export function runDeferredSessionReattachChoice(session: ConnectPanePtySession)
     (t) => t.id === session.deps.tabId
   )?.ptyId
   // Why: the host owns a mirrored tab's agent liveness and answers it at connect; a client note must not divert its start.
-  // Fork (PC-desk): cold restore also counts the hydrated last status (getColdRestoreRecordForPane).
   const resumesFromSleepingNote =
     !isWebTerminalSurfaceTabId(session.deps.tabId) &&
-    Boolean(session.getColdRestoreRecordForPane(storeSnapshot))
+    Boolean(session.getSleepingRecordForPane(storeSnapshot))
 
   // Why: the tab-level fallback must not steal a PTY a setup sibling already published while the main pane waited for split geometry.
   const tabFallbackPtyId =

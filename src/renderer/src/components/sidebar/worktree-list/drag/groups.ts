@@ -33,7 +33,10 @@ export function getWorktreeDragGroups(rows: HostSectionRow[]): WorktreeDragGroup
       current = { key: ALL_GROUP_KEY, ids: [] }
       groups.push({ key: current.key, worktreeIds: current.ids })
     }
-    current.ids.push(worktreeKey)
+    // Fork (PC-desk): a workspace with several chats has one row per chat but one place in the order.
+    if (!current.ids.includes(worktreeKey)) {
+      current.ids.push(worktreeKey)
+    }
   }
 
   return groups.filter((group) => group.worktreeIds.length > 0)
