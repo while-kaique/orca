@@ -547,6 +547,7 @@ describe('daemon-init: runRestartDaemon (7-step sequence)', () => {
       4321,
       'failed-launch'
     )
-    expect(stderrDestroy).toHaveBeenCalled()
+    // Fork: stderr is kept (logs/daemon-stderr.log, unref'd) so fatal aborts leave their stack.
+    expect(stderrDestroy).not.toHaveBeenCalled()
   })
 })

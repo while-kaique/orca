@@ -163,7 +163,8 @@ describe('daemon-init: runRestartDaemon (7-step sequence)', () => {
     await launcher('/fake/socket', '/fake/token')
 
     expect(stderrOff).toHaveBeenCalledWith('data', expect.any(Function))
-    expect(stderrDestroy).toHaveBeenCalledOnce()
+    // Fork: stderr is kept (logs/daemon-stderr.log, unref'd) so fatal aborts leave their stack.
+    expect(stderrDestroy).not.toHaveBeenCalled()
     expect(child.disconnect).toHaveBeenCalledOnce()
     expect(child.unref).toHaveBeenCalledOnce()
   })
