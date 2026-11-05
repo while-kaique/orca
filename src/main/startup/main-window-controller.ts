@@ -40,6 +40,7 @@ import { requireMainWindowServices } from './main-window-service-readiness'
 import { installOsSessionEndFlush } from '../window/os-session-end-flush'
 import { recordRendererLaunchFailureProbe } from '../window/renderer-launch-failure-probe'
 import { trackBrowserExtensionMainWindow } from '../browser/extensions/tabs-and-windows/browser-extension-window-model'
+import { applyPcDeskAgentSleepPreset } from '../window/pc-desk-agent-sleep-preset'
 
 import { isResourceWindowVisible } from '../window/resource-view-admission'
 import {
@@ -200,6 +201,7 @@ export function openMainWindow(options: { revealOnDidFinishLoad?: boolean } = {}
   })
   state.mainWindow = window
   installOsSessionEndFlush(window, store)
+  applyPcDeskAgentSleepPreset(store)
   state.hasOpenedMainWindow = true
   const publishResourceVisibility = (): void => {
     if (!window.isDestroyed()) {

@@ -6,6 +6,9 @@ import {
   parseClaudeCliVersion
 } from './claude-hook-event-versions'
 
+// Fork (PC-desk): tool names whose start/finish flips the pane between 'working' and 'waiting'.
+export const PC_DESK_STATE_CHANGING_TOOLS = 'AskUserQuestion|ExitPlanMode'
+
 export const CLAUDE_EVENTS = [
   // SessionStart creates sidebar rows for resumed or idle sessions before the first prompt.
   {
@@ -38,13 +41,16 @@ export const CLAUDE_EVENTS = [
     eventName: 'TeammateIdle',
     definition: { hooks: [{ type: 'command', command: '' }] }
   },
+  // Fork (PC-desk): per-tool hooks only for the tools that flip the pane state (a question waits
+  // for the user; a plan for approval). Why: on Windows each hook launch is cmd + curl and the
+  // company antivirus charges ~1 s per process, so '*' cost ~4 s per tool.
   {
     eventName: 'PreToolUse',
-    definition: { matcher: '*', hooks: [{ type: 'command', command: '' }] }
+    definition: { matcher: PC_DESK_STATE_CHANGING_TOOLS, hooks: [{ type: 'command', command: '' }] }
   },
   {
     eventName: 'PostToolUse',
-    definition: { matcher: '*', hooks: [{ type: 'command', command: '' }] }
+    definition: { matcher: PC_DESK_STATE_CHANGING_TOOLS, hooks: [{ type: 'command', command: '' }] }
   },
   {
     eventName: 'PostToolUseFailure',

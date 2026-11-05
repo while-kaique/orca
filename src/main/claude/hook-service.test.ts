@@ -412,9 +412,12 @@ describe('ClaudeHookService.install', () => {
         expect(new ClaudeHookService().install().state).toBe('installed')
 
         const settings = JSON.parse(readFileSync(settingsPath, 'utf-8')) as {
-          hooks: Record<string, { hooks: TestHook[] }[]>
+          hooks: Record<string, { matcher?: string; hooks: TestHook[] }[]>
         }
         expect(JSON.stringify(settings.hooks)).not.toContain('someone-else')
+        // Fork: the stale '*' PreToolUse entry is swept and only the narrow matcher remains.
+        expect(settings.hooks.PreToolUse).toHaveLength(1)
+        expect(settings.hooks.PreToolUse[0].matcher).toBe('AskUserQuestion|ExitPlanMode')
         expect(settings.hooks.PreToolUse[0].hooks[0].command).toBe(scriptPath.replaceAll('\\', '/'))
         expect(new ClaudeHookService().getStatus().state).toBe('installed')
       } finally {

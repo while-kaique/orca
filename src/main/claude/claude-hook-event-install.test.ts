@@ -6,7 +6,10 @@ import {
   parseClaudeCliVersionOutput,
   CLAUDE_HOOK_EVENT_FIRST_VERSIONS
 } from './claude-hook-event-versions'
-import { getClaudeManagedHookPlan } from './claude-managed-hook-events'
+import {
+  getClaudeManagedHookPlan,
+  PC_DESK_STATE_CHANGING_TOOLS
+} from './claude-managed-hook-events'
 import { applyManagedHooks } from './hook-settings'
 
 const SCRIPT_FILE_NAME = 'claude-hook.sh'
@@ -76,13 +79,14 @@ describe('Claude managed hook events by resolved version', () => {
         },
         '2.1.32'
       )
+      // Fork (PC-desk): per-tool hooks are narrowed to the tools that flip the pane state.
       expect(written.hooks?.PreToolUse).toEqual([
         { hooks: [userAsyncHook] },
-        { matcher: '*', hooks: [{ ...managedHook, async }] }
+        { matcher: PC_DESK_STATE_CHANGING_TOOLS, hooks: [{ ...managedHook, async }] }
       ])
       expect(written.hooks?.PostToolUse).toEqual([
         { hooks: [userAsyncHook] },
-        { matcher: '*', hooks: [managedHook] }
+        { matcher: PC_DESK_STATE_CHANGING_TOOLS, hooks: [managedHook] }
       ])
       expect(install(written, '2.1.32')).toEqual(written)
     }
