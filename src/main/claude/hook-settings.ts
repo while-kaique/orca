@@ -74,12 +74,10 @@ export const CLAUDE_EVENTS = [
     eventName: 'TeammateIdle',
     definition: { hooks: [{ type: 'command', command: '' }] }
   },
-  // Why: PreToolUse gives the dashboard a live readout of the in-flight tool
-  // (name + input preview) before it completes.
-  {
-    eventName: 'PreToolUse',
-    definition: { matcher: '*', hooks: [{ type: 'command', command: '' }] }
-  },
+  // Why (fork, 05/11/2026): PreToolUse foi retirado. No Windows cada hook abre
+  // cmd + curl e o antivirus da empresa cobra ~1 s por processo; Pre + Post
+  // custavam ~4 s por ferramenta. PostToolUse sozinho ja mantem o painel em
+  // 'working'; perde-se so a previa da ferramenta em andamento no dashboard.
   {
     eventName: 'PostToolUse',
     definition: { matcher: '*', hooks: [{ type: 'command', command: '' }] }
@@ -101,6 +99,9 @@ export const CLAUDE_EVENTS = [
     definition: { hooks: [{ type: 'command', command: '' }] }
   }
 ] as const
+
+// Fork: PreToolUse was managed until 05/11/2026; sweep it from older installs.
+const RETIRED_CLAUDE_EVENTS = ['PreToolUse'] as const
 
 const CLAUDE_SESSION_END_EVENT = {
   eventName: 'SessionEnd',
@@ -240,13 +241,17 @@ export function applyManagedHooks(
     nextHooks[event.eventName] = [...cleaned, definition]
   }
 
-  if (!sessionEndCapable) {
-    const current = Array.isArray(nextHooks.SessionEnd) ? nextHooks.SessionEnd : []
+  // Why: events no longer managed still need their stale managed command swept on reinstall.
+  const retiredEvents = sessionEndCapable
+    ? RETIRED_CLAUDE_EVENTS
+    : [...RETIRED_CLAUDE_EVENTS, 'SessionEnd']
+  for (const eventName of retiredEvents) {
+    const current = Array.isArray(nextHooks[eventName]) ? nextHooks[eventName] : []
     const cleaned = removeManagedCommands(current, isManagedCommand)
     if (cleaned.length === 0) {
-      delete nextHooks.SessionEnd
+      delete nextHooks[eventName]
     } else {
-      nextHooks.SessionEnd = cleaned
+      nextHooks[eventName] = cleaned
     }
   }
 

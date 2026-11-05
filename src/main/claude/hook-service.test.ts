@@ -563,7 +563,9 @@ describe('ClaudeHookService.install', () => {
           hooks: Record<string, { hooks: TestHook[] }[]>
         }
         expect(JSON.stringify(settings.hooks)).not.toContain('someone-else')
-        expect(settings.hooks.PreToolUse[0].hooks[0].command).toBe(
+        // Fork: PreToolUse nao e mais gerenciado; o hook antigo deve sumir.
+        expect(JSON.stringify(settings.hooks.PreToolUse ?? [])).not.toContain('claude-hook')
+        expect(settings.hooks.PostToolUse[0].hooks[0].command).toBe(
           `${scriptPath.replaceAll('\\', '/')} || echo {}`
         )
         expect(new ClaudeHookService().getStatus().state).toBe('installed')
@@ -698,7 +700,6 @@ describe('ClaudeHookService.installRemote', () => {
       'SubagentStart',
       'SubagentStop',
       'TeammateIdle',
-      'PreToolUse',
       'PostToolUse',
       'PostToolUseFailure',
       'PermissionRequest'
