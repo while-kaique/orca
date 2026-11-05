@@ -480,6 +480,8 @@ export type GlobalSettings = {
   experimentalAgentHibernation?: boolean
   /** Milliseconds a completed agent must stay idle before hibernation can be considered. */
   agentHibernationIdleMs?: number
+  /** Fork (PC-desk): one-shot guard that turned Agent sleep on with a 2 h idle window. */
+  pcDeskAgentSleepPresetApplied?: boolean
   /** Experimental: opt-in preview of the updated worktree-card layout and metadata behavior. */
   experimentalNewWorktreeCardStyle?: boolean
   /** Experimental: per-workspace on-demand environment recipes and setup surface. */

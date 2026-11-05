@@ -45,6 +45,7 @@ import {
 } from './synthetic-title-runtime'
 import { requireMainWindowServices } from './main-window-service-readiness'
 import { installOsSessionEndFlush } from '../window/os-session-end-flush'
+import { applyPcDeskAgentSleepPreset } from '../window/pc-desk-agent-sleep-preset'
 
 const TRAY_CREATE_FALLBACK_MS = 12_000
 const AGENT_STATE_CRASH_BREADCRUMB_MIN_INTERVAL_MS = 30_000
@@ -185,6 +186,7 @@ export function openMainWindow(options: { revealOnDidFinishLoad?: boolean } = {}
   })
   state.mainWindow = window
   installOsSessionEndFlush(window, store)
+  applyPcDeskAgentSleepPreset(store)
   window.on('show', resumeSyntheticTitleSpinnerTimer)
   window.on('restore', resumeSyntheticTitleSpinnerTimer)
   window.on('hide', stopSyntheticTitleSpinnerTimer)
