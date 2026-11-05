@@ -242,7 +242,7 @@
 - Neste PC falham também no oficial puro: 20 arquivos de teste do daemon/WSL (/bin/sh, getuid, WSL)
   e o teste CLM do PowerShell (antivírus bloqueia o script do teste).
 - **INTEGRADO 05/11 19:39:** pasta `orca` (`feat/pc-como-mesa`) avançou para `9c155026c2` por fast-forward,
-  `pnpm install` + build feitos; os 2 atalhos "Orca (meu)" voltaram para `orcabrir-orca-fork.vbs`.
+  `pnpm install` + build feitos; os 2 atalhos "Orca (meu)" voltaram para `orca\abrir-orca-fork.vbs`.
   Registro: `%APPDATA%\orca-fork\logs\integracao-1.4.249.log`. Aviso "[Crash Report]" ao abrir = registro
   antigo de 24/09 (v1.4.209) em `crash-reports.json`, nada novo.
 - 05/11 tarde: juntados os 3 commits da sessão "Lentidão Bitdefender" (hooks só AskUserQuestion|ExitPlanMode,
