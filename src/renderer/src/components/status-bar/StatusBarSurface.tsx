@@ -20,6 +20,7 @@ import { UpdateStatusSegment } from './UpdateStatusSegment'
 import { SkillUpdateStatusSegment } from './SkillUpdateStatusSegment'
 import { NativeChatResumeStatusSegment } from './NativeChatResumeStatusSegment'
 import { CaffeinateStatusSegment } from './CaffeinateStatusSegment'
+import { ClaudeVoiceStatusSegment } from './ClaudeVoiceStatusSegment'
 import { PluginsStatusSegment } from './PluginsStatusSegment'
 import { PluginStatusBarItems } from './PluginStatusBarItems'
 import { RemoteServerUpdateStatusSegment } from './RemoteServerUpdateStatusSegment'
@@ -298,6 +299,7 @@ export function StatusBarSurface({
               <PluginsStatusSegment />
               <PluginStatusBarItems iconOnly={segmentsIconOnly} />
               <CaffeinateStatusSegment iconOnly={segmentsIconOnly} />
+              <ClaudeVoiceStatusSegment iconOnly={segmentsIconOnly} />
             </>
           ) : null}
           <RemoteServerUpdateStatusSegment iconOnly={segmentsIconOnly} />
