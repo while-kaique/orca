@@ -14,6 +14,23 @@ export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<U
       set((state) => ({
         activeView: state.previousViewBeforeActivity
       })),
+    openCanvasPage: () =>
+      set((state) => ({
+        activeView: 'canvas',
+        previousViewBeforeCanvas:
+          state.activeView === 'canvas' ? state.previousViewBeforeCanvas : state.activeView
+      })),
+    closeCanvasPage: () =>
+      set((state) => ({
+        activeView: state.previousViewBeforeCanvas
+      })),
+    toggleCanvasPage: () => {
+      if (get().activeView === 'canvas') {
+        get().closeCanvasPage()
+      } else {
+        get().openCanvasPage()
+      }
+    },
     selectedAutomationId: null,
     setSelectedAutomationId: (id) => set({ selectedAutomationId: id }),
     pendingAutomationRunNavigation: null,

@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, MoreHorizontal, PanelLeft } from 'lucide-react'
+import { ArrowLeft, ArrowRight, MoreHorizontal, PanelLeft, Workflow } from 'lucide-react'
 import logo from '../../../../resources/logo.svg'
 import { translate } from '@/i18n/i18n'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -21,6 +21,8 @@ import type { AppChromeLayout } from './use-app-chrome-layout'
 /** Reuse left chrome across full-width and sidebar-width headers so controls/popovers stay consistent. */
 export function TitlebarLeftControls({ layout }: { layout: AppChromeLayout }): React.JSX.Element {
   const toggleSidebar = useAppStore((s) => s.toggleSidebar)
+  const toggleCanvasPage = useAppStore((s) => s.toggleCanvasPage)
+  const canvasOpen = useAppStore((s) => s.activeView === 'canvas')
   const updateSettings = useAppStore((s) => s.updateSettings)
   const canGoBackWorktree = useAppStore(canGoBackWorktreeHistory)
   const canGoForwardWorktree = useAppStore(canGoForwardWorktreeHistory)
@@ -99,6 +101,26 @@ export function TitlebarLeftControls({ layout }: { layout: AppChromeLayout }): R
               {translate('auto.App.ce37cf5279', 'Toggle sidebar ({{value0}})', {
                 value0: leftSidebarShortcutLabel
               })}
+            </TooltipContent>
+          </Tooltip>
+        )}
+        {/* Fork: swap the main area between the chat list and the chat flowchart. */}
+        {layout.showSidebar && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className={`sidebar-toggle${canvasOpen ? ' bg-accent text-foreground' : ''}`}
+                onClick={toggleCanvasPage}
+                aria-pressed={canvasOpen}
+                aria-label={translate('fork.canvas.toggle', 'Fluxograma de chats')}
+              >
+                <Workflow size={16} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={6}>
+              {canvasOpen
+                ? translate('fork.canvas.toggleBack', 'Voltar para a visão normal')
+                : translate('fork.canvas.toggle', 'Fluxograma de chats')}
             </TooltipContent>
           </Tooltip>
         )}

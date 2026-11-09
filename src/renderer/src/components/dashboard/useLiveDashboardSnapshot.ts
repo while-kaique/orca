@@ -15,7 +15,11 @@ import {
 } from '@/store/workspace-record-selectors'
 
 /** Build in-window snapshots from the store; pop-out windows instead receive the bridge’s serialized version of the same builder. */
-export function useLiveDashboardSnapshot(): DashboardSnapshot {
+export function useLiveDashboardSnapshot(
+  /** Fork: the chat flowchart lists every chat, including idle ones the dashboard hides by default. */
+  options: { showIdle?: boolean } = {}
+): DashboardSnapshot {
+  const forceShowIdle = options.showIdle === true
   const rowsCacheRef = useRef<ReturnType<typeof createWorktreeAgentRowsCache>>(undefined!)
   rowsCacheRef.current ??= createWorktreeAgentRowsCache()
   const repos = useAppStore((s) => s.repos)
@@ -95,7 +99,10 @@ export function useLiveDashboardSnapshot(): DashboardSnapshot {
           acknowledgedAgentsByPaneKey,
           hostedReviewCache,
           prCache,
-          settings,
+          settings:
+            forceShowIdle && settings
+              ? { ...settings, experimentalAgentDashboardShowIdle: true }
+              : settings,
           workspaceStatuses,
           detectedWorktreesByRepo,
           folderWorkspaces,

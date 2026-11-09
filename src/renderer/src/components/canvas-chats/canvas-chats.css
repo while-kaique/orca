@@ -1,0 +1,431 @@
+/* Fork: chat flowchart. Colors follow the approved V1 prototype (Projetos\orca-canvas-prototipos). */
+@property --cc-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.cc-board {
+  --cc-idle: #5d5d66;
+  --cc-work: #e6b422;
+  --cc-ok: #3ecf7a;
+  --cc-wait: #ef4b4b;
+  --cc-inv: 1.3;
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: none;
+  background-color: #1a1a1d;
+  background-image: radial-gradient(#2e2e34 1.2px, transparent 1.2px);
+  color: #c8c8d0;
+  user-select: none;
+}
+.cc-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+.cc-lines {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.cc-line-tree {
+  fill: none;
+  stroke: #3b3b44;
+  stroke-width: 2.5;
+}
+.cc-node {
+  position: absolute;
+}
+
+/* project */
+.cc-project {
+  padding: 14px 18px;
+  background: linear-gradient(180deg, #26262d, #1f1f25);
+  border: 1px solid #37373f;
+  border-radius: 14px;
+  box-shadow: 0 14px 34px #0009;
+}
+.cc-project-name {
+  font: 700 calc(18px * var(--cc-inv)) system-ui;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-project-detail {
+  font:
+    calc(11px * var(--cc-inv)) ui-monospace,
+    Consolas,
+    monospace;
+  color: #7d7d88;
+  margin-top: 4px;
+}
+.cc-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 9px;
+}
+.cc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: 600 calc(11px * var(--cc-inv)) system-ui;
+  color: #d0d0d8;
+  background: #ffffff0c;
+  border-radius: 99px;
+  padding: 3px 9px;
+}
+.cc-pill i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.cc-pill-waiting i {
+  background: var(--cc-wait);
+}
+.cc-pill-working i {
+  background: var(--cc-work);
+}
+.cc-pill-unseen i {
+  background: var(--cc-ok);
+}
+
+/* chat + agent shared state colors */
+.cc-chat,
+.cc-agent {
+  --k: var(--cc-idle);
+  border: 1.5px solid var(--k);
+  background: #141417;
+  box-shadow: 0 12px 30px #0009;
+}
+.cc-board [data-status='working'] {
+  --k: var(--cc-work);
+}
+.cc-board [data-status='unseen'] {
+  --k: var(--cc-ok);
+}
+.cc-board [data-status='seen'] {
+  --k: #3ecf7aa0;
+}
+.cc-board [data-status='waiting'] {
+  --k: var(--cc-wait);
+}
+.cc-chat[data-status='working'],
+.cc-agent[data-status='working'] {
+  border-color: #e6b4226b;
+  box-shadow:
+    0 0 22px #e6b4221f,
+    0 12px 30px #0009;
+}
+.cc-chat[data-status='working']::before,
+.cc-agent[data-status='working']::before {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--cc-angle),
+    #e6b422 0 74%,
+    #fff6d6 84%,
+    #fff 88%,
+    #fff6d6 92%,
+    #e6b422 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: cc-lap 4s linear infinite;
+}
+@keyframes cc-lap {
+  to {
+    --cc-angle: 360deg;
+  }
+}
+.cc-chat[data-status='unseen'],
+.cc-agent[data-status='unseen'] {
+  animation: cc-breathe 4.5s ease-in-out infinite;
+}
+@keyframes cc-breathe {
+  0%,
+  100% {
+    border-color: #3ecf7a99;
+    box-shadow:
+      0 0 0 #3ecf7a00,
+      0 12px 30px #0009;
+  }
+  50% {
+    border-color: #8af5b6;
+    box-shadow:
+      0 0 16px #3ecf7a38,
+      0 12px 30px #0009;
+  }
+}
+.cc-chat[data-status='seen'],
+.cc-agent[data-status='seen'] {
+  border-style: dashed;
+  border-color: #3ecf7a5c;
+}
+.cc-chat[data-status='waiting'] {
+  box-shadow:
+    0 0 0 3px #ef4b4b22,
+    0 12px 30px #0009;
+}
+
+/* chat card */
+.cc-chat {
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  cursor: pointer;
+  transform-origin: 50% 0;
+  transition:
+    transform 0.2s ease 0.08s,
+    box-shadow 0.2s;
+}
+.cc-chat:not(.cc-open):hover {
+  transform: scale(1.06);
+  z-index: 35;
+}
+.cc-chat-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: calc(7px * var(--cc-inv)) 11px;
+  background: #1d1d22;
+  border-bottom: 1px solid #2b2b31;
+  border-radius: 9px 9px 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.cc-chat-head b {
+  font: 600 calc(13px * var(--cc-inv)) system-ui;
+  color: #ececf3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--k);
+}
+.cc-status {
+  margin-left: auto;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: 600 calc(11px * var(--cc-inv)) system-ui;
+  color: var(--k);
+}
+.cc-spin {
+  width: 9px;
+  height: 9px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: cc-spin 0.8s linear infinite;
+}
+@keyframes cc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.cc-head-button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: #ffffff10;
+  color: #b0b0ba;
+  cursor: pointer;
+}
+.cc-head-button:hover {
+  background: #ffffff26;
+  color: #fff;
+}
+.cc-feed {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 6px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  font:
+    calc(11.5px * var(--cc-inv)) / 1.45 ui-monospace,
+    'Cascadia Code',
+    Consolas,
+    monospace;
+  mask-image: linear-gradient(transparent, #000 26%);
+}
+.cc-line {
+  margin: 2px 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.cc-line-user {
+  color: #fff;
+  font-weight: 600;
+}
+.cc-line-agent {
+  color: #c8c8d0;
+}
+.cc-line-ask {
+  color: #ff8a8a;
+  font-weight: 600;
+}
+.cc-line-empty {
+  color: #6d6d78;
+}
+.cc-board [data-status='idle'] .cc-feed {
+  opacity: 0.6;
+}
+
+.cc-open {
+  z-index: 40;
+  cursor: default;
+  border-radius: 12px;
+  box-shadow: 0 26px 80px #000d;
+  animation: cc-grow 0.18s ease-out;
+}
+@keyframes cc-grow {
+  from {
+    transform: scale(0.96);
+    opacity: 0.6;
+  }
+}
+.cc-terminal {
+  flex: 1;
+  min-height: 0;
+  margin: 6px;
+}
+.cc-dim .cc-node:not(.cc-open) {
+  opacity: 0.4;
+  transition: opacity 0.2s;
+}
+
+/* agent pill */
+.cc-agent {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  border-radius: 16px;
+  background: #121215;
+  padding: 0 12px 0 7px;
+  box-shadow: 0 6px 16px #0007;
+}
+.cc-agent-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cc-agent-head b {
+  font: 600 calc(12.5px * var(--cc-inv)) / 1.15 system-ui;
+  color: #d6d6de;
+}
+.cc-bot {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: var(--k);
+  background: color-mix(in srgb, var(--k) 20%, #1e1e23);
+}
+.cc-agent-line {
+  padding-left: 30px;
+  font:
+    calc(10.5px * var(--cc-inv)) ui-monospace,
+    Consolas,
+    monospace;
+  color: #9a9aa6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-agent[data-blocked='1'] {
+  --k: #ef4b4b99;
+  border-style: dashed;
+  border-color: #ef4b4b66;
+}
+.cc-agent[data-blocked='1'] .cc-agent-line {
+  color: #c98a8a;
+}
+
+/* chrome */
+.cc-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #7d7d88;
+  font: 14px system-ui;
+  pointer-events: none;
+}
+.cc-legend {
+  position: absolute;
+  left: 14px;
+  bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: #111114e6;
+  border: 1px solid #ffffff14;
+  font: 11.5px system-ui;
+  color: #a0a0ab;
+}
+.cc-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.cc-legend em {
+  width: 15px;
+  height: 10px;
+  border-radius: 3px;
+  border: 1.5px solid var(--k);
+}
+.cc-legend [data-status='seen'] em {
+  border-style: dashed;
+}
+.cc-tidy {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 13px;
+  border-radius: 10px;
+  background: #111114e6;
+  border: 1px solid #ffffff1f;
+  color: #e6e6ee;
+  font: 600 12.5px system-ui;
+  cursor: pointer;
+}
+.cc-tidy:hover {
+  border-color: #7a7a85;
+  background: #1c1c21;
+}
