@@ -223,7 +223,8 @@
 .cc-peek-body {
   padding: 10px 14px 12px;
   background: #0d0d10;
-  border-radius: 0 0 10px 10px;
+  margin: 6px;
+  border-radius: 6px;
   font:
     calc(11.5px * var(--cc-inv)) / 1.45 ui-monospace,
     'Cascadia Code',
@@ -663,16 +664,13 @@
 /* close a chat: floating X above the card on hover, confirmation inside the card */
 .cc-xwrap {
   position: absolute;
-  right: 0;
-  top: -40px;
-  width: 44px;
-  height: 40px;
+  right: -12px;
+  top: -52px;
+  width: 68px;
+  height: 52px;
   display: flex;
   justify-content: center;
-  pointer-events: none;
-}
-.cc-chat:hover .cc-xwrap {
-  pointer-events: auto;
+  align-items: center;
 }
 .cc-xbtn {
   width: 28px;

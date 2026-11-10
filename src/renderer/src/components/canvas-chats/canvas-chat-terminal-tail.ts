@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { terminalPreviewApiFor } from '../dashboard-popout/terminal-preview-api'
+import type { ITheme } from '@xterm/xterm'
 import { noteCanvasChatArtifacts } from './canvas-chat-artifacts'
+import { readPeekScreen, type PeekLine } from './canvas-chat-peek-screen'
 
 /** Drops terminal escape codes (colors, cursor moves, window titles) so only the text remains. */
 function stripTerminalCodes(raw: string): string {
@@ -41,9 +43,6 @@ const FRAME_ONLY = /^[\s─━│┃╭╮╰╯┌┐└┘├┤┬┴┼═�
 const RULE_LINE = /─{10,}/u
 const AGENT_UI_LINE =
   /esc to interrupt|shift\+tab to cycle|\? for shortcuts|bypass permissions|auto mode on|\d+(\.\d+)?k context|^[✻✶✢✳·*]\s*\w+ for \d|^[⎿└L]\s|^●?\s*(Read|Write|Edit|Bash|Grep|Glob|Update)\(|\(\d+ lines?\)|Compacted while idle|background (shell|tasks?)|Task ?ids?:|Tip:|ctrl\+o to expand|disable recaps/iu
-// The live peek keeps tool calls and the spinner (they show the chat running); only footer hints go.
-const PEEK_NOISE =
-  /shift\+tab to cycle|\? for shortcuts|bypass permissions|auto mode on|\d+(\.\d+)?k context|Tip:|ctrl\+o to expand|disable recaps/iu
 
 /** Conversation only: Claude's input box sits between the last two rules, with the status line below it. */
 function conversationRows(text: string): string[] {
@@ -53,19 +52,20 @@ function conversationRows(text: string): string[] {
   return lines.slice(0, end).filter((line) => line.trim().length > 1 && !FRAME_ONLY.test(line))
 }
 
-export type CanvasTerminalTail = { clean: string[]; peek: string[] }
+export type CanvasTerminalTail = { clean: string[]; peek: PeekLine[] }
 
 const EMPTY_TAIL: CanvasTerminalTail = { clean: [], peek: [] }
 
 /**
  * Last readable lines of the chat's terminal: `clean` (prose only, for the card text) and
- * `peek` (the last 7 rows as Claude shows them, for hover). `live` re-reads every second.
+ * `peek` (the last 7 lines styled like the terminal, for hover). `live` re-reads every second.
  */
 export function useTerminalTail(
   ptyId: string | null,
   refreshKey: string,
   tabId: string,
-  live: boolean
+  live: boolean,
+  theme: ITheme | null
 ): CanvasTerminalTail {
   const [tail, setTail] = useState<CanvasTerminalTail>(EMPTY_TAIL)
   useEffect(() => {
@@ -78,18 +78,16 @@ export function useTerminalTail(
     const read = (): void => {
       void api
         .connect(ptyId, { scrollbackRows: live ? 300 : 2000 })
-        .then((result) => {
+        .then(async (result) => {
           const raw = `${result.snapshot?.scrollbackAnsi ?? ''}\n${result.snapshot?.data ?? ''}`
           noteCanvasChatArtifacts(tabId, raw)
-          const rows = conversationRows(stripTerminalCodes(raw))
+          const clean = conversationRows(stripTerminalCodes(raw))
+            .map((line) => line.trim())
+            .filter((line) => !AGENT_UI_LINE.test(line))
+            .slice(-6)
+          const peek = live && result.snapshot ? await readPeekScreen(result.snapshot, theme) : []
           if (alive) {
-            setTail({
-              clean: rows
-                .map((line) => line.trim())
-                .filter((line) => !AGENT_UI_LINE.test(line))
-                .slice(-6),
-              peek: rows.filter((line) => !PEEK_NOISE.test(line)).slice(-7)
-            })
+            setTail({ clean, peek })
           }
         })
         .catch(() => undefined)
@@ -105,6 +103,6 @@ export function useTerminalTail(
       alive = false
       clearTimeout(timer)
     }
-  }, [ptyId, refreshKey, tabId, live])
+  }, [ptyId, refreshKey, tabId, live, theme])
   return tail
 }

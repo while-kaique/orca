@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Bot, ExternalLink, Palette, Plus, X } from 'lucide-react'
 import { DEFAULT_REPO_BADGE_COLOR, REPO_COLORS } from '../../../../shared/repo-badge-color'
 import { translate } from '@/i18n/i18n'
@@ -6,6 +6,9 @@ import { useAppStore } from '@/store'
 import { revealTerminalPane } from '@/lib/reveal-terminal-pane'
 import { AgentTerminalPreview } from '../dashboard-popout/AgentTerminalPreview'
 import { useTerminalTail } from './canvas-chat-terminal-tail'
+import { buildFontFamily } from '@/lib/monospace-font-family'
+import { usePeekTheme } from './canvas-chat-peek-screen'
+import { PEEK_W, usePeek } from './use-canvas-chat-peek'
 import { CanvasVoiceBar } from './CanvasVoiceBar'
 import { useCanvasChatSummary } from './canvas-chats-summary'
 import { renderCanvasMarkdown } from './canvas-chats-markdown'
@@ -170,8 +173,10 @@ export function ChatNode({
   const status = useCanvasChatStatus(chat)
   const [confirmingClose, setConfirmingClose] = useState(false)
   const autoVoice = useCanvasListenMode()
-  const peeking = usePeek(open)
-  const tail = useTerminalTail(open ? null : chat.ptyId, status, chat.tabId, peeking.on)
+  const peeking = usePeek(open, cardRef)
+  const peekTheme = usePeekTheme()
+  const peekFont = useAppStore((s) => s.settings?.terminalFontFamily)
+  const tail = useTerminalTail(open ? null : chat.ptyId, status, chat.tabId, peeking.on, peekTheme)
   const lines =
     chat.lines.length > 0
       ? chat.lines
@@ -227,7 +232,7 @@ export function ChatNode({
       data-status={status}
       style={style}
       onClick={open ? undefined : onOpen}
-      onPointerEnter={peeking.enter}
+      onPointerOver={peeking.over}
       onPointerLeave={peeking.leave}
       onPointerDown={(e) => (open ? e.stopPropagation() : onDragStart(e))}
     >
@@ -242,13 +247,19 @@ export function ChatNode({
             />
           ))}
       {open ? null : (
-        <span className="cc-xwrap" onPointerDown={(e) => e.stopPropagation()}>
+        <span
+          className="cc-xwrap"
+          // The X stays where the small card's corner was, so it can be clicked before the peek grows.
+          style={peek ? { right: (PEEK_W - box.w) / 2 - 12 } : undefined}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <button
             type="button"
             className="cc-xbtn"
             title={translate('fork.canvas.closeChat', 'Fechar este chat')}
             onClick={(e) => {
               e.stopPropagation()
+              peeking.hold()
               setConfirmingClose(true)
             }}
           >
@@ -283,7 +294,10 @@ export function ChatNode({
             <button
               type="button"
               className="cc-confirm-cancel"
-              onClick={() => setConfirmingClose(false)}
+              onClick={() => {
+                setConfirmingClose(false)
+                peeking.release()
+              }}
             >
               {translate('fork.canvas.closeChatNo', 'Cancelar')}
             </button>
@@ -322,10 +336,31 @@ export function ChatNode({
           <CanvasVoiceBar ptyId={chat.ptyId} cardRef={cardRef} autoStart={autoVoice} />
         </>
       ) : peek ? (
-        <div className="cc-peek-body">
+        <div
+          className="cc-peek-body"
+          style={{
+            background: peekTheme?.background,
+            color: peekTheme?.foreground,
+            fontFamily: buildFontFamily(peekFont ?? '')
+          }}
+        >
           {tail.peek.map((line, i) => (
             <div key={i} className="cc-peek-line">
-              {line}
+              {line.map((span, j) => (
+                <span
+                  key={j}
+                  style={{
+                    color: span.color,
+                    background: span.background,
+                    fontWeight: span.bold ? 700 : undefined,
+                    fontStyle: span.italic ? 'italic' : undefined,
+                    opacity: span.dim ? 0.6 : undefined
+                  }}
+                >
+                  {span.text}
+                </span>
+              ))}
+              {line.length === 0 ? ' ' : null}
             </div>
           ))}
         </div>
@@ -345,24 +380,4 @@ export function ChatNode({
       )}
     </div>
   )
-}
-
-const PEEK_W = 560
-
-/** Hover a closed card for a moment to peek at it live; leaving ends it at once. */
-function usePeek(open: boolean): { on: boolean; enter: () => void; leave: () => void } {
-  const [on, setOn] = useState(false)
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  useEffect(() => () => clearTimeout(timer.current), [])
-  return {
-    on: on && !open,
-    enter: () => {
-      clearTimeout(timer.current)
-      timer.current = setTimeout(() => setOn(true), 220)
-    },
-    leave: () => {
-      clearTimeout(timer.current)
-      setOn(false)
-    }
-  }
 }
