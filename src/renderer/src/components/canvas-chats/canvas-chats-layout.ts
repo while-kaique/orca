@@ -1,5 +1,3 @@
-import type { DashboardCard, DashboardCardDotState } from '../../../../shared/dashboard-snapshot'
-
 /** Border states drawn on the flowchart (fork spec: idle gray, working yellow, unseen green, seen dashed green, waiting red). */
 export type CanvasChatStatus = 'idle' | 'working' | 'unseen' | 'seen' | 'waiting'
 
@@ -9,12 +7,19 @@ export type CanvasAgent = {
   status: CanvasChatStatus
   /** Agent stopped because its chat is waiting on the user (agents never ask the user directly). */
   blocked: boolean
-  card: DashboardCard | null
+  /** Reserved for agents that run in their own chat tab (not used yet). */
+  card: null
 }
 
 export type CanvasChat = {
+  /** The chat's tab id (same id the sidebar row and terminal view use). */
   key: string
-  card: DashboardCard
+  worktreeId: string
+  tabId: string
+  /** Newest agent pane of this chat, for marking it seen. */
+  paneKey: string | null
+  ptyId: string | null
+  startedAt: number
   title: string
   status: CanvasChatStatus
   lines: { role: 'user' | 'agent' | 'ask'; text: string }[]
@@ -47,100 +52,6 @@ const AGENT_TOP_GAP = 26
 const AGENT_GAP = 12
 const PROJECT_GAP = 160
 const ROW_GAP = 150
-
-export function canvasStatusForDot(dot: DashboardCardDotState, unseen: boolean): CanvasChatStatus {
-  if (dot === 'waiting' || dot === 'blocked') {
-    return 'waiting'
-  }
-  if (dot === 'working') {
-    return 'working'
-  }
-  if (dot === 'done') {
-    return unseen ? 'unseen' : 'seen'
-  }
-  return 'idle'
-}
-
-function chatLines(card: DashboardCard): CanvasChat['lines'] {
-  const lines: CanvasChat['lines'] = []
-  if (card.lastUserMessage) {
-    lines.push({ role: 'user', text: card.lastUserMessage })
-  }
-  if (card.lastAgentMessage) {
-    lines.push({ role: 'agent', text: card.lastAgentMessage })
-  }
-  if (card.bucket === 'attention' && card.askSummary) {
-    lines.push({ role: 'ask', text: card.askSummary })
-  }
-  return lines
-}
-
-/** Group dashboard cards (one per agent pane) into workspace > chat > agents. */
-export function groupCanvasProjects(cards: readonly DashboardCard[]): CanvasProject[] {
-  const byPaneKey = new Map(cards.map((card) => [card.paneKey, card]))
-  const childCards = new Map<string, DashboardCard[]>()
-  for (const card of cards) {
-    if (card.parentPaneKey && byPaneKey.has(card.parentPaneKey)) {
-      const list = childCards.get(card.parentPaneKey) ?? []
-      list.push(card)
-      childCards.set(card.parentPaneKey, list)
-    }
-  }
-  const projects = new Map<string, CanvasProject>()
-  for (const card of cards) {
-    if (card.parentPaneKey && byPaneKey.has(card.parentPaneKey)) {
-      continue
-    }
-    const status = canvasStatusForDot(card.dotState, card.unseen)
-    const chatWaiting = status === 'waiting'
-    const agents: CanvasAgent[] = [
-      ...(card.subagents ?? []).map((sub) => {
-        const subStatus = canvasStatusForDot(sub.dotState, card.unseen)
-        const blocked = subStatus === 'waiting' || (chatWaiting && subStatus === 'working')
-        return {
-          id: `${card.paneKey}::${sub.id}`,
-          name: sub.name,
-          status: blocked ? ('idle' as const) : subStatus,
-          blocked,
-          card: null
-        }
-      }),
-      ...(childCards.get(card.paneKey) ?? []).map((child) => {
-        const childStatus = canvasStatusForDot(child.dotState, child.unseen)
-        const blocked = childStatus === 'waiting'
-        return {
-          id: child.paneKey,
-          name: child.conversationName || child.task || child.agentType,
-          status: blocked ? ('idle' as const) : childStatus,
-          blocked,
-          card: child
-        }
-      })
-    ]
-    // Agents never ask the user themselves: a waiting agent turns its chat red instead.
-    const chatStatus = agents.some((a) => a.blocked) ? 'waiting' : status
-    const project = projects.get(card.worktreeId) ?? {
-      id: card.worktreeId,
-      name: card.worktreeName || card.repoName,
-      detail: card.worktreeName && card.worktreeName !== card.repoName ? card.repoName : '',
-      chats: []
-    }
-    project.chats.push({
-      key: card.paneKey,
-      card,
-      title: card.conversationName || card.task || card.agentType,
-      status: chatStatus,
-      lines: chatLines(card),
-      agents
-    })
-    projects.set(card.worktreeId, project)
-  }
-  const list = [...projects.values()]
-  for (const project of list) {
-    project.chats.sort((a, b) => a.card.startedAt - b.card.startedAt)
-  }
-  return list.sort((a, b) => a.name.localeCompare(b.name))
-}
 
 type Block = { project: CanvasProject; w: number; h: number }
 

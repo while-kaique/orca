@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react'
 import { Bot, ExternalLink, X } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
-import { revealDashboardAgent } from '../dashboard/reveal-dashboard-agent'
+import { revealTerminalPane } from '@/lib/reveal-terminal-pane'
 import { AgentTerminalPreview } from '../dashboard-popout/AgentTerminalPreview'
+import { terminalPreviewApiFor } from '../dashboard-popout/terminal-preview-api'
 import type { CanvasAgent, CanvasBox, CanvasChat, CanvasProject } from './canvas-chats-layout'
 
 export const OPEN_CARD = { w: 640, h: 460 }
@@ -59,7 +61,7 @@ export function AgentNode({
 }): React.JSX.Element {
   const line = agent.blocked
     ? translate('fork.canvas.agentBlocked', '⏸ esperando você responder o chat')
-    : (agent.card?.lastAgentMessage ?? STATUS_LABEL[agent.status])
+    : STATUS_LABEL[agent.status]
   return (
     <div
       className="cc-node cc-agent"
@@ -92,15 +94,16 @@ export function ChatNode({
   onOpen: () => void
   onClose: () => void
 }): React.JSX.Element {
-  const { card } = chat
+  const tail = useTerminalTail(chat.lines.length === 0 && !open ? chat.ptyId : null, chat.status)
+  const lines =
+    chat.lines.length > 0 ? chat.lines : tail.map((text) => ({ role: 'agent' as const, text }))
   const showInNormalView = (): void => {
     if (
-      revealDashboardAgent({
-        repoId: card.repoId,
-        worktreeId: card.worktreeId,
-        executionHostId: card.executionHostId,
-        tabId: card.tabId,
-        leafId: card.leafId
+      revealTerminalPane({
+        worktreeId: chat.worktreeId,
+        tabId: chat.tabId,
+        leafId: null,
+        executionHostId: null
       })
     ) {
       useAppStore.getState().setActiveView('terminal')
@@ -148,21 +151,21 @@ export function ChatNode({
           </>
         ) : null}
       </div>
-      {open && card.ptyId ? (
+      {open && chat.ptyId ? (
         <AgentTerminalPreview
-          ptyId={card.ptyId}
-          terminalInput={card.terminalInput ?? null}
+          ptyId={chat.ptyId}
+          terminalInput={null}
           className="cc-terminal"
           onRequestClose={onClose}
         />
       ) : (
         <div className="cc-feed">
-          {chat.lines.length === 0 ? (
+          {lines.length === 0 ? (
             <div className="cc-line cc-line-empty">
               {translate('fork.canvas.noText', 'sem mensagens ainda')}
             </div>
           ) : (
-            chat.lines.map((line, i) => (
+            lines.map((line, i) => (
               <div key={i} className={`cc-line cc-line-${line.role}`}>
                 {line.role === 'user' ? '› ' : ''}
                 {line.text}
@@ -173,4 +176,71 @@ export function ChatNode({
       )}
     </div>
   )
+}
+
+/** Drops terminal escape codes (colors, cursor moves, window titles) so only the text remains. */
+function stripTerminalCodes(raw: string): string {
+  let out = ''
+  for (let i = 0; i < raw.length; i++) {
+    const code = raw.charCodeAt(i)
+    if (code !== 27) {
+      out += raw[i]
+      continue
+    }
+    const next = raw[i + 1]
+    if (next === '[') {
+      i += 2
+      while (i < raw.length && (raw.charCodeAt(i) < 64 || raw.charCodeAt(i) > 126)) {
+        i++
+      }
+    } else if (next === ']') {
+      i += 2
+      while (i < raw.length && raw.charCodeAt(i) !== 7 && raw.charCodeAt(i) !== 27) {
+        i++
+      }
+      if (raw.charCodeAt(i) === 27) {
+        i++
+      }
+    } else {
+      i++
+    }
+  }
+  return out
+}
+
+const FRAME_ONLY = /^[\s─━│┃╭╮╰╯┌┐└┘├┤┬┴┼═║>›?•·]*$/u
+
+/** Last readable lines of the chat's terminal, for chats with no agent summary yet (e.g. right after a restart). */
+function useTerminalTail(ptyId: string | null, refreshKey: string): string[] {
+  const [lines, setLines] = useState<string[]>([])
+  useEffect(() => {
+    if (!ptyId) {
+      return
+    }
+    let alive = true
+    const api = terminalPreviewApiFor(ptyId)
+    void api
+      .connect(ptyId, { scrollbackRows: 60 })
+      .then((result) => {
+        const raw = `${result.snapshot?.scrollbackAnsi ?? ''}\n${result.snapshot?.data ?? ''}`
+        const text = stripTerminalCodes(raw)
+          .split(/\r?\n/)
+          .map((line) =>
+            line
+              .replace(/\r/g, '')
+              .replace(/[│┃]/g, '')
+              .trim()
+          )
+          .filter((line) => line.length > 1 && !FRAME_ONLY.test(line))
+        if (alive) {
+          setLines(text.slice(-6))
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => void api.unsubscribe(ptyId).catch(() => undefined))
+    return () => {
+      alive = false
+    }
+  }, [ptyId, refreshKey])
+  return lines
 }

@@ -2,11 +2,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { RotateCcw } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
-import { useLiveDashboardSnapshot } from '../dashboard/useLiveDashboardSnapshot'
+import { parseAgentStatusPaneIdentity } from '../../../../shared/agent-status/identity/agent-status-worktree-attribution'
+import { useCanvasProjects } from './canvas-chats-data'
 import {
   busPath,
   elbowPath,
-  groupCanvasProjects,
   layoutCanvas,
   type CanvasBox,
   type CanvasChat
@@ -29,8 +29,7 @@ function fitView(bounds: CanvasBox, viewport: { w: number; h: number }, pad = 60
 }
 
 export default function CanvasChatsPage(): React.JSX.Element {
-  const snapshot = useLiveDashboardSnapshot({ showIdle: true })
-  const projects = useMemo(() => groupCanvasProjects(snapshot.cards), [snapshot.cards])
+  const projects = useCanvasProjects()
   const rootRef = useRef<HTMLDivElement>(null)
   const [viewport, setViewport] = useState({ w: 0, h: 0 })
   const [view, setView] = useState<View>({ x: 0, y: 0, s: 1 })
@@ -108,13 +107,14 @@ export default function CanvasChatsPage(): React.JSX.Element {
       }
       setOpenKey(chat.key)
       // Opening a chat counts as seeing it and the agents it finished (their results land in the chat).
-      useAppStore
-        .getState()
-        .acknowledgeAgents(
-          [chat.key, ...chat.agents.filter((a) => a.card).map((a) => a.id)],
-          undefined,
-          'explicit'
-        )
+      const state = useAppStore.getState()
+      const paneKeys = [
+        ...Object.keys(state.agentStatusByPaneKey),
+        ...Object.keys(state.retainedAgentsByPaneKey ?? {})
+      ].filter((paneKey) => parseAgentStatusPaneIdentity(paneKey)?.tabId === chat.tabId)
+      if (paneKeys.length > 0) {
+        state.acknowledgeAgents(paneKeys, undefined, 'explicit')
+      }
       // Scale 1 keeps the live terminal crisp and mouse-accurate.
       animateTo({
         s: 1,
