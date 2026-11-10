@@ -791,7 +791,7 @@
 }
 .cc-cut {
   position: absolute;
-  z-index: 60;
+  z-index: 48;
   width: 28px;
   height: 28px;
   margin: -14px 0 0 -14px;
@@ -1007,7 +1007,8 @@
 /* mini browser: outside the zoomed board (webviews don't paint under transforms) */
 .cc-web {
   position: absolute;
-  z-index: 70;
+  /* below app popovers (60), so the login import menu opens over it */
+  z-index: 50;
   left: 6%;
   top: 7%;
   width: 88%;

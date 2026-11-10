@@ -23,6 +23,7 @@ import { browserUrlForPort } from '@/lib/workspace-ports/workspace-port-urls'
 import type { WorkspacePort } from '../../../../shared/workspace-ports'
 import {
   artifactLinksForTab,
+  pageForPort,
   portsMentionedByTab,
   useCanvasArtifactLinks,
   type CanvasArtifactLinks
@@ -46,7 +47,7 @@ function chatExtras(
       return
     }
     seen.add(port.port)
-    const url = browserUrlForPort(port)
+    const url = pageForPort(state.artifactLinks, tabId, port.port) ?? browserUrlForPort(port)
     extras.push({
       id: `${tabId}::server:${port.port}`,
       kind: 'server',

@@ -98,29 +98,33 @@ export function layoutCanvas(
   if (blocks.length === 0) {
     return { boxes, bounds: { x: 0, y: 0, w: 0, h: 0 } }
   }
-  let best: { s: number; rows: Block[][]; rowWidths: number[]; W: number; H: number } | null = null
+  let best: { s: number; rows: Block[][]; colWidths: number[]; W: number; H: number } | null = null
   for (let r = 1; r <= blocks.length; r++) {
     const per = Math.ceil(blocks.length / r)
     const rows: Block[][] = []
     for (let i = 0; i < blocks.length; i += per) {
       rows.push(blocks.slice(i, i + per))
     }
-    const rowWidths = rows.map(
-      (row) => row.reduce((sum, b) => sum + b.w, 0) + (row.length - 1) * PROJECT_GAP
+    // A grid: each column is as wide as its widest project, so projects line up across rows.
+    const colWidths = Array.from({ length: per }, (_, c) =>
+      Math.max(0, ...rows.map((row) => row[c]?.w ?? 0))
     )
-    const W = Math.max(...rowWidths)
+    const W = colWidths.reduce((sum, w) => sum + w, 0) + (per - 1) * PROJECT_GAP
     const H =
       rows.reduce((sum, row) => sum + Math.max(...row.map((b) => b.h)), 0) +
       (rows.length - 1) * ROW_GAP
     const s = Math.min((viewport.w - 120) / W, (viewport.h - 120) / H)
     if (!best || s > best.s) {
-      best = { s, rows, rowWidths, W, H }
+      best = { s, rows, colWidths, W, H }
     }
   }
   let y = 0
-  best!.rows.forEach((row, ri) => {
-    let x = (best!.W - best!.rowWidths[ri]) / 2
-    for (const block of row) {
+  best!.rows.forEach((row) => {
+    let cellX = 0
+    row.forEach((block, c) => {
+      const cellW = best!.colWidths[c]
+      const x = cellX + (cellW - block.w) / 2
+      cellX += cellW + PROJECT_GAP
       const chatsWidth =
         block.project.chats.length * C.w + Math.max(0, block.project.chats.length - 1) * COLUMN_GAP
       const chatsX = x + (block.w - chatsWidth) / 2
@@ -139,8 +143,7 @@ export function layoutCanvas(
           }
         })
       })
-      x += block.w + PROJECT_GAP
-    }
+    })
     y += Math.max(...row.map((b) => b.h)) + ROW_GAP
   })
   return { boxes, bounds: { x: 0, y: 0, w: best!.W, h: best!.H } }

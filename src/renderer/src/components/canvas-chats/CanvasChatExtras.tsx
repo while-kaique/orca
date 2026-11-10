@@ -12,6 +12,7 @@ import {
 } from '@/lib/workspace-ports/workspace-port-actions'
 import { ORCA_BROWSER_GUEST_WEB_PREFERENCES_ATTRIBUTE } from '../../../../shared/browser-guest-web-preferences'
 import { dismissCanvasChatArtifact } from './canvas-chat-artifacts'
+import { BrowserImportHintButton } from '../browser-pane/assemble-chrome/BrowserImportHintButton'
 import type { CanvasBox, CanvasExtra } from './canvas-chats-layout'
 
 /** Fork: a chat's localhost server or claude.ai artifact, as a pill under the chat; click opens a mini browser. */
@@ -139,7 +140,15 @@ export function CanvasWebPreview({
   onClose: () => void
 }): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
+  const webviewRef = useRef<Electron.WebviewTag | null>(null)
   const [loading, setLoading] = useState(true)
+  // Logins imported from Chrome/Edge land in this same browser profile: reload to show the page signed in.
+  const importStatus = useAppStore((s) => s.browserSessionImportState?.status)
+  useEffect(() => {
+    if (importStatus === 'success') {
+      webviewRef.current?.reload()
+    }
+  }, [importStatus])
 
   useEffect(() => {
     let disposed = false
@@ -161,12 +170,14 @@ export function CanvasWebPreview({
       webview.addEventListener('did-start-loading', onStart)
       webview.addEventListener('did-stop-loading', onStop)
       container.appendChild(webview)
+      webviewRef.current = webview
       webview.setAttribute('src', extra.url)
       detach = () => {
         webview.removeEventListener('did-start-loading', onStart)
         webview.removeEventListener('did-stop-loading', onStop)
         moveFocusToRendererBeforeWebviewDetach(webview)
         webview.remove()
+        webviewRef.current = null
       }
     })
     return () => {
@@ -183,6 +194,10 @@ export function CanvasWebPreview({
         </span>
         <b>{extra.label}</b>
         {loading ? <Loader2 size={13} className="cc-voice-spin" /> : null}
+        {extra.kind === 'artifact' ? (
+          // Private artifacts need a claude.ai login: Orca's own import brings it over from Chrome/Edge.
+          <BrowserImportHintButton profileId={null} compact />
+        ) : null}
         <button
           type="button"
           className="cc-head-button"

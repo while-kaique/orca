@@ -6,6 +6,8 @@ type Stored = {
   dismissed: string[]
   /** Local ports each chat mentioned (e.g. "rodando em localhost:1976"), to tie servers to the chat. */
   ports?: Record<string, number[]>
+  /** The full page address each chat showed per port (e.g. localhost:8799/relatorio/), opened instead of the bare port. */
+  pages?: Record<string, Record<string, string>>
 }
 
 const STORAGE_KEY = 'orca-fork.canvas-chat-artifacts'
@@ -14,6 +16,26 @@ const ARTIFACT_LINK =
   /https:\/\/claude\.ai\/(?:artifact\/[A-Za-z0-9]{20,24}|code\/artifact\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?![A-Za-z0-9_-])/g
 const WHOLE_ARTIFACT_LINK = new RegExp(`^(?:${ARTIFACT_LINK.source})$`)
 const LOCAL_PORT = /(?:localhost|127\.0\.0\.1|0\.0\.0\.0):(\d{2,5})/g
+const LOCAL_PAGE =
+  /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0):(\d{2,5})(\/[^\s"'<>()[\]{}]*)?/gu
+const ESCAPE_CODE_STARTS = [String.fromCharCode(27), String.fromCharCode(7)]
+
+/** Latest address with a path the chat showed for each port; a wrap-cut copy loses to the longer one it starts. */
+function pagesByPort(rawTerminalText: string): Record<string, string> {
+  const pages: Record<string, string> = {}
+  // The address ends where the escape code closing its color starts: turn ESC/BEL into spaces first.
+  const text = ESCAPE_CODE_STARTS.reduce((acc, code) => acc.split(code).join(' '), rawTerminalText)
+  for (const match of text.matchAll(LOCAL_PAGE)) {
+    const path = (match[2] ?? '').replace(/[.,;:!?]+$/u, '')
+    if (path.length <= 1) {
+      continue
+    }
+    const url = `http://localhost:${match[1]}${path}`
+    const prev = pages[match[1]]
+    pages[match[1]] = prev && prev.startsWith(url) ? prev : url
+  }
+  return pages
+}
 const listeners = new Set<() => void>()
 let stored: Stored = readStored()
 const EMPTY: readonly string[] = []
@@ -51,17 +73,36 @@ export function noteCanvasChatArtifacts(tabId: string, rawTerminalText: string):
   ]
   const knownPorts = stored.ports?.[tabId] ?? []
   const freshPorts = ports.filter((p) => !knownPorts.includes(p))
-  if (fresh.length > 0 || freshPorts.length > 0) {
+  const knownPages = stored.pages?.[tabId] ?? {}
+  const pages = { ...knownPages }
+  for (const [port, url] of Object.entries(pagesByPort(rawTerminalText))) {
+    // A later read that only caught a wrap-cut copy keeps the longer address already saved.
+    if (!pages[port]?.startsWith(url)) {
+      pages[port] = url
+    }
+  }
+  const pagesChanged = Object.keys(pages).some((port) => pages[port] !== knownPages[port])
+  if (fresh.length > 0 || freshPorts.length > 0 || pagesChanged) {
     save({
       ...stored,
       links: { ...stored.links, [tabId]: [...known, ...fresh] },
-      ports: { ...stored.ports, [tabId]: [...knownPorts, ...freshPorts] }
+      ports: { ...stored.ports, [tabId]: [...knownPorts, ...freshPorts] },
+      pages: { ...stored.pages, [tabId]: pages }
     })
   }
 }
 
 export function portsMentionedByTab(links: CanvasArtifactLinks, tabId: string): readonly number[] {
   return links.ports?.[tabId] ?? []
+}
+
+/** The page this chat showed for a port, if it showed one with a path. */
+export function pageForPort(
+  links: CanvasArtifactLinks,
+  tabId: string,
+  port: number
+): string | undefined {
+  return links.pages?.[tabId]?.[String(port)]
 }
 
 export function dismissCanvasChatArtifact(url: string): void {
