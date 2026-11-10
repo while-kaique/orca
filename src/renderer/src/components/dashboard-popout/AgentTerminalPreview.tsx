@@ -1,4 +1,7 @@
-import type { PreviewTerminalLinkHandler } from './preview-terminal-links'
+import type {
+  PreviewTerminalLinkHandler,
+  PreviewTerminalLinkHandlers
+} from './preview-terminal-links'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ITheme, Terminal } from '@xterm/xterm'
 import { useShallow } from 'zustand/react/shallow'
@@ -53,7 +56,8 @@ export function AgentTerminalPreview({
   className,
   onRequestClose,
   linkSource,
-  onBrowserForeground
+  onBrowserForeground,
+  linkHandlers: forkLinkHandlers
 }: {
   ptyId: string
   /** Host-input facts relayed with the card; null routes bytes by client OS. */
@@ -62,8 +66,11 @@ export function AgentTerminalPreview({
   onRequestClose?: () => void
   linkSource?: DashboardPreviewLinkSource
   onBrowserForeground?: () => void
+  /** Fork: link clicks for a preview without a linkSource (the flowchart opens them in the system browser). */
+  linkHandlers?: PreviewTerminalLinkHandlers
 }): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
+  const forkLinkHandlersRef = useRef(forkLinkHandlers)
   const terminalRef = useRef<Terminal | null>(null)
   const [linkRequest, setLinkRequest] = useState<LinkActionRequest | null>(null)
   const linkSourceRef = useRef(linkSource)
@@ -217,7 +224,11 @@ export function AgentTerminalPreview({
           sessionKey: ptyId,
           sendInput: (data) =>
             linkInteraction ? linkInteraction.sendInput(data) : sendInput(data),
-          ...(linkSourceRef.current ? { linkHandlers } : {}),
+          ...(linkSourceRef.current
+            ? { linkHandlers }
+            : forkLinkHandlersRef.current
+              ? { linkHandlers: forkLinkHandlersRef.current }
+              : {}),
           answersQueries: false,
           getSettings: () => settingsRef.current,
           getMacOptionAsAlt: () => macOptionAsAltRef.current,

@@ -6,6 +6,7 @@ import { useAppStore } from '@/store'
 import { revealTerminalPane } from '@/lib/reveal-terminal-pane'
 import { AgentTerminalPreview } from '../dashboard-popout/AgentTerminalPreview'
 import { useTerminalTail } from './canvas-chat-terminal-tail'
+import { canvasChatLinkHandlers } from './canvas-chat-terminal-links'
 import { buildFontFamily } from '@/lib/monospace-font-family'
 import { usePeekTheme } from './canvas-chat-peek-screen'
 import { PEEK_W, usePeek, useSecondsWhile } from './use-canvas-chat-peek'
@@ -332,6 +333,7 @@ export function ChatNode({
                 key={livePty}
                 ptyId={livePty}
                 terminalInput={null}
+                linkHandlers={canvasChatLinkHandlers}
                 className="cc-terminal"
               />
             ) : (
