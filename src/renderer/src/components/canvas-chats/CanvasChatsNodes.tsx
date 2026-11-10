@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Bot, ExternalLink, Palette, Plus, X } from 'lucide-react'
+import { Bot, ExternalLink, Palette, Plus, SquareTerminal, X } from 'lucide-react'
 import { DEFAULT_REPO_BADGE_COLOR, REPO_COLORS } from '../../../../shared/repo-badge-color'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
@@ -23,7 +23,7 @@ import type { CanvasAgent, CanvasBox, CanvasChat, CanvasProject } from './canvas
 export const STATUS_LABEL: Record<CanvasChat['status'], string> = {
   idle: translate('fork.canvas.statusIdle', 'parado'),
   working: translate('fork.canvas.statusWorking', 'trabalhando'),
-  monitoring: translate('fork.canvas.statusMonitoring', 'agentes de fundo'),
+  monitoring: translate('fork.canvas.statusMonitoring', 'em segundo plano'),
   unseen: translate('fork.canvas.statusUnseen', 'terminou'),
   seen: translate('fork.canvas.statusSeen', 'visto'),
   waiting: translate('fork.canvas.statusWaiting', 'precisa de você')
@@ -130,7 +130,9 @@ export function AgentNode({
 }): React.JSX.Element {
   const line = agent.blocked
     ? translate('fork.canvas.agentBlocked', '⏸ esperando você responder o chat')
-    : STATUS_LABEL[agent.status]
+    : agent.kind === 'task'
+      ? translate('fork.canvas.taskRunning', 'processo rodando em segundo plano')
+      : STATUS_LABEL[agent.status]
   return (
     <div
       className="cc-node cc-agent"
@@ -141,7 +143,7 @@ export function AgentNode({
     >
       <div className="cc-agent-head">
         <span className="cc-bot">
-          <Bot size={13} />
+          {agent.kind === 'task' ? <SquareTerminal size={13} /> : <Bot size={13} />}
         </span>
         <b>{agent.name}</b>
       </div>

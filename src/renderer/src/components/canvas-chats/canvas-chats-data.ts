@@ -15,8 +15,7 @@ import type {
   CanvasChatStatus,
   CanvasProject
 } from './canvas-chats-layout'
-import { buildRunningAgentChildRowModels } from '../../../../shared/running-agent-child-rows'
-import { agentChildRowContextForParent } from '../../../../shared/agent-status/presentation/agent-child-row-model'
+import { runningChildWork } from './canvas-chat-child-work'
 import { DEFAULT_REPO_BADGE_COLOR, REPO_COLORS } from '../../../../shared/repo-badge-color'
 import { getWorkspacePortsByWorktreeId } from '@/lib/workspace-ports/workspace-port-groups'
 import { browserUrlForPort } from '@/lib/workspace-ports/workspace-port-urls'
@@ -184,16 +183,21 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
         const latest = latestEntry(state, tab.id)
         const entry = latest?.entry
         const status = chatStatus(state, worktree.id, tab.id)
-        // Same rows as the sidebar: host child views (incl. background agents), else legacy subagents.
+        // Same records as the sidebar, plus background commands (e.g. a training left running).
         const agents: CanvasAgent[] = entry
-          ? buildRunningAgentChildRowModels(entry, agentChildRowContextForParent(entry, true)).map(
-              (row) => ({
+          ? runningChildWork(entry).map((row) => {
+              const task = row.kind !== 'agent'
+              return {
                 id: `${tab.id}::${row.id}`,
-                name: row.name || row.agentType || 'agente',
-                ...subagentStatus(row.displayState),
+                kind: task ? ('task' as const) : ('agent' as const),
+                name: row.name || row.agentType || (task ? 'processo em segundo plano' : 'agente'),
+                // A background command is never "the chat working": it runs on its own.
+                ...(task && row.displayState === 'working'
+                  ? { status: 'monitoring' as const, blocked: false }
+                  : subagentStatus(row.displayState)),
                 card: null
-              })
-            )
+              }
+            })
           : []
         const lines: CanvasChat['lines'] = []
         if (entry?.prompt) {

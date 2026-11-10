@@ -4,6 +4,8 @@ export type CanvasChatStatus = 'idle' | 'working' | 'monitoring' | 'unseen' | 's
 
 export type CanvasAgent = {
   id: string
+  /** 'task': a background command/monitor the chat left running (e.g. a long training). */
+  kind: 'agent' | 'task'
   name: string
   status: CanvasChatStatus
   /** Agent stopped because its chat is waiting on the user (agents never ask the user directly). */
