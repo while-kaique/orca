@@ -13,6 +13,14 @@ import {
 } from './canvas-chats-layout'
 import { AgentNode, ChatNode, ProjectNode, STATUS_LABEL } from './CanvasChatsNodes'
 import { finishActiveCanvasVoice, useCanvasListenMode } from './canvas-voice-preference'
+import {
+  addCanvasCord,
+  cordPath,
+  hasCanvasCord,
+  removeCanvasCord,
+  sidePath,
+  useCanvasCords
+} from './canvas-chats-cords'
 import './canvas-chats.css'
 
 type View = { x: number; y: number; s: number }
@@ -35,6 +43,14 @@ export default function CanvasChatsPage(): React.JSX.Element {
   const [viewport, setViewport] = useState({ w: 0, h: 0 })
   const [view, setView] = useState<View>({ x: 0, y: 0, s: 1 })
   const [openKey, setOpenKey] = useState<string | null>(null)
+  const cords = useCanvasCords()
+  const [linkDrag, setLinkDrag] = useState<{
+    from: string
+    point: { x: number; y: number }
+    target: string | null
+  } | null>(null)
+  const [hoverCord, setHoverCord] = useState<string | null>(null)
+  const cutTimerRef = useRef(0)
   const savedViewRef = useRef<View | null>(null)
   const fittedRef = useRef(false)
   const animRef = useRef(0)
@@ -200,6 +216,80 @@ export default function CanvasChatsPage(): React.JSX.Element {
     })
   }
 
+  // ---- hand-drawn cords between chats ----
+  const toWorld = (clientX: number, clientY: number): { x: number; y: number } => {
+    const rect = rootRef.current!.getBoundingClientRect()
+    return { x: (clientX - rect.left - view.x) / view.s, y: (clientY - rect.top - view.y) / view.s }
+  }
+  const startLink = (fromKey: string, e: React.PointerEvent): void => {
+    e.stopPropagation()
+    e.preventDefault()
+    const move = (ev: PointerEvent): void => {
+      const el = document.elementFromPoint(ev.clientX, ev.clientY)
+      const key = (el?.closest('[data-chat-key]') as HTMLElement | null)?.dataset.chatKey ?? null
+      const target = key && key !== fromKey && !hasCanvasCord(fromKey, key) ? key : null
+      setLinkDrag({ from: fromKey, point: toWorld(ev.clientX, ev.clientY), target })
+    }
+    const up = (): void => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      setLinkDrag((drag) => {
+        if (drag?.target) {
+          addCanvasCord(drag.from, drag.target)
+        }
+        return null
+      })
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    move(e.nativeEvent)
+  }
+  const showCut = (key: string): void => {
+    clearTimeout(cutTimerRef.current)
+    setHoverCord(key)
+  }
+  const hideCut = (): void => {
+    clearTimeout(cutTimerRef.current)
+    cutTimerRef.current = window.setTimeout(() => setHoverCord(null), 300)
+  }
+  const cordElements: React.JSX.Element[] = []
+  let cutAt: { key: string; a: string; b: string; x: number; y: number } | null = null
+  for (const cord of cords) {
+    const ab = layout.boxes[cord.a]
+    const bb = layout.boxes[cord.b]
+    if (!ab || !bb) {
+      continue
+    }
+    const key = `${cord.a}~${cord.b}`
+    const { d, mid } = cordPath(ab, bb)
+    cordElements.push(
+      <path key={key} className={`cc-cord${hoverCord === key ? ' cc-cord-hot' : ''}`} d={d} />,
+      <path
+        key={`${key}-hit`}
+        className="cc-cord-hit"
+        d={d}
+        style={{ strokeWidth: 26 / view.s }}
+        onPointerEnter={() => showCut(key)}
+        onPointerLeave={hideCut}
+      />
+    )
+    if (hoverCord === key) {
+      cutAt = { key, a: cord.a, b: cord.b, x: mid.x, y: mid.y }
+    }
+  }
+  if (linkDrag) {
+    const from = layout.boxes[linkDrag.from]
+    const to = linkDrag.target ? layout.boxes[linkDrag.target] : null
+    if (from) {
+      const d = to
+        ? cordPath(from, to).d
+        : sidePath({ x: from.x + from.w, y: from.y + from.h / 2 }, linkDrag.point).d
+      cordElements.push(
+        <path key="cc-tmp" className={`cc-cord-tmp${linkDrag.target ? ' cc-cord-ok' : ''}`} d={d} />
+      )
+    }
+  }
+
   const lines: React.JSX.Element[] = []
   for (const project of projects) {
     const pbox = layout.boxes[`project:${project.id}`]
@@ -234,9 +324,29 @@ export default function CanvasChatsPage(): React.JSX.Element {
         className="cc-world"
         style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})` }}
       >
-        <svg className="cc-lines" width="1" height="1">
-          {lines}
+        <svg className="cc-lines" width="20000" height="20000">
+          <g transform="translate(5000 5000)">
+            {lines}
+            {cordElements}
+          </g>
         </svg>
+        {cutAt ? (
+          <button
+            type="button"
+            className="cc-cut"
+            style={{ left: cutAt.x, top: cutAt.y }}
+            title={translate('fork.canvas.cutCord', 'Cortar a corda')}
+            onPointerEnter={() => showCut(cutAt!.key)}
+            onPointerLeave={hideCut}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => {
+              removeCanvasCord(cutAt!.a, cutAt!.b)
+              setHoverCord(null)
+            }}
+          >
+            ✕
+          </button>
+        ) : null}
         {projects.map((project) => {
           const pbox = layout.boxes[`project:${project.id}`]
           return (
@@ -253,6 +363,14 @@ export default function CanvasChatsPage(): React.JSX.Element {
                       onOpen={() => openCard(chat)}
                       openSize={openSize}
                       terminalReady={terminalReady}
+                      linkRole={
+                        linkDrag?.target === chat.key
+                          ? 'target'
+                          : linkDrag?.from === chat.key
+                            ? 'source'
+                            : null
+                      }
+                      onStartLink={(e) => startLink(chat.key, e)}
                     />
                     {chat.agents.map((agent) => {
                       const abox = layout.boxes[agent.id]

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bot, ExternalLink, Plus } from 'lucide-react'
+import { Bot, ExternalLink, Plus, X } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { revealTerminalPane } from '@/lib/reveal-terminal-pane'
@@ -11,6 +11,7 @@ import { renderCanvasMarkdown } from './canvas-chats-markdown'
 import { useCanvasListenMode } from './canvas-voice-preference'
 import { useCanvasChatStatus } from './canvas-chats-data'
 import { openPcDeskChatInRepo } from '../sidebar/pc-desk-switcher/launch-pc-desk-chat'
+import { closePcDeskChat } from '../sidebar/pc-desk-switcher/close-pc-desk-project'
 import type { CanvasAgent, CanvasBox, CanvasChat, CanvasProject } from './canvas-chats-layout'
 
 export const STATUS_LABEL: Record<CanvasChat['status'], string> = {
@@ -111,7 +112,9 @@ export function ChatNode({
   open,
   onOpen,
   openSize,
-  terminalReady
+  terminalReady,
+  linkRole,
+  onStartLink
 }: {
   chat: CanvasChat
   box: CanvasBox
@@ -119,9 +122,12 @@ export function ChatNode({
   onOpen: () => void
   openSize: { w: number; h: number }
   terminalReady: boolean
+  linkRole: 'source' | 'target' | null
+  onStartLink: (e: React.PointerEvent) => void
 }): React.JSX.Element {
   const cardRef = useRef<HTMLDivElement>(null)
   const status = useCanvasChatStatus(chat)
+  const [confirmingClose, setConfirmingClose] = useState(false)
   const autoVoice = useCanvasListenMode()
   const tail = useTerminalTail(chat.lines.length === 0 && !open ? chat.ptyId : null, status)
   const lines =
@@ -162,12 +168,72 @@ export function ChatNode({
   return (
     <div
       ref={cardRef}
-      className={`cc-node cc-chat${open ? ' cc-open' : ''}`}
+      className={`cc-node cc-chat${open ? ' cc-open' : ''}${linkRole ? ` cc-link-${linkRole}` : ''}`}
+      data-chat-key={chat.key}
       data-status={status}
       style={style}
       onClick={open ? undefined : onOpen}
       onPointerDown={(e) => e.stopPropagation()}
     >
+      {open
+        ? null
+        : (['t', 'r', 'b', 'l'] as const).map((side) => (
+            <span
+              key={side}
+              className={`cc-edge cc-edge-${side}`}
+              title={translate('fork.canvas.dragCord', 'Puxe até outro chat para ligar')}
+              onPointerDown={onStartLink}
+            />
+          ))}
+      {open ? null : (
+        <span className="cc-xwrap" onPointerDown={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            className="cc-xbtn"
+            title={translate('fork.canvas.closeChat', 'Fechar este chat')}
+            onClick={(e) => {
+              e.stopPropagation()
+              setConfirmingClose(true)
+            }}
+          >
+            <X size={13} />
+          </button>
+        </span>
+      )}
+      {confirmingClose && !open ? (
+        <div
+          className="cc-confirm"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <b>
+            {translate('fork.canvas.closeChatAsk', 'Fechar o chat "{{name}}"?', {
+              name: chat.title
+            })}
+          </b>
+          <small>
+            {chat.agents.length > 0
+              ? translate('fork.canvas.closeChatAgents', 'Os agentes dele também param.')
+              : translate('fork.canvas.closeChatGone', 'O chat sai da barra e do fluxograma.')}
+          </small>
+          <div>
+            <button
+              type="button"
+              className="cc-confirm-ok"
+              onClick={() => closePcDeskChat(chat.worktreeId, chat.tabId)}
+            >
+              {translate('fork.canvas.closeChatYes', 'Fechar')}
+            </button>
+            <button
+              type="button"
+              className="cc-confirm-cancel"
+              onClick={() => setConfirmingClose(false)}
+            >
+              {translate('fork.canvas.closeChatNo', 'Cancelar')}
+            </button>
+          </div>
+        </div>
+      ) : null}
       <div className="cc-chat-head">
         <span className="cc-dot" />
         <b>{chat.title}</b>
