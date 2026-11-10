@@ -120,7 +120,8 @@ qualidade e só chama o Kaique no que é decisão dele.
    visível no fluxograma.
 6. **Cada executor no seu canto.** Dois executores nunca editam os mesmos arquivos ao mesmo tempo;
    cada um trabalha numa cópia separada do projeto e o planejador reúne.
-7. **Teto de chats em paralelo por projeto**, para o limite da assinatura não acabar numa tarde.
+7. **Teto de chats em paralelo**: cada planejador cria no máximo 4 executores ao mesmo tempo, para
+   o limite da assinatura não acabar numa tarde.
 
 ### 5.3 Quem valida o quê
 
@@ -247,7 +248,10 @@ Cada um responde o que sabe e só repassa o que não sabe.
 **Convivência e limites**
 
 - **FR-19** O SISTEMA DEVE impedir que dois executores editem os mesmos arquivos ao mesmo tempo.
-- **FR-20** O SISTEMA DEVE aplicar um teto de chats em paralelo por projeto e pôr em espera o que passar dele.
+- **FR-20** O SISTEMA DEVE limitar cada planejador a 4 executores ao mesmo tempo e o projeto ao
+  número de planejadores combinado (P-2), pondo em espera o que passar disso.
+- **FR-20a** O SISTEMA DEVE tratar o PO como o caminho padrão: o Kaique fala com o PO, e o PO
+  orquestra tudo. Falar direto com planejador ou executor é exceção permitida (FR-17).
 - **FR-21** QUANDO uma entrega é aceita, O SISTEMA DEVE encerrar o executor que a fez. Planejador
   encerra quando a frente termina. PO não encerra.
 - **FR-22** SE um chat da hierarquia parar sem entregar, ENTÃO O SISTEMA DEVE avisar quem o criou
@@ -319,8 +323,13 @@ combinado com o Kaique.
 
 - [x] **P-1** Qual projeto é o piloto? **Automação de Cadastros** (Kaique, 10/11/2026). Consequência:
       o projeto escreve em sistemas reais, então vale o FR-14a.
-- [x] **P-2** Teto de chats em paralelo no piloto: **1 PO + 2 planejadores + 4 executores**
-      (Kaique, 10/11/2026).
+- [x] **P-2** Teto: **1 PO por projeto; cada planejador cria até 4 executores** (Kaique,
+      10/11/2026, corrigindo a resposta anterior de 4 executores no total).
+- [ ] **P-2a** Quantos planejadores ao mesmo tempo no piloto? _Sugestão: 2, o que dá até 11 chats
+      (1 PO + 2 planejadores + 8 executores). O Kaique não fixou esse número._
+- [ ] **P-2b** O atalho do pedido pequeno (PO manda direto a um executor, seção 5.2 item 3)
+      continua valendo? O Kaique descreveu o PO criando planejadores, que criam executores.
+      _Sugestão: manter o atalho, por custo._
 - [x] **P-3** Ronda do PO: **só ao fim de cada entrega**; ele olha o produto e propõe o próximo
       pedido na Fila do Kaique. Nunca por relógio (Kaique, 10/11/2026).
 - [ ] **P-4** Em projeto sem controle de versão, o que conta como "juntar"? _Sugestão: piloto só em
