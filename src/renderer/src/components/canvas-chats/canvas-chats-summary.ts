@@ -60,12 +60,13 @@ function pump(): void {
   }
 }
 
-/** Summary for the closed card; asks Haiku again only when `ready` (chat stopped) and the reply text changed. */
+/** Headline for the closed card: written once per finished turn (`completion`), while the chat waits to be seen. */
 export function useCanvasChatSummary(
   tabId: string,
   cwd: string,
   text: string,
-  ready: boolean
+  ready: boolean,
+  completion: string
 ): string | null {
   const [, setVersion] = useState(0)
   useEffect(() => {
@@ -79,13 +80,13 @@ export function useCanvasChatSummary(
     if (!ready || text.trim().length < MIN_TEXT || inFlight.has(tabId)) {
       return
     }
-    const hash = textHash(text)
+    const hash = completion || textHash(text)
     if (cache.get(tabId)?.hash === hash) {
       return
     }
     inFlight.add(tabId)
     queue.push({ tabId, cwd, text, hash })
     pump()
-  }, [tabId, cwd, text, ready])
+  }, [tabId, cwd, text, ready, completion])
   return cache.get(tabId)?.summary ?? null
 }

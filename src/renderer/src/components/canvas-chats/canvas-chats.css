@@ -809,3 +809,25 @@
 .cc-board .cc-chat.cc-link-source {
   border-color: #2f8cff99;
 }
+
+/* open + working: stronger neon light, a bit faster (closed cards already stand out) */
+.cc-chat.cc-open[data-status='working'] {
+  box-shadow:
+    0 0 34px #e6b42255,
+    0 0 0 1px #e6b42288,
+    0 26px 80px #000d;
+}
+.cc-chat.cc-open[data-status='working']::before {
+  inset: -2.5px;
+  padding: 3px;
+  background: conic-gradient(
+    from var(--cc-angle),
+    #e6b422 0 68%,
+    #fff4c2 78%,
+    #ffffff 84%,
+    #fff4c2 90%,
+    #e6b422 100%
+  );
+  filter: drop-shadow(0 0 6px #ffe27a) drop-shadow(0 0 14px #e6b422aa);
+  animation-duration: 2.6s;
+}

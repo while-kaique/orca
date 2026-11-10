@@ -137,7 +137,14 @@ export function ChatNode({
     .map((line) => line.text)
     .join('\n')
   // Haiku re-summarizes only after the chat stops working, so the card doesn't churn mid-turn.
-  const summary = useCanvasChatSummary(chat.tabId, chat.cwd, replyText, status !== 'working')
+  // One headline per finished turn, made while the chat is green (finished, not seen yet).
+  const summary = useCanvasChatSummary(
+    chat.tabId,
+    chat.cwd,
+    replyText,
+    status === 'unseen',
+    chat.startedAt ? String(chat.startedAt) : ''
+  )
   const lastPrompt = chat.lines.find((line) => line.role === 'user')
   // Wrapped terminal lines read as one paragraph; bullets and tool markers are noise on a card.
   const preview = replyText
