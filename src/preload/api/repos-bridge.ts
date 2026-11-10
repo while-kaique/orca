@@ -36,6 +36,10 @@ export const reposApi = {
     text: string
   }): Promise<{ kind: 'ok'; summary: string } | { kind: 'error'; error: string }> =>
     ipcRenderer.invoke('repos:summarizeCanvasReply', request),
+  captureCanvasPagePreview: (
+    url: string
+  ): Promise<{ kind: 'ok'; dataUrl: string } | { kind: 'error'; error: string }> =>
+    ipcRenderer.invoke('repos:captureCanvasPagePreview', url),
   setPcDeskSmartTitles: (enabled: boolean): Promise<void> =>
     ipcRenderer.invoke('repos:setPcDeskSmartTitles', enabled),
 

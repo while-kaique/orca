@@ -79,6 +79,7 @@ export function createReposApi(): NonNullable<Partial<PreloadApi>['repos']> {
     suggestPcDeskSessionTitle: () => Promise.resolve({ kind: 'keep' }),
     setPcDeskSmartTitles: () => Promise.resolve(),
     summarizeCanvasReply: () => Promise.resolve({ kind: 'error', error: 'unsupported' }),
+    captureCanvasPagePreview: () => Promise.resolve({ kind: 'error', error: 'unsupported' }),
     onCloneProgress: () => noopUnsubscribe,
     getBaseRefDefault: async ({ repoId }) =>
       callRuntimeResult('repo.baseRefDefault', { repo: repoId }),

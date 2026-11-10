@@ -12,10 +12,11 @@ import {
 } from '@/lib/workspace-ports/workspace-port-actions'
 import { ORCA_BROWSER_GUEST_WEB_PREFERENCES_ATTRIBUTE } from '../../../../shared/browser-guest-web-preferences'
 import { dismissCanvasChatArtifact } from './canvas-chat-artifacts'
+import { refreshCanvasPagePreview, useCanvasPagePreview } from './canvas-chat-previews'
 import { BrowserImportHintButton } from '../browser-pane/assemble-chrome/BrowserImportHintButton'
 import type { CanvasBox, CanvasExtra } from './canvas-chats-layout'
 
-/** Fork: a chat's localhost server or claude.ai artifact, as a pill under the chat; click opens a mini browser. */
+/** Fork: a chat's localhost server or claude.ai artifact, as a picture of the page under the chat; click opens a mini browser. */
 export function ExtraNode({
   extra,
   box,
@@ -28,6 +29,14 @@ export function ExtraNode({
   const [confirming, setConfirming] = useState(false)
   const [stopping, setStopping] = useState(false)
   const runtimeTarget = useWorktreeRuntimeTarget(extra.server?.worktreeId ?? null)
+  const preview = useCanvasPagePreview(extra.url)
+  // A claude.ai login just imported: retake the artifact's picture, which showed the login page.
+  const importStatus = useAppStore((s) => s.browserSessionImportState?.status)
+  useEffect(() => {
+    if (importStatus === 'success' && extra.kind === 'artifact') {
+      refreshCanvasPagePreview(extra.url)
+    }
+  }, [importStatus, extra.kind, extra.url])
 
   const stopServer = async (): Promise<void> => {
     const server = extra.server
@@ -97,10 +106,15 @@ export function ExtraNode({
         </span>
         <b>{extra.label}</b>
       </div>
-      <div className="cc-agent-line">
-        {extra.kind === 'server'
-          ? translate('fork.canvas.serverOn', 'servidor ligado · clique para ver')
-          : translate('fork.canvas.artifactOpen', 'artifact · clique para ver')}
+      <div className="cc-extra-shot">
+        {preview ? (
+          <img src={preview} alt="" draggable={false} />
+        ) : (
+          <span className="cc-extra-shot-wait">
+            <Loader2 size={14} className="cc-voice-spin" />
+            {translate('fork.canvas.previewLoading', 'tirando a foto da página…')}
+          </span>
+        )}
       </div>
       {confirming ? (
         <div className="cc-confirm cc-confirm-row" onClick={(e) => e.stopPropagation()}>

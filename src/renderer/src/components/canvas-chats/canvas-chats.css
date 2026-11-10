@@ -945,10 +945,9 @@
 .cc-extra {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 3px;
-  padding: 0 12px 0 7px;
-  border-radius: 16px;
+  gap: 7px;
+  padding: 8px 8px 8px 7px;
+  border-radius: 14px;
   border: 1.5px solid color-mix(in srgb, var(--cc-pc, #5d5d66) 55%, #3a3a42);
   background: #121215;
   box-shadow: 0 6px 16px #0007;
@@ -1046,4 +1045,34 @@
   min-height: 0;
   display: flex;
   background: #fff;
+}
+
+/* server/artifact card: a picture of the page under its name */
+.cc-extra-shot {
+  flex: 1;
+  min-height: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0b0b0e;
+  border: 1px solid #ffffff14;
+}
+.cc-extra-shot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  pointer-events: none;
+}
+.cc-extra-shot-wait {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #7d7d88;
+  font: calc(11px * var(--cc-inv)) system-ui;
+}
+.cc-extra:hover .cc-extra-shot {
+  border-color: color-mix(in srgb, var(--cc-pc, #8f8f9a) 60%, transparent);
 }

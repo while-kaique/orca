@@ -62,7 +62,9 @@ export type CanvasLayout = {
 export const CANVAS_SIZES = {
   project: { w: 410, h: 116 },
   chat: { w: 340, h: 230 },
-  agent: { w: 316, h: 78 }
+  agent: { w: 316, h: 78 },
+  /** Server/artifact: name row + a 16:10 picture of the page. */
+  extra: { w: 316, h: 236 }
 } as const
 
 // Gaps are 30% over the first version, leaving room for what hangs off each chat.
@@ -81,17 +83,20 @@ export function layoutCanvas(
   projects: readonly CanvasProject[],
   viewport: { w: number; h: number }
 ): CanvasLayout {
-  const { project: P, chat: C, agent: A } = CANVAS_SIZES
+  const { project: P, chat: C, agent: A, extra: X } = CANVAS_SIZES
+  // What hangs under one chat: agents, then its servers/artifacts (taller, they carry a picture).
+  const hangingHeight = (chat: CanvasChat): number => {
+    const count = chat.agents.length + chat.extras.length
+    return count
+      ? AGENT_TOP_GAP + chat.agents.length * A.h + chat.extras.length * X.h + count * AGENT_GAP
+      : 0
+  }
   const blocks: Block[] = projects.map((project) => {
     const n = project.chats.length
-    const maxAgents = Math.max(0, ...project.chats.map((c) => c.agents.length + c.extras.length))
     return {
       project,
       w: Math.max(P.w, n * C.w + Math.max(0, n - 1) * COLUMN_GAP),
-      h:
-        P.h +
-        (n ? PROJECT_TO_CHATS + C.h : 0) +
-        (maxAgents ? AGENT_TOP_GAP + maxAgents * (A.h + AGENT_GAP) : 0)
+      h: P.h + (n ? PROJECT_TO_CHATS + C.h : 0) + Math.max(0, ...project.chats.map(hangingHeight))
     }
   })
   const boxes: Record<string, CanvasBox> = {}
@@ -133,15 +138,13 @@ export function layoutCanvas(
         const cx = chatsX + i * (C.w + COLUMN_GAP)
         const cy = y + P.h + PROJECT_TO_CHATS
         boxes[chat.key] = { x: cx, y: cy, w: C.w, h: C.h }
-        const stacked = [...chat.agents.map((a) => a.id), ...chat.extras.map((x) => x.id)]
-        stacked.forEach((id, j) => {
-          boxes[id] = {
-            x: cx + AGENT_INDENT,
-            y: cy + C.h + AGENT_TOP_GAP + j * (A.h + AGENT_GAP),
-            w: A.w,
-            h: A.h
-          }
-        })
+        let stackY = cy + C.h + AGENT_TOP_GAP
+        const stack = (id: string, size: { w: number; h: number }): void => {
+          boxes[id] = { x: cx + AGENT_INDENT, y: stackY, w: size.w, h: size.h }
+          stackY += size.h + AGENT_GAP
+        }
+        chat.agents.forEach((agent) => stack(agent.id, A))
+        chat.extras.forEach((extra) => stack(extra.id, X))
       })
     })
     y += Math.max(...row.map((b) => b.h)) + ROW_GAP

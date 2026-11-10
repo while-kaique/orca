@@ -103,6 +103,10 @@ export type RepositoryApi = {
     cwd: string
     text: string
   }) => Promise<{ kind: 'ok'; summary: string } | { kind: 'error'; error: string }>
+  /** Fork-only: still picture of a chat's localhost page or claude.ai artifact, for its flowchart card. */
+  captureCanvasPagePreview: (
+    url: string
+  ) => Promise<{ kind: 'ok'; dataUrl: string } | { kind: 'error'; error: string }>
   /** Fork-only: lets main name phone workspace rows like the PC-desk sidebar. */
   setPcDeskSmartTitles: (enabled: boolean) => Promise<void>
   onCloneProgress: (callback: (data: { phase: string; percent: number }) => void) => () => void

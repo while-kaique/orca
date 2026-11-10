@@ -14,6 +14,7 @@ import { registerRepoCloneHandlers } from './repos/repo-clone-lifecycle'
 import { registerBaseRefQueryHandlers } from './repos/base-ref-query-handlers'
 import { registerPcDeskHomeFolderHandlers } from './repos/pc-desk-home-folder-handlers'
 import { registerPcDeskSessionTitleHandlers } from './repos/pc-desk-session-title-handlers'
+import { registerCanvasPagePreviewHandler } from './repos/canvas-page-preview-handler'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 
 export function registerRepoHandlers(
@@ -80,4 +81,5 @@ export function registerRepoHandlers(
   registerBaseRefQueryHandlers(store)
   registerPcDeskHomeFolderHandlers()
   registerPcDeskSessionTitleHandlers()
+  registerCanvasPagePreviewHandler()
 }
