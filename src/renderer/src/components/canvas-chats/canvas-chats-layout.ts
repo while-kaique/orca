@@ -33,6 +33,9 @@ export type CanvasChat = {
 export type CanvasProject = {
   id: string
   name: string
+  /** Project color (the sidebar badge color, or an automatic one while that is still the default gray). */
+  color: string
+  initials: string
   detail: string
   chats: CanvasChat[]
 }

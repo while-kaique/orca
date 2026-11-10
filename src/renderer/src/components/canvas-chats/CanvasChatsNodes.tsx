@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bot, ExternalLink, Plus, X } from 'lucide-react'
+import { Bot, ExternalLink, Palette, Plus, X } from 'lucide-react'
+import { DEFAULT_REPO_BADGE_COLOR, REPO_COLORS } from '../../../../shared/repo-badge-color'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { revealTerminalPane } from '@/lib/reveal-terminal-pane'
@@ -24,11 +25,18 @@ export const STATUS_LABEL: Record<CanvasChat['status'], string> = {
 
 export function ProjectNode({
   project,
-  box
+  box,
+  onDragStart
 }: {
   project: CanvasProject
   box: CanvasBox
+  onDragStart: (e: React.PointerEvent) => void
 }): React.JSX.Element {
+  const [pickingColor, setPickingColor] = useState(false)
+  const setColor = (badgeColor: string): void => {
+    void useAppStore.getState().updateRepo(project.id, { badgeColor })
+    setPickingColor(false)
+  }
   const count = (s: CanvasChat['status']): number =>
     project.chats.filter((c) => c.status === s).length
   const addChat = (): void => {
@@ -44,8 +52,21 @@ export function ProjectNode({
   }
   const agents = project.chats.reduce((n, c) => n + c.agents.length, 0)
   return (
-    <div className="cc-node cc-project" style={{ left: box.x, top: box.y, width: box.w }}>
+    <div
+      className="cc-node cc-project"
+      style={
+        { left: box.x, top: box.y, width: box.w, '--cc-pc': project.color } as React.CSSProperties
+      }
+      onPointerDown={onDragStart}
+    >
       <div className="cc-project-actions" onPointerDown={(e) => e.stopPropagation()}>
+        <button
+          className="cc-head-button"
+          title={translate('fork.canvas.projectColor', 'Cor do projeto')}
+          onClick={() => setPickingColor((v) => !v)}
+        >
+          <Palette size={14} />
+        </button>
         <button
           className="cc-head-button"
           title={translate('fork.canvas.newChat', 'Novo chat neste projeto')}
@@ -54,7 +75,24 @@ export function ProjectNode({
           <Plus size={14} />
         </button>
       </div>
-      <div className="cc-project-name">{project.name}</div>
+      {pickingColor ? (
+        <div className="cc-swatches" onPointerDown={(e) => e.stopPropagation()}>
+          {REPO_COLORS.filter((c) => c !== DEFAULT_REPO_BADGE_COLOR).map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`cc-swatch${c === project.color ? ' cc-swatch-on' : ''}`}
+              style={{ background: c }}
+              title={c}
+              onClick={() => setColor(c)}
+            />
+          ))}
+        </div>
+      ) : null}
+      <div className="cc-project-name">
+        <i className="cc-project-badge">{project.initials}</i>
+        <span>{project.name}</span>
+      </div>
       {project.detail ? <div className="cc-project-detail">{project.detail}</div> : null}
       <div className="cc-pills">
         <span className="cc-pill">
@@ -114,7 +152,8 @@ export function ChatNode({
   openSize,
   terminalReady,
   linkRole,
-  onStartLink
+  onStartLink,
+  onDragStart
 }: {
   chat: CanvasChat
   box: CanvasBox
@@ -124,6 +163,7 @@ export function ChatNode({
   terminalReady: boolean
   linkRole: 'source' | 'target' | null
   onStartLink: (e: React.PointerEvent) => void
+  onDragStart: (e: React.PointerEvent) => void
 }): React.JSX.Element {
   const cardRef = useRef<HTMLDivElement>(null)
   const status = useCanvasChatStatus(chat)
@@ -180,7 +220,7 @@ export function ChatNode({
       data-status={status}
       style={style}
       onClick={open ? undefined : onOpen}
-      onPointerDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => (open ? e.stopPropagation() : onDragStart(e))}
     >
       {open
         ? null
@@ -261,7 +301,12 @@ export function ChatNode({
       {open && chat.ptyId ? (
         <>
           {terminalReady ? (
-            <AgentTerminalPreview ptyId={chat.ptyId} terminalInput={null} className="cc-terminal" />
+            <AgentTerminalPreview
+              key={chat.ptyId}
+              ptyId={chat.ptyId}
+              terminalInput={null}
+              className="cc-terminal"
+            />
           ) : (
             <div className="cc-terminal" />
           )}
