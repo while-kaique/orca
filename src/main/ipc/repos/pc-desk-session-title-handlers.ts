@@ -71,7 +71,55 @@ export async function suggestPcDeskSessionTitle(
   return parsePcDeskSessionTitleOutput(result.rawOutput, request.currentTitle)
 }
 
+const CANVAS_SUMMARY_MAX_INPUT = 4000
+
+/** Fork: one-line headline of where a chat's work stands, for the flowchart card. */
+export async function summarizeCanvasReply(request: {
+  cwd: string
+  text: string
+}): Promise<{ kind: 'ok'; summary: string } | { kind: 'error'; error: string }> {
+  const text = request.text.trim().slice(-CANVAS_SUMMARY_MAX_INPUT)
+  if (!text) {
+    return { kind: 'error', error: 'empty' }
+  }
+  const prompt = [
+    'Leia a resposta abaixo, de um assistente de código, e escreva UMA manchete curta em português',
+    '(no máximo 8 palavras) dizendo em que pé o trabalho está, para quem só bate o olho.',
+    'Exemplos do tom: "Testes concluídos, mas com ressalvas" · "MVP do projeto finalizado" ·',
+    '"Antes de seguir, há perguntas para responder" · "Deploy feito, falta você testar".',
+    'Sem markdown, sem aspas, sem ponto final, sem detalhes técnicos.',
+    '',
+    '<resposta>',
+    text,
+    '</resposta>'
+  ].join('\n')
+  const execution = runLocalSourceControlPlan({
+    plan: {
+      binary: 'claude',
+      args: CLAUDE_SESSION_TITLE_ARGS,
+      stdinPayload: prompt,
+      label: 'Claude'
+    },
+    cwd: existsSync(request.cwd) ? request.cwd : process.cwd(),
+    env: undefined,
+    operation: 'session-title',
+    spawnAgent: spawnSessionTitleAgent
+  })
+  const result = await execution.result
+  if (!result.success) {
+    return { kind: 'error', error: String(result.error) }
+  }
+  const summary = (result.rawOutput.trim().split(/\r?\n/u).find(Boolean) ?? '')
+    .replace(/^["'“”*]+|["'“”*.]+$/gu, '')
+    .trim()
+  return summary ? { kind: 'ok', summary } : { kind: 'error', error: 'empty output' }
+}
+
 export function registerPcDeskSessionTitleHandlers(): void {
+  ipcMain.removeHandler('repos:summarizeCanvasReply')
+  ipcMain.handle('repos:summarizeCanvasReply', (_event, request: { cwd: string; text: string }) =>
+    summarizeCanvasReply(request)
+  )
   ipcMain.removeHandler('repos:setPcDeskSmartTitles')
   ipcMain.handle('repos:setPcDeskSmartTitles', (_event, enabled: unknown) => {
     setPcDeskSmartTitlesPreferred(enabled === true)

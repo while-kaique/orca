@@ -6,6 +6,8 @@ import { revealTerminalPane } from '@/lib/reveal-terminal-pane'
 import { AgentTerminalPreview } from '../dashboard-popout/AgentTerminalPreview'
 import { terminalPreviewApiFor } from '../dashboard-popout/terminal-preview-api'
 import { CanvasVoiceBar } from './CanvasVoiceBar'
+import { useCanvasChatSummary } from './canvas-chats-summary'
+import { renderCanvasMarkdown } from './canvas-chats-markdown'
 import type { CanvasAgent, CanvasBox, CanvasChat, CanvasProject } from './canvas-chats-layout'
 
 export const OPEN_CARD = { w: 640, h: 460 }
@@ -99,6 +101,13 @@ export function ChatNode({
   const tail = useTerminalTail(chat.lines.length === 0 && !open ? chat.ptyId : null, chat.status)
   const lines =
     chat.lines.length > 0 ? chat.lines : tail.map((text) => ({ role: 'agent' as const, text }))
+  const replyText = lines
+    .filter((line) => line.role !== 'user')
+    .map((line) => line.text)
+    .join('\n')
+  // Haiku re-summarizes only after the chat stops working, so the card doesn't churn mid-turn.
+  const summary = useCanvasChatSummary(chat.tabId, chat.cwd, replyText, chat.status !== 'working')
+  const lastPrompt = chat.lines.find((line) => line.role === 'user')
   const showInNormalView = (): void => {
     if (
       revealTerminalPane({
@@ -165,8 +174,15 @@ export function ChatNode({
           <CanvasVoiceBar ptyId={chat.ptyId} cardRef={cardRef} />
         </>
       ) : (
-        <div className="cc-feed">
-          {lines.length === 0 ? (
+        <div className={`cc-feed${summary ? ' cc-feed-summary' : ''}`}>
+          {summary ? (
+            <>
+              {lastPrompt ? (
+                <div className="cc-line cc-line-user cc-clamp-1">› {lastPrompt.text}</div>
+              ) : null}
+              <div className="cc-summary">{renderCanvasMarkdown(summary)}</div>
+            </>
+          ) : lines.length === 0 ? (
             <div className="cc-line cc-line-empty">
               {translate('fork.canvas.noText', 'sem mensagens ainda')}
             </div>
@@ -174,7 +190,7 @@ export function ChatNode({
             lines.map((line, i) => (
               <div key={i} className={`cc-line cc-line-${line.role}`}>
                 {line.role === 'user' ? '› ' : ''}
-                {line.text}
+                {renderCanvasMarkdown(line.text)}
               </div>
             ))
           )}

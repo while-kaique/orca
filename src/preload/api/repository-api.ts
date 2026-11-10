@@ -98,6 +98,11 @@ export type RepositoryApi = {
   suggestPcDeskSessionTitle: (
     request: PcDeskSessionTitleRequest
   ) => Promise<PcDeskSessionTitleResult>
+  /** Fork-only: Haiku summary (1-2 lines) of a chat's latest reply for the flowchart card. */
+  summarizeCanvasReply: (request: {
+    cwd: string
+    text: string
+  }) => Promise<{ kind: 'ok'; summary: string } | { kind: 'error'; error: string }>
   /** Fork-only: lets main name phone workspace rows like the PC-desk sidebar. */
   setPcDeskSmartTitles: (enabled: boolean) => Promise<void>
   onCloneProgress: (callback: (data: { phase: string; percent: number }) => void) => () => void

@@ -16,6 +16,8 @@ export type CanvasChat = {
   key: string
   worktreeId: string
   tabId: string
+  /** Workspace folder, where Haiku runs to summarize the chat. */
+  cwd: string
   /** Newest agent pane of this chat, for marking it seen. */
   paneKey: string | null
   ptyId: string | null

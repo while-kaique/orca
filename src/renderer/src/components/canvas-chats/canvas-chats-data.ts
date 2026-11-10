@@ -104,6 +104,7 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
         chats.push({
           key: tab.id,
           worktreeId: worktree.id,
+          cwd: worktree.path,
           tabId: tab.id,
           paneKey: latest?.paneKey ?? null,
           ptyId: state.ptyIdsByTabId[tab.id]?.[0] ?? tab.ptyId ?? null,

@@ -78,6 +78,7 @@ export function createReposApi(): NonNullable<Partial<PreloadApi>['repos']> {
     listPcDeskHomeFolders: () => Promise.resolve({ rootPath: '', entries: [] }),
     suggestPcDeskSessionTitle: () => Promise.resolve({ kind: 'keep' }),
     setPcDeskSmartTitles: () => Promise.resolve(),
+    summarizeCanvasReply: () => Promise.resolve({ kind: 'error', error: 'unsupported' }),
     onCloneProgress: () => noopUnsubscribe,
     getBaseRefDefault: async ({ repoId }) =>
       callRuntimeResult('repo.baseRefDefault', { repo: repoId }),

@@ -503,3 +503,35 @@
     transform: rotate(360deg);
   }
 }
+
+/* Haiku summary + light markdown */
+.cc-feed strong {
+  color: #fff;
+  font-weight: 700;
+}
+.cc-feed code {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: #ffffff12;
+  color: #e6c07b;
+}
+.cc-feed-summary {
+  justify-content: flex-start;
+  gap: 8px;
+  padding-top: 12px;
+  mask-image: none;
+}
+.cc-summary {
+  font: 500 calc(13px * var(--cc-inv)) / 1.45 system-ui;
+  color: #e6e6ee;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cc-clamp-1 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
