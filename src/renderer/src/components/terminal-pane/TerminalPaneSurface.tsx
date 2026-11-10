@@ -260,6 +260,7 @@ export function TerminalPaneSurface({
       <SessionRestoredBannerPortals
         panes={managerRef.current?.getPanes() ?? []}
         paneIds={sessionRestoredBannerPaneIds}
+        tabId={tabId}
       />
       <TerminalPaneNativeChatPortal controller={controller} />
       <TerminalContextMenu

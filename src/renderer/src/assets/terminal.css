@@ -327,6 +327,42 @@
   pointer-events: none;
 }
 
+/* Fork: centered loading while a resumed agent has not drawn its screen yet. */
+.chat-restore-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+  color: var(--foreground);
+  font-family: var(--font-sans, system-ui);
+}
+.chat-restore-loading b {
+  font-size: 14px;
+  font-weight: 600;
+}
+.chat-restore-loading small {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.chat-restore-loading-spin {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2.5px solid color-mix(in srgb, var(--muted-foreground) 35%, transparent);
+  border-top-color: var(--foreground);
+  animation: chat-restore-spin 0.8s linear infinite;
+}
+@keyframes chat-restore-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .pane-title-text {
   align-self: stretch;
   display: block;

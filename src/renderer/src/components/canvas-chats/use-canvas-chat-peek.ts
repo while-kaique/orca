@@ -49,3 +49,19 @@ export function usePeek(
     }
   }
 }
+
+/** Seconds since `active` turned on (-1 while off), for the "restoring" counter. */
+export function useSecondsWhile(active: boolean): number {
+  const [seconds, setSeconds] = useState(-1)
+  useEffect(() => {
+    if (!active) {
+      setSeconds(-1)
+      return
+    }
+    const startedAt = Date.now()
+    setSeconds(0)
+    const tick = setInterval(() => setSeconds(Math.floor((Date.now() - startedAt) / 1000)), 500)
+    return () => clearInterval(tick)
+  }, [active])
+  return seconds
+}

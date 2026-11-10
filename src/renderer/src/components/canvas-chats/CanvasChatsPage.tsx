@@ -2,7 +2,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { RotateCcw } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
-import { revealTerminalPane } from '@/lib/reveal-terminal-pane'
+import { requestBackgroundTerminalWorktreeMount } from '../terminal/background-terminal-worktree-mount'
+import {
+  WAKE_HIBERNATED_AGENTS_WORKTREE_EVENT,
+  type WakeHibernatedAgentsWorktreeDetail
+} from '@/constants/terminal'
 import { parseAgentStatusPaneIdentity } from '../../../../shared/agent-status/identity/agent-status-worktree-attribution'
 import { useCanvasProjects } from './canvas-chats-data'
 import {
@@ -142,27 +146,21 @@ export default function CanvasChatsPage(): React.JSX.Element {
   // The live terminal mounts after the zoom settles, so it measures its box at real size.
   const [terminalReady, setTerminalReady] = useState(false)
   /**
-   * Orca only starts a chat's terminal once its workspace is opened (e.g. after a restart). Opening a card
-   * does what clicking the chat in the sidebar does, stays on the flowchart, then remounts the live view.
+   * After a restart Orca keeps a chat asleep until its pane is shown. Opening a card wakes just that chat in
+   * the background; the card shows "Restaurando o chat…" until its terminal is live and drawn.
    */
   const wakeChat = (chat: CanvasChat): void => {
     const state = useAppStore.getState()
-    if (state.activeWorktreeId === chat.worktreeId && state.activeTabId === chat.tabId) {
+    if ((state.ptyIdsByTabId[chat.tabId]?.length ?? 0) > 0) {
       return
     }
-    revealTerminalPane({
-      worktreeId: chat.worktreeId,
-      tabId: chat.tabId,
-      leafId: null,
-      executionHostId: null
-    })
-    if (useAppStore.getState().activeView !== 'canvas') {
-      useAppStore.getState().openCanvasPage()
-    }
-    setTimeout(() => {
-      setTerminalReady(false)
-      setTimeout(() => setTerminalReady(true), 50)
-    }, 1500)
+    // Orca's own background wake, aimed at this one chat: mount its pane hidden, then wake it if it was held asleep.
+    requestBackgroundTerminalWorktreeMount({ worktreeId: chat.worktreeId, tabIds: [chat.tabId] })
+    window.dispatchEvent(
+      new CustomEvent<WakeHibernatedAgentsWorktreeDetail>(WAKE_HIBERNATED_AGENTS_WORKTREE_EVENT, {
+        detail: { worktreeId: chat.worktreeId, tabIds: [chat.tabId], wokenClaimKeys: new Set() }
+      })
+    )
   }
   useEffect(() => {
     setTerminalReady(false)

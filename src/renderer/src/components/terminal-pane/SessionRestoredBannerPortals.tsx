@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom'
+import type { Terminal } from '@xterm/xterm'
 import { SessionRestoredBanner } from './SessionRestoredBanner'
 import type {
   SessionRestoredBannerPane,
@@ -6,13 +7,15 @@ import type {
 } from './session-restored-banner-pane-state'
 
 type SessionRestoredBannerPortalsProps = {
-  panes: readonly SessionRestoredBannerPane[]
+  panes: readonly (SessionRestoredBannerPane & { terminal?: Terminal })[]
   paneIds: SessionRestoredBannerPaneReasons
+  tabId?: string
 }
 
 export function SessionRestoredBannerPortals({
   panes,
-  paneIds
+  paneIds,
+  tabId
 }: SessionRestoredBannerPortalsProps): React.JSX.Element {
   return (
     <>
@@ -23,7 +26,7 @@ export function SessionRestoredBannerPortals({
         }
         return createPortal(
           // Put wake markers in pane chrome because resumed TUIs immediately repaint the PTY screen.
-          <SessionRestoredBanner visible reason={reason} />,
+          <SessionRestoredBanner visible reason={reason} terminal={pane.terminal} tabId={tabId} />,
           pane.container,
           `session-restored-banner-${pane.id}`
         )

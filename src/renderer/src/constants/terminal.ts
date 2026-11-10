@@ -84,4 +84,6 @@ export type WakeHibernatedAgentsWorktreeDetail = {
   worktreeId: string
   /** Collect provider-session claims from panes consuming/latching wake so generic resume cannot launch those sessions twice. */
   wokenClaimKeys?: Set<string>
+  /** Fork: wake only these tabs' panes (the flowchart opening one chat); absent wakes the whole worktree. */
+  tabIds?: readonly string[]
 }

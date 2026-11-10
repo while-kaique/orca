@@ -30,8 +30,12 @@ export function useTerminalPaneLifecycle(deps: UseTerminalPaneLifecycleDeps): vo
 
   useEffect(
     () =>
-      listenForHibernatedAgentWake(deps.worktreeId, () => deps.panePtyBindingsRef.current.values()),
-    [deps.worktreeId, deps.panePtyBindingsRef]
+      listenForHibernatedAgentWake(
+        deps.worktreeId,
+        () => deps.panePtyBindingsRef.current.values(),
+        deps.tabId
+      ),
+    [deps.worktreeId, deps.panePtyBindingsRef, deps.tabId]
   )
 
   useEffect(() => {

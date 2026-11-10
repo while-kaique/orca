@@ -8,7 +8,9 @@ import { AgentTerminalPreview } from '../dashboard-popout/AgentTerminalPreview'
 import { useTerminalTail } from './canvas-chat-terminal-tail'
 import { buildFontFamily } from '@/lib/monospace-font-family'
 import { usePeekTheme } from './canvas-chat-peek-screen'
-import { PEEK_W, usePeek } from './use-canvas-chat-peek'
+import { PEEK_W, usePeek, useSecondsWhile } from './use-canvas-chat-peek'
+import { useChatRestoring } from '@/lib/chat-restore-progress'
+import { ChatRestoreLoading } from '../terminal-pane/SessionRestoredBanner'
 import { CanvasVoiceBar } from './CanvasVoiceBar'
 import { useCanvasChatSummary } from './canvas-chats-summary'
 import { renderCanvasMarkdown } from './canvas-chats-markdown'
@@ -174,6 +176,9 @@ export function ChatNode({
   const [confirmingClose, setConfirmingClose] = useState(false)
   const autoVoice = useCanvasListenMode()
   const peeking = usePeek(open, cardRef)
+  const livePty = useAppStore((s) => s.ptyIdsByTabId[chat.tabId]?.[0] ?? null)
+  const restoring = useChatRestoring(chat.tabId)
+  const restoreSeconds = useSecondsWhile(open && (!livePty || restoring))
   const peekTheme = usePeekTheme()
   const peekFont = useAppStore((s) => s.settings?.terminalFontFamily)
   const tail = useTerminalTail(open ? null : chat.ptyId, status, chat.tabId, peeking.on, peekTheme)
@@ -186,12 +191,12 @@ export function ChatNode({
     .map((line) => line.text)
     .join('\n')
   // Haiku re-summarizes only after the chat stops working, so the card doesn't churn mid-turn.
-  // One headline per finished turn, made while the chat is green (finished, not seen yet).
+  // One headline per finished turn, made once the turn is done (seen or not); older headlines are never shown.
   const summary = useCanvasChatSummary(
     chat.tabId,
     chat.cwd,
     replyText,
-    status === 'unseen',
+    status === 'unseen' || status === 'seen',
     chat.startedAt ? String(chat.startedAt) : ''
   )
   const lastPrompt = chat.lines.find((line) => line.role === 'user')
@@ -321,19 +326,24 @@ export function ChatNode({
           </button>
         ) : null}
       </div>
-      {open && chat.ptyId ? (
+      {open ? (
         <>
-          {terminalReady ? (
-            <AgentTerminalPreview
-              key={chat.ptyId}
-              ptyId={chat.ptyId}
-              terminalInput={null}
-              className="cc-terminal"
-            />
-          ) : (
-            <div className="cc-terminal" />
-          )}
-          <CanvasVoiceBar ptyId={chat.ptyId} cardRef={cardRef} autoStart={autoVoice} />
+          <div className="cc-terminal-wrap">
+            {livePty && terminalReady ? (
+              <AgentTerminalPreview
+                key={livePty}
+                ptyId={livePty}
+                terminalInput={null}
+                className="cc-terminal"
+              />
+            ) : (
+              <div className="cc-terminal" />
+            )}
+            {restoreSeconds >= 0 ? <ChatRestoreLoading seconds={restoreSeconds} /> : null}
+          </div>
+          {livePty ? (
+            <CanvasVoiceBar ptyId={livePty} cardRef={cardRef} autoStart={autoVoice} />
+          ) : null}
         </>
       ) : peek ? (
         <div

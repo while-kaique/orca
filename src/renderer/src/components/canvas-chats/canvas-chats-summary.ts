@@ -60,7 +60,7 @@ function pump(): void {
   }
 }
 
-/** Headline for the closed card: written once per finished turn (`completion`), while the chat waits to be seen. */
+/** Headline for the closed card: written once per finished turn (`completion`), once the chat stopped working. */
 export function useCanvasChatSummary(
   tabId: string,
   cwd: string,
@@ -88,5 +88,7 @@ export function useCanvasChatSummary(
     queue.push({ tabId, cwd, text, hash })
     pump()
   }, [tabId, cwd, text, ready, completion])
-  return cache.get(tabId)?.summary ?? null
+  // A headline from an older turn would describe the wrong reply: show it only for the turn it was made for.
+  const cached = cache.get(tabId)
+  return cached && cached.hash === (completion || textHash(text)) ? cached.summary : null
 }

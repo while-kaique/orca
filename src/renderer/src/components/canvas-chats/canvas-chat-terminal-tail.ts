@@ -56,6 +56,36 @@ export type CanvasTerminalTail = { clean: string[]; peek: PeekLine[] }
 
 const EMPTY_TAIL: CanvasTerminalTail = { clean: [], peek: [] }
 
+// Card reads run two at a time so opening the flowchart doesn't serialize every chat's terminal at once.
+const MAX_PARALLEL_READS = 2
+let activeReads = 0
+const waitingReads: (() => void)[] = []
+
+function withReadSlot<T>(run: () => Promise<T>): Promise<T> {
+  return new Promise<void>((resolve) => {
+    if (activeReads < MAX_PARALLEL_READS) {
+      activeReads++
+      resolve()
+    } else {
+      waitingReads.push(resolve)
+    }
+  })
+    .then(run)
+    .finally(() => {
+      const next = waitingReads.shift()
+      if (next) {
+        next()
+      } else {
+        activeReads--
+      }
+    })
+}
+
+// The first read of a terminal scans deep for old artifact links/ports (they are saved); later reads only need the end.
+const deeplyScanned = new Set<string>()
+const DEEP_SCAN_ROWS = 2000
+const RECENT_ROWS = 300
+
 /**
  * Last readable lines of the chat's terminal: `clean` (prose only, for the card text) and
  * `peek` (the last 7 lines styled like the terminal, for hover). `live` re-reads every second.
@@ -73,11 +103,25 @@ export function useTerminalTail(
       return
     }
     let alive = true
+    // Only undo a connect that happened: a skipped read must not cut the open card's live terminal.
+    let connected = false
     let timer: ReturnType<typeof setTimeout> | undefined
     const api = terminalPreviewApiFor(ptyId)
+    const connect = (): ReturnType<typeof api.connect> => {
+      const deep = !live && !deeplyScanned.has(ptyId)
+      return api
+        .connect(ptyId, { scrollbackRows: deep ? DEEP_SCAN_ROWS : RECENT_ROWS })
+        .then((result) => {
+          connected = true
+          if (deep) {
+            deeplyScanned.add(ptyId)
+          }
+          return result
+        })
+    }
     const read = (): void => {
-      void api
-        .connect(ptyId, { scrollbackRows: live ? 300 : 2000 })
+      // Hover reads skip the queue: they are one card, and the user is looking at it.
+      void (live ? connect() : withReadSlot(() => (alive ? connect() : Promise.reject())))
         .then(async (result) => {
           const raw = `${result.snapshot?.scrollbackAnsi ?? ''}\n${result.snapshot?.data ?? ''}`
           noteCanvasChatArtifacts(tabId, raw)
@@ -92,7 +136,10 @@ export function useTerminalTail(
         })
         .catch(() => undefined)
         .finally(() => {
-          void api.unsubscribe(ptyId).catch(() => undefined)
+          if (connected) {
+            connected = false
+            void api.unsubscribe(ptyId).catch(() => undefined)
+          }
           if (alive && live) {
             timer = setTimeout(read, 1000)
           }
