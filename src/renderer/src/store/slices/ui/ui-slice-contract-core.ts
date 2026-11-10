@@ -123,6 +123,7 @@ export type UiViewHistory =
   | 'skills'
   | 'artifacts'
   | 'mobile'
+  | 'canvas'
 
 export type UISliceCore = {
   sidebarOpen: boolean
@@ -163,6 +164,8 @@ export type UISliceCore = {
   previousViewBeforeSkills: Exclude<UiViewHistory, 'skills'>
   previousViewBeforeMobile: Exclude<UiViewHistory, 'mobile'>
   previousViewBeforeArtifacts: Exclude<UiViewHistory, 'artifacts'>
+  /** Fork: view to return to when the chat flowchart (canvas) closes. */
+  previousViewBeforeCanvas: Exclude<UiViewHistory, 'canvas'>
   setActiveView: (view: UISliceCore['activeView']) => void
   taskPageData: TaskPageData
   taskResumeState: TaskResumeState | undefined
@@ -179,6 +182,10 @@ export type UISliceCore = {
   closeTaskPage: () => void
   openActivityPage: () => void
   closeActivityPage: () => void
+  /** Fork: chat flowchart view — same chats as the terminal view, drawn as a board. */
+  openCanvasPage: () => void
+  closeCanvasPage: () => void
+  toggleCanvasPage: () => void
   selectedAutomationId: string | null
   setSelectedAutomationId: (id: string | null) => void
   pendingAutomationRunNavigation: {

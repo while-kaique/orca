@@ -1,5 +1,43 @@
 # Onde paramos — fork do Orca "PC como mesa"
 
+## 09/11/2026 — Fluxograma de chats (canvas) — NO AR
+
+Botão novo no canto superior esquerdo (ícone de fluxo, ao lado do da barra lateral) troca a tela
+principal por um **fluxograma dos mesmos chats** da barra: projeto > chats > agentes (+ servidores e
+artifacts). É só outra tela dos mesmos dados; trocar de volta não perde nada. Reabre no fluxograma se
+foi fechado nele (`activeView = 'canvas'`, salvo como as outras views).
+
+**Onde está o código:** `src/renderer/src/components/canvas-chats/` (branch `feat/canvas-chats`,
+worktree `Desktop\Projetos\orca-canvas`, juntada em `feat/pc-como-mesa`). Protótipo aprovado e spec
+visual: `Desktop\Projetos\orca-canvas-prototipos` (V1, README.md).
+
+| Peça                 | Arquivo                                                                          | Como funciona                                                                                                                                                                                                                                    |
+| -------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| View + botão         | `TitlebarLeftControls.tsx`, `ui-slice-view-actions.ts`, `AppWorkspaceShell.tsx`  | `openCanvasPage/closeCanvasPage/toggleCanvasPage`; `'canvas'` em todas as listas de views                                                                                                                                                        |
+| Dados                | `canvas-chats-data.ts`                                                           | mesma lista da barra: `repos` > abas de `tabsByWorktree`; estado do card = mesma regra da bolinha da barra (`useWorktreeActivityStatus`)                                                                                                         |
+| Layout               | `canvas-chats-layout.ts`                                                         | projeto em cima, chats lado a lado, agentes/extras empilhados; blocos em fileiras que caibam na tela                                                                                                                                             |
+| Cards                | `CanvasChatsNodes.tsx`                                                           | card fechado = último pedido + manchete do Haiku; aberto = terminal ao vivo (`AgentTerminalPreview`)                                                                                                                                             |
+| Manchete             | `canvas-chats-summary.ts` + `repos:summarizeCanvasReply` (main)                  | Haiku escreve 1 manchete curta por conclusão, só com o chat verde (terminou, não visto)                                                                                                                                                          |
+| Arrastar             | `canvas-chats-offsets.ts`                                                        | projeto leva o bloco, chat leva os agentes; posições salvas; **Reorganizar** zera e centraliza                                                                                                                                                   |
+| Cordas               | `canvas-chats-cords.ts`, `use-canvas-cord-layer.tsx`                             | puxa de qualquer borda; azul + gruda num chat válido; ✕ no meio corta. **Ainda só desenho: troca de contexto pela corda não existe**                                                                                                             |
+| Fechar chat          | ✕ flutuante + confirmação                                                        | usa `closePcDeskChat` (mesmo ✕ da barra)                                                                                                                                                                                                         |
+| Cor                  | `projectColor` em `canvas-chats-data.ts`                                         | cor do selo do projeto (`badgeColor`); cinza padrão vira cor automática; paleta no hover chama `updateRepo`                                                                                                                                      |
+| Servidores/artifacts | `CanvasChatExtras.tsx`, `canvas-chat-artifacts.ts`                               | servidor = pty que imprimiu a URL (`advertisedByPtyId`, novo no main) **ou** porta citada na conversa; artifacts = links claude.ai/artifact do terminal; clique abre webview **fora** da área com zoom; ✕ do servidor confirma e mata o processo |
+| Voz                  | `use-canvas-voice-prompt.ts`, `CanvasVoiceBar.tsx`, `canvas-voice-preference.ts` | **Ctrl+E no fluxograma** liga/desliga o modo escuta (começa desligado); abrir chat já ouve; 3 s de silêncio ou **Enter** envia; Ctrl+E/digitar deixa escrito; clicar fora envia                                                                  |
+| Colar imagem         | `preview-terminal-paste.ts`                                                      | Ctrl+V com imagem salva arquivo temporário e cola o caminho (igual ao terminal)                                                                                                                                                                  |
+
+**Teclas no card aberto:** Esc vai para o chat (interrompe o agente, como sempre); só **clicar fora** fecha o card.
+
+**Pegadinhas:**
+
+- O chat da voz (outra sessão) também comita em `canvas-chats/` — sempre `git merge feat/pc-como-mesa` antes de juntar.
+- Chat sem terminal após reabrir o Orca: abrir o card faz o mesmo que clicar na barra (ativa o chat) e remonta a tela.
+- Webview não desenha dentro de elemento com CSS transform: a telinha fica fora de `.cc-world`.
+- Testar visual: `pnpm dev-stable-name` com `ORCA_DEV_USER_DATA_PATH` próprio imprime porta CDP; perfil vazio não tem chats.
+- Nada disso tem teste automatizado; conferido só com `pnpm tc` + oxlint e pelo Kaique na tela.
+
+**Próximos passos:** troca de contexto real pelas cordas; comparar lado a lado com o protótipo e igualar o visual.
+
 **Atualizado:** 23/09/2026, fim do dia.
 
 ## Estado

@@ -1,0 +1,998 @@
+/* Fork: chat flowchart. Colors follow the approved V1 prototype (Projetos\orca-canvas-prototipos). */
+@property --cc-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.cc-board {
+  --cc-idle: #5d5d66;
+  --cc-work: #e6b422;
+  --cc-ok: #3ecf7a;
+  --cc-wait: #ef4b4b;
+  --cc-inv: 1.3;
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: none;
+  background-color: #1a1a1d;
+  background-image: radial-gradient(#2e2e34 1.2px, transparent 1.2px);
+  color: #c8c8d0;
+  user-select: none;
+}
+.cc-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+.cc-lines {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.cc-line-tree {
+  fill: none;
+  stroke: #3b3b44;
+  stroke-width: 2.5;
+}
+.cc-node {
+  position: absolute;
+}
+
+/* project */
+.cc-project {
+  padding: 14px 18px;
+  background: linear-gradient(180deg, #26262d, #1f1f25);
+  border: 1px solid #37373f;
+  border-radius: 14px;
+  box-shadow: 0 14px 34px #0009;
+}
+.cc-project-name {
+  font: 700 calc(18px * var(--cc-inv)) system-ui;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-project-detail {
+  font:
+    calc(11px * var(--cc-inv)) ui-monospace,
+    Consolas,
+    monospace;
+  color: #7d7d88;
+  margin-top: 4px;
+}
+.cc-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 9px;
+}
+.cc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: 600 calc(11px * var(--cc-inv)) system-ui;
+  color: #d0d0d8;
+  background: #ffffff0c;
+  border-radius: 99px;
+  padding: 3px 9px;
+}
+.cc-pill i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.cc-pill-waiting i {
+  background: var(--cc-wait);
+}
+.cc-pill-working i {
+  background: var(--cc-work);
+}
+.cc-pill-unseen i {
+  background: var(--cc-ok);
+}
+
+/* chat + agent shared state colors */
+.cc-chat,
+.cc-agent {
+  --k: var(--cc-idle);
+  border: 1.5px solid var(--k);
+  background: #141417;
+  box-shadow: 0 12px 30px #0009;
+}
+.cc-board [data-status='idle'] {
+  --k: var(--cc-idle);
+}
+.cc-board [data-status='working'] {
+  --k: var(--cc-work);
+}
+.cc-board [data-status='unseen'] {
+  --k: var(--cc-ok);
+}
+.cc-board [data-status='seen'] {
+  --k: #3ecf7aa0;
+}
+.cc-board [data-status='waiting'] {
+  --k: var(--cc-wait);
+}
+.cc-chat[data-status='working'],
+.cc-agent[data-status='working'] {
+  border-color: #e6b4226b;
+  box-shadow:
+    0 0 22px #e6b4221f,
+    0 12px 30px #0009;
+}
+.cc-chat[data-status='working']::before,
+.cc-agent[data-status='working']::before {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--cc-angle),
+    #e6b422 0 74%,
+    #fff6d6 84%,
+    #fff 88%,
+    #fff6d6 92%,
+    #e6b422 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: cc-lap 4s linear infinite;
+}
+@keyframes cc-lap {
+  to {
+    --cc-angle: 360deg;
+  }
+}
+.cc-chat[data-status='unseen'],
+.cc-agent[data-status='unseen'] {
+  animation: cc-breathe 4.5s ease-in-out infinite;
+}
+@keyframes cc-breathe {
+  0%,
+  100% {
+    border-color: #3ecf7a99;
+    box-shadow:
+      0 0 0 #3ecf7a00,
+      0 12px 30px #0009;
+  }
+  50% {
+    border-color: #8af5b6;
+    box-shadow:
+      0 0 16px #3ecf7a38,
+      0 12px 30px #0009;
+  }
+}
+.cc-chat[data-status='seen'],
+.cc-agent[data-status='seen'] {
+  border-style: dashed;
+  border-color: #3ecf7a5c;
+}
+.cc-chat[data-status='waiting'] {
+  box-shadow:
+    0 0 0 3px #ef4b4b22,
+    0 12px 30px #0009;
+}
+
+/* chat card */
+.cc-chat {
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  cursor: pointer;
+  transform-origin: 50% 0;
+  transition:
+    transform 0.2s ease 0.08s,
+    box-shadow 0.2s;
+}
+.cc-chat:not(.cc-open):hover {
+  transform: scale(1.06);
+  z-index: 35;
+}
+.cc-chat-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: calc(7px * var(--cc-inv)) 11px;
+  background: #1d1d22;
+  border-bottom: 1px solid #2b2b31;
+  border-radius: 9px 9px 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.cc-chat-head b {
+  font: 600 calc(13px * var(--cc-inv)) system-ui;
+  color: #ececf3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--k);
+}
+.cc-status {
+  margin-left: auto;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: 600 calc(11px * var(--cc-inv)) system-ui;
+  color: var(--k);
+}
+.cc-spin {
+  width: 9px;
+  height: 9px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: cc-spin 0.8s linear infinite;
+}
+@keyframes cc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.cc-head-button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: #ffffff10;
+  color: #b0b0ba;
+  cursor: pointer;
+}
+.cc-head-button:hover {
+  background: #ffffff26;
+  color: #fff;
+}
+.cc-feed {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 6px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  font:
+    calc(11.5px * var(--cc-inv)) / 1.45 ui-monospace,
+    'Cascadia Code',
+    Consolas,
+    monospace;
+  mask-image: linear-gradient(transparent, #000 26%);
+}
+.cc-line {
+  margin: 2px 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.cc-line-user {
+  color: #fff;
+  font-weight: 600;
+}
+.cc-line-agent {
+  color: #c8c8d0;
+}
+.cc-line-ask {
+  color: #ff8a8a;
+  font-weight: 600;
+}
+.cc-line-empty {
+  color: #6d6d78;
+}
+.cc-board [data-status='idle'] .cc-feed {
+  opacity: 0.6;
+}
+
+.cc-open {
+  z-index: 40;
+  cursor: default;
+  border-radius: 12px;
+  box-shadow: 0 26px 80px #000d;
+  animation: cc-grow 0.18s ease-out;
+}
+@keyframes cc-grow {
+  from {
+    transform: scale(0.96);
+    opacity: 0.6;
+  }
+}
+.cc-terminal {
+  flex: 1;
+  min-height: 0;
+  margin: 6px;
+}
+.cc-dim .cc-node:not(.cc-open) {
+  opacity: 0.4;
+  transition: opacity 0.2s;
+}
+
+/* agent pill */
+.cc-agent {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  border-radius: 16px;
+  background: #121215;
+  padding: 0 12px 0 7px;
+  box-shadow: 0 6px 16px #0007;
+}
+.cc-agent-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cc-agent-head b {
+  font: 600 calc(12.5px * var(--cc-inv)) / 1.15 system-ui;
+  color: #d6d6de;
+}
+.cc-bot {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: var(--k);
+  background: color-mix(in srgb, var(--k) 20%, #1e1e23);
+}
+.cc-agent-line {
+  padding-left: 30px;
+  font:
+    calc(10.5px * var(--cc-inv)) ui-monospace,
+    Consolas,
+    monospace;
+  color: #9a9aa6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-agent[data-blocked='1'] {
+  --k: #ef4b4b99;
+  border-style: dashed;
+  border-color: #ef4b4b66;
+}
+.cc-agent[data-blocked='1'] .cc-agent-line {
+  color: #c98a8a;
+}
+
+/* chrome */
+.cc-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #7d7d88;
+  font: 14px system-ui;
+  pointer-events: none;
+}
+.cc-legend {
+  position: absolute;
+  left: 14px;
+  bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: #111114e6;
+  border: 1px solid #ffffff14;
+  font: 11.5px system-ui;
+  color: #a0a0ab;
+}
+.cc-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.cc-legend em {
+  width: 15px;
+  height: 10px;
+  border-radius: 3px;
+  border: 1.5px solid var(--k);
+}
+.cc-legend [data-status='seen'] em {
+  border-style: dashed;
+}
+.cc-tidy {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 13px;
+  border-radius: 10px;
+  background: #111114e6;
+  border: 1px solid #ffffff1f;
+  color: #e6e6ee;
+  font: 600 12.5px system-ui;
+  cursor: pointer;
+}
+.cc-tidy:hover {
+  border-color: #7a7a85;
+  background: #1c1c21;
+}
+
+/* voice strip (open card) */
+.cc-voice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 6px 6px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: #121215;
+  font: 500 calc(11px * var(--cc-inv)) system-ui;
+  color: #9a9aa6;
+}
+.cc-voice-mic {
+  --cc-voice-level: 0;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #3b3b44;
+  background: #1f1f24;
+  color: #9a9aa6;
+  cursor: pointer;
+  transition:
+    box-shadow 0.08s,
+    background 0.15s;
+}
+.cc-voice-mic:hover {
+  background: #2a2a31;
+  color: #e8e8ee;
+}
+.cc-voice[data-voice='listening'] .cc-voice-mic {
+  border-color: var(--cc-ok);
+  color: var(--cc-ok);
+  box-shadow: 0 0 0 calc(2px + var(--cc-voice-level) * 7px)
+    color-mix(in srgb, var(--cc-ok) 28%, transparent);
+}
+.cc-voice[data-voice='listening'] .cc-voice-text,
+.cc-voice[data-voice='sent'] .cc-voice-text {
+  color: #d6d6de;
+}
+.cc-voice[data-voice='transcribing'] .cc-voice-mic,
+.cc-voice[data-voice='starting'] .cc-voice-mic {
+  border-color: var(--cc-work);
+  color: var(--cc-work);
+}
+.cc-voice[data-voice='sent'] .cc-voice-mic {
+  border-color: var(--cc-ok);
+  color: var(--cc-ok);
+}
+.cc-voice[data-voice='unavailable'] .cc-voice-mic {
+  border-color: var(--cc-wait);
+  color: var(--cc-wait);
+}
+.cc-voice-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cc-voice-spin {
+  animation: cc-voice-rotate 0.9s linear infinite;
+}
+@keyframes cc-voice-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Haiku summary + light markdown */
+.cc-feed strong {
+  color: #fff;
+  font-weight: 700;
+}
+.cc-feed code {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: #ffffff12;
+  color: #e6c07b;
+}
+.cc-feed-summary {
+  justify-content: flex-start;
+  gap: 8px;
+  padding-top: 12px;
+  mask-image: none;
+}
+.cc-summary {
+  font: 500 calc(13px * var(--cc-inv)) / 1.45 system-ui;
+  color: #e6e6ee;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cc-clamp-1 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* project hover actions: new chat + auto-mic switch */
+.cc-project-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.cc-project:hover .cc-project-actions,
+.cc-project:focus-within .cc-project-actions {
+  opacity: 1;
+}
+.cc-project-actions .cc-head-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+}
+.cc-project-actions .cc-on {
+  color: #7fd1a0;
+}
+
+/* closed card: headline first, last prompt on top, readable sans text instead of a terminal dump */
+.cc-feed-clean {
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  mask-image: none;
+  font-family: system-ui, sans-serif;
+}
+.cc-prompt {
+  font: 600 calc(11.5px * var(--cc-inv)) / 1.4 system-ui;
+  color: #8f8f9a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-feed-clean .cc-summary {
+  font: 600 calc(15px * var(--cc-inv)) / 1.35 system-ui;
+  color: #f2f2f6;
+  -webkit-line-clamp: 3;
+}
+.cc-preview {
+  font: calc(12.5px * var(--cc-inv)) / 1.5 system-ui;
+  color: #b8b8c2;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.cc-feed-clean .cc-line-empty {
+  font: calc(12px * var(--cc-inv)) system-ui;
+}
+
+/* open card never lets the terminal spill out */
+.cc-open,
+.cc-terminal {
+  overflow: hidden;
+}
+.cc-listen-chip {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 99px;
+  background: #111114e6;
+  border: 1px solid #3ecf7a66;
+  color: #d8f5e3;
+  font: 600 12.5px system-ui;
+  pointer-events: none;
+}
+.cc-listen-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3ecf7a;
+  animation: cc-breathe-dot 1.6s ease-in-out infinite;
+}
+@keyframes cc-breathe-dot {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* close a chat: floating X above the card on hover, confirmation inside the card */
+.cc-xwrap {
+  position: absolute;
+  right: 0;
+  top: -40px;
+  width: 44px;
+  height: 40px;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.cc-chat:hover .cc-xwrap {
+  pointer-events: auto;
+}
+.cc-xbtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: #2a2a30;
+  border: 1px solid #55555f;
+  color: #ddd;
+  cursor: pointer;
+  box-shadow: 0 4px 12px #0009;
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    opacity 0.15s,
+    transform 0.15s,
+    background 0.15s;
+}
+.cc-chat:hover .cc-xbtn {
+  opacity: 1;
+  transform: none;
+}
+.cc-xbtn:hover {
+  background: #ef4b4b;
+  border-color: #ef4b4b;
+  color: #fff;
+}
+.cc-confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  border-radius: inherit;
+  background: #0c0c0fee;
+  backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  text-align: center;
+  cursor: default;
+}
+.cc-confirm b {
+  font: 600 calc(14px * var(--cc-inv)) system-ui;
+  color: #fff;
+}
+.cc-confirm small {
+  font: calc(12px * var(--cc-inv)) system-ui;
+  color: #a0a0ab;
+}
+.cc-confirm div {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.cc-confirm button {
+  border: 0;
+  border-radius: 7px;
+  padding: 7px 16px;
+  font: 700 calc(12px * var(--cc-inv)) system-ui;
+  cursor: pointer;
+}
+.cc-confirm-ok {
+  background: #ef4b4b;
+  color: #fff;
+}
+.cc-confirm-cancel {
+  background: #2c2c33;
+  color: #ddd;
+}
+
+/* hand-drawn cords: pull from any card edge, blue + snap on a valid chat, X in the middle cuts */
+.cc-lines {
+  left: -5000px;
+  top: -5000px;
+}
+.cc-cord {
+  fill: none;
+  stroke: #6a6a73;
+  stroke-width: 3;
+  stroke-dasharray: 11 8;
+  stroke-linecap: round;
+}
+.cc-cord-hot {
+  stroke: #d0d0d8;
+}
+.cc-cord-hit {
+  fill: none;
+  stroke: transparent;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+.cc-cord-tmp {
+  fill: none;
+  stroke: #8a8a95;
+  stroke-width: 2.5;
+  stroke-dasharray: 6 6;
+}
+.cc-cord-tmp.cc-cord-ok {
+  stroke: #2f8cff;
+  stroke-width: 3;
+  stroke-dasharray: none;
+  filter: drop-shadow(0 0 4px #2f8cff88);
+}
+.cc-cut {
+  position: absolute;
+  z-index: 60;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: #2a2a30;
+  border: 1px solid #55555f;
+  color: #ddd;
+  font: 600 13px/1 system-ui;
+  cursor: pointer;
+  box-shadow: 0 4px 12px #0009;
+}
+.cc-cut:hover {
+  background: #ef4b4b;
+  border-color: #ef4b4b;
+  color: #fff;
+}
+.cc-edge {
+  position: absolute;
+  z-index: 4;
+  cursor: crosshair;
+}
+.cc-edge-t {
+  left: 8px;
+  right: 8px;
+  top: -7px;
+  height: 14px;
+}
+.cc-edge-b {
+  left: 8px;
+  right: 8px;
+  bottom: -7px;
+  height: 14px;
+}
+.cc-edge-l {
+  top: 8px;
+  bottom: 8px;
+  left: -7px;
+  width: 14px;
+}
+.cc-edge-r {
+  top: 8px;
+  bottom: 8px;
+  right: -7px;
+  width: 14px;
+}
+.cc-chat:has(.cc-edge:hover) {
+  border-color: #2f8cff99;
+}
+.cc-board .cc-chat.cc-link-target {
+  border-color: #2f8cff;
+  box-shadow:
+    0 0 0 3px #2f8cff55,
+    0 0 24px #2f8cff44;
+}
+.cc-board .cc-chat.cc-link-source {
+  border-color: #2f8cff99;
+}
+
+/* open + working: stronger neon light, a bit faster (closed cards already stand out) */
+.cc-chat.cc-open[data-status='working'] {
+  box-shadow:
+    0 0 34px #e6b42255,
+    0 0 0 1px #e6b42288,
+    0 26px 80px #000d;
+}
+.cc-chat.cc-open[data-status='working']::before {
+  inset: -2.5px;
+  padding: 3px;
+  background: conic-gradient(
+    from var(--cc-angle),
+    #e6b422 0 68%,
+    #fff4c2 78%,
+    #ffffff 84%,
+    #fff4c2 90%,
+    #e6b422 100%
+  );
+  filter: drop-shadow(0 0 6px #ffe27a) drop-shadow(0 0 14px #e6b422aa);
+  animation-duration: 2.6s;
+}
+
+/* project color: tinted card, colored initials badge, swatch picker on hover */
+.cc-board .cc-project {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--cc-pc) 22%, #24242b), #1d1d23 75%);
+  border-color: color-mix(in srgb, var(--cc-pc) 45%, #37373f);
+  box-shadow:
+    0 0 40px color-mix(in srgb, var(--cc-pc) 14%, transparent),
+    0 14px 34px #0009;
+  cursor: grab;
+}
+.cc-board .cc-project:hover {
+  border-color: var(--cc-pc);
+}
+.cc-project-name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.cc-project-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-project-badge {
+  flex: none;
+  width: calc(34px * var(--cc-inv));
+  height: calc(34px * var(--cc-inv));
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font: 800 calc(12.5px * var(--cc-inv)) system-ui;
+  font-style: normal;
+  color: #111;
+  background: var(--cc-pc);
+}
+.cc-board .cc-pill {
+  background: color-mix(in srgb, var(--cc-pc) 14%, #ffffff08);
+}
+.cc-swatches {
+  position: absolute;
+  top: 52px;
+  right: 12px;
+  z-index: 8;
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 10px;
+  background: #111114f2;
+  border: 1px solid #ffffff1f;
+  box-shadow: 0 10px 30px #000a;
+}
+.cc-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.cc-swatch-on,
+.cc-swatch:hover {
+  border-color: #fff;
+}
+/* the chat cards carry a thin stripe of their project's color */
+.cc-board .cc-chat-head {
+  box-shadow: inset 0 2px 0 var(--cc-pc, transparent);
+}
+
+/* chat extras: localhost servers and claude.ai artifacts as pills under the chat */
+.cc-extra {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 0 12px 0 7px;
+  border-radius: 16px;
+  border: 1.5px solid color-mix(in srgb, var(--cc-pc, #5d5d66) 55%, #3a3a42);
+  background: #121215;
+  box-shadow: 0 6px 16px #0007;
+  cursor: pointer;
+  --k: var(--cc-pc, #8f8f9a);
+}
+.cc-extra:hover {
+  border-color: var(--cc-pc, #8f8f9a);
+}
+.cc-extra:hover .cc-xbtn {
+  opacity: 1;
+  transform: none;
+}
+.cc-extra:hover .cc-xwrap {
+  pointer-events: auto;
+}
+.cc-extra .cc-agent-head b {
+  font:
+    600 calc(12.5px * var(--cc-inv)) / 1.15 ui-monospace,
+    Consolas,
+    monospace;
+  color: #e6e6ee;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cc-extra-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: var(--cc-pc, #8f8f9a);
+  background: color-mix(in srgb, var(--cc-pc, #8f8f9a) 20%, #1e1e23);
+}
+.cc-confirm-row {
+  flex-direction: row;
+  gap: 10px;
+  padding: 6px 12px;
+}
+.cc-confirm-row b {
+  font-size: 12.5px;
+}
+.cc-confirm-row div {
+  margin-top: 0;
+}
+
+/* mini browser: outside the zoomed board (webviews don't paint under transforms) */
+.cc-web {
+  position: absolute;
+  z-index: 70;
+  left: 6%;
+  top: 7%;
+  width: 88%;
+  height: 80%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #141417;
+  border: 1.5px solid #3a3a42;
+  box-shadow: 0 30px 90px #000d;
+}
+.cc-web-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 8px 12px;
+  background: #1d1d22;
+  border-bottom: 1px solid #2b2b31;
+}
+.cc-web-head b {
+  font:
+    600 13px ui-monospace,
+    Consolas,
+    monospace;
+  color: #ececf3;
+  margin-right: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cc-web-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  background: #fff;
+}

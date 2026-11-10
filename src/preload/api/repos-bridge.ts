@@ -31,6 +31,11 @@ export const reposApi = {
     request: PcDeskSessionTitleRequest
   ): Promise<PcDeskSessionTitleResult> =>
     ipcRenderer.invoke('repos:suggestPcDeskSessionTitle', request),
+  summarizeCanvasReply: (request: {
+    cwd: string
+    text: string
+  }): Promise<{ kind: 'ok'; summary: string } | { kind: 'error'; error: string }> =>
+    ipcRenderer.invoke('repos:summarizeCanvasReply', request),
   setPcDeskSmartTitles: (enabled: boolean): Promise<void> =>
     ipcRenderer.invoke('repos:setPcDeskSmartTitles', enabled),
 
