@@ -627,7 +627,8 @@
   font: calc(12.5px * var(--cc-inv)) / 1.5 system-ui;
   color: #b8b8c2;
   display: -webkit-box;
-  -webkit-line-clamp: 5;
+  /* the small card stays short (prompt + headline); this only fills in until the headline exists */
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   word-break: break-word;

@@ -23,7 +23,7 @@ import type { CanvasAgent, CanvasBox, CanvasChat, CanvasProject } from './canvas
 export const STATUS_LABEL: Record<CanvasChat['status'], string> = {
   idle: translate('fork.canvas.statusIdle', 'parado'),
   working: translate('fork.canvas.statusWorking', 'trabalhando'),
-  monitoring: translate('fork.canvas.statusMonitoring', 'esperando agentes de fundo'),
+  monitoring: translate('fork.canvas.statusMonitoring', 'agentes de fundo'),
   unseen: translate('fork.canvas.statusUnseen', 'terminou'),
   seen: translate('fork.canvas.statusSeen', 'visto'),
   waiting: translate('fork.canvas.statusWaiting', 'precisa de você')
@@ -182,21 +182,19 @@ export function ChatNode({
   const peekTheme = usePeekTheme()
   const peekFont = useAppStore((s) => s.settings?.terminalFontFamily)
   const tail = useTerminalTail(open ? null : chat.ptyId, status, chat.tabId, peeking.on, peekTheme)
-  const lines =
-    chat.lines.length > 0
-      ? chat.lines
-      : tail.clean.map((text) => ({ role: 'agent' as const, text }))
-  const replyText = lines
-    .filter((line) => line.role !== 'user')
-    .map((line) => line.text)
-    .join('\n')
-  // Haiku re-summarizes only after the chat stops working, so the card doesn't churn mid-turn.
-  // One headline per finished turn, made once the turn is done (seen or not); older headlines are never shown.
+  // The agent's last reply; a chat with a prompt but no reply yet (e.g. after a restart) falls back to its terminal.
+  const replyText =
+    chat.lines
+      .filter((line) => line.role !== 'user')
+      .map((line) => line.text)
+      .join('\n') || tail.clean.join('\n')
+  // Haiku summarizes only when the chat is not mid-turn (done, seen, idle after a restart, background agents),
+  // once per reply; a headline from an older reply is never shown.
   const summary = useCanvasChatSummary(
     chat.tabId,
     chat.cwd,
     replyText,
-    status === 'unseen' || status === 'seen',
+    status !== 'working' && status !== 'waiting',
     chat.startedAt ? String(chat.startedAt) : ''
   )
   const lastPrompt = chat.lines.find((line) => line.role === 'user')

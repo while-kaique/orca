@@ -60,7 +60,7 @@ function pump(): void {
   }
 }
 
-/** Headline for the closed card: written once per finished turn (`completion`), once the chat stopped working. */
+/** Headline for the closed card: written once per reply, once the chat is not mid-turn. */
 export function useCanvasChatSummary(
   tabId: string,
   cwd: string,
@@ -80,8 +80,8 @@ export function useCanvasChatSummary(
     if (!ready || text.trim().length < MIN_TEXT || inFlight.has(tabId)) {
       return
     }
-    const hash = completion || textHash(text)
-    if (cache.get(tabId)?.hash === hash) {
+    const hash = textHash(text)
+    if (headlineMatches(cache.get(tabId), hash, completion)) {
       return
     }
     inFlight.add(tabId)
@@ -90,5 +90,16 @@ export function useCanvasChatSummary(
   }, [tabId, cwd, text, ready, completion])
   // A headline from an older turn would describe the wrong reply: show it only for the turn it was made for.
   const cached = cache.get(tabId)
-  return cached && cached.hash === (completion || textHash(text)) ? cached.summary : null
+  return cached && headlineMatches(cached, textHash(text), completion) ? cached.summary : null
+}
+
+/** Keyed by the reply text, so a restart (new idle state, same reply) never re-asks Haiku; older entries were keyed by turn. */
+function headlineMatches(
+  entry: SummaryEntry | undefined,
+  hash: string,
+  completion: string
+): boolean {
+  return (
+    entry !== undefined && (entry.hash === hash || (completion !== '' && entry.hash === completion))
+  )
 }

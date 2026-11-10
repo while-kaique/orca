@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ExternalLink, FileText, Globe, Loader2, X } from 'lucide-react'
+import { ExternalLink, FileText, Globe, Loader2, PanelTop, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
@@ -66,12 +66,7 @@ export function ExtraNode({
         if (confirming) {
           return
         }
-        // Artifacts are private: the mini browser has no claude.ai login, the system browser does.
-        if (extra.kind === 'artifact') {
-          void window.api.shell.openUrl(extra.url)
-        } else {
-          onExpand()
-        }
+        onExpand()
       }}
     >
       <span className="cc-xwrap">
@@ -104,7 +99,7 @@ export function ExtraNode({
       <div className="cc-agent-line">
         {extra.kind === 'server'
           ? translate('fork.canvas.serverOn', 'servidor ligado · clique para ver')
-          : translate('fork.canvas.artifactOpen', 'artifact · clique para abrir no navegador')}
+          : translate('fork.canvas.artifactOpen', 'artifact · clique para ver')}
       </div>
       {confirming ? (
         <div className="cc-confirm cc-confirm-row" onClick={(e) => e.stopPropagation()}>
@@ -191,8 +186,20 @@ export function CanvasWebPreview({
         <button
           type="button"
           className="cc-head-button"
-          title={translate('fork.canvas.openBrowser', 'Abrir no navegador do Orca')}
+          // Same login as this mini browser: sign in to claude.ai there once (by e-mail) and artifacts open here.
+          title={translate(
+            'fork.canvas.openBrowser',
+            'Abrir no navegador do Orca (para entrar no claude.ai)'
+          )}
           onClick={() => openAppHttpLink(extra.url)}
+        >
+          <PanelTop size={13} />
+        </button>
+        <button
+          type="button"
+          className="cc-head-button"
+          title={translate('fork.canvas.openSystemBrowser', 'Abrir no navegador do computador')}
+          onClick={() => void window.api.shell.openUrl(extra.url)}
         >
           <ExternalLink size={13} />
         </button>

@@ -127,7 +127,34 @@ function logicalLines(terminal: Terminal, theme: ITheme | null): PeekLine[] {
   return lines.map(trimEnd)
 }
 
-/** The last 7 lines of the conversation (above Claude's input box), styled like the real terminal. */
+// Claude's own status chatter, not what it said: turn timers, recaps, tips, the /clear nudge.
+const PEEK_NOISE =
+  /^\s*[✻✶✢✳✽*·]\s*\S+ for \d|^\s*※\s*recap:|disable recaps|new task\?\s*\/clear|^\s*(?:⎿\s*)?Tip:/u
+const LIST_ITEM = /^\s*(?:\d+[.)]|[-•*●⎿])\s/u
+
+/** Claude wraps long lines itself (hard newline + indent): glue those back so the card can re-wrap them. */
+function joinClaudeWraps(lines: PeekLine[], cols: number): PeekLine[] {
+  const out: PeekLine[] = []
+  for (const line of lines) {
+    const text = lineText(line)
+    const prev = out.at(-1)
+    const prevText = prev ? lineText(prev) : ''
+    if (prev && prevText.length >= cols - 16 && /^\s+\S/u.test(text) && !LIST_ITEM.test(text)) {
+      const [first, ...rest] = line
+      out[out.length - 1] = [
+        ...prev,
+        { text: ' ' },
+        { ...first, text: first.text.trimStart() },
+        ...rest
+      ]
+      continue
+    }
+    out.push(line)
+  }
+  return out
+}
+
+/** The last 7 lines of what Claude said (above its input box), styled like the real terminal. */
 export function readPeekScreen(
   snapshot: TerminalPreviewSnapshot,
   theme: ITheme | null
@@ -144,7 +171,14 @@ export function readPeekScreen(
       terminal.dispose()
       const rules = lines.flatMap((line, i) => (RULE_LINE.test(lineText(line)) ? [i] : []))
       const end = rules.at(-2) ?? rules.at(-1) ?? lines.length
-      const conversation = lines.slice(0, end)
+      const cols = terminal.cols
+      const conversation = joinClaudeWraps(lines.slice(0, end), cols)
+        .filter((line) => !PEEK_NOISE.test(lineText(line)))
+        // Dropping a noise line can leave two blank lines in a row; keep one.
+        .filter(
+          (line, i, all) =>
+            lineText(line).trim() !== '' || lineText(all[i - 1] ?? [{ text: 'x' }]).trim() !== ''
+        )
       // Count only lines with text; keep the blank lines between them so paragraphs breathe like the terminal.
       let start = conversation.length
       for (let seen = 0; start > 0 && seen < PEEK_LINES; start--) {
