@@ -114,6 +114,7 @@ type CanvasInputs = Pick<
   | 'acknowledgedAgentsByPaneKey'
   | 'migrationUnsupportedByPtyId'
   | 'workspacePortScan'
+  | 'sleepingAgentSessionsByPaneKey'
 > & { worktreesByRepo: AppState['worktreesByRepo']; artifactLinks: CanvasArtifactLinks }
 
 function chatStatus(state: CanvasInputs, worktreeId: string, tabId: string): CanvasChatStatus {
@@ -152,6 +153,20 @@ function latestEntry(
   }
   for (const [paneKey, retained] of Object.entries(state.retainedAgentsByPaneKey ?? {})) {
     consider(paneKey, retained.entry)
+  }
+  return best
+}
+
+/** A chat put to sleep (e.g. Orca reopened) keeps its last prompt and reply in its sleep record. */
+function sleepingRecord(
+  state: CanvasInputs,
+  tabId: string
+): { prompt: string; lastAssistantMessage?: string } | null {
+  let best: CanvasInputs['sleepingAgentSessionsByPaneKey'][string] | null = null
+  for (const record of Object.values(state.sleepingAgentSessionsByPaneKey ?? {})) {
+    if (record.tabId === tabId && (!best || record.updatedAt > best.updatedAt)) {
+      best = record
+    }
   }
   return best
 }
@@ -200,10 +215,15 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
             })
           : []
         const lines: CanvasChat['lines'] = []
-        if (entry?.prompt) {
-          lines.push({ role: 'user', text: entry.prompt })
+        const asleep = entry ? null : sleepingRecord(state, tab.id)
+        const prompt = entry?.prompt || asleep?.prompt
+        if (prompt) {
+          lines.push({ role: 'user', text: prompt })
         }
-        const reply = entry?.lastAssistantMessage || entry?.lastCompletedAssistantMessage
+        const reply =
+          entry?.lastAssistantMessage ||
+          entry?.lastCompletedAssistantMessage ||
+          asleep?.lastAssistantMessage
         if (reply) {
           lines.push({ role: 'agent', text: reply })
         }
@@ -262,7 +282,8 @@ export function useCanvasProjects(): CanvasProject[] {
       retainedAgentsByPaneKey: s.retainedAgentsByPaneKey,
       acknowledgedAgentsByPaneKey: s.acknowledgedAgentsByPaneKey,
       migrationUnsupportedByPtyId: s.migrationUnsupportedByPtyId,
-      workspacePortScan: s.workspacePortScan
+      workspacePortScan: s.workspacePortScan,
+      sleepingAgentSessionsByPaneKey: s.sleepingAgentSessionsByPaneKey
     }))
   )
   const artifactLinks = useCanvasArtifactLinks()

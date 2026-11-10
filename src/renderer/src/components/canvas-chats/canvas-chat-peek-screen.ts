@@ -203,3 +203,30 @@ export function usePeekTheme(): ITheme | null {
     return composeActiveTerminalTheme(appearance.theme, settings)
   }, [settings, systemPrefersDark])
 }
+
+/** Peek without a readable terminal (chat asleep since Orca reopened): its saved last prompt and reply. */
+export function savedChatPeek(
+  prompt: string | undefined,
+  reply: string,
+  asleep: boolean
+): PeekLine[] {
+  const promptLines: PeekLine[] = prompt
+    ? [[{ text: `› ${prompt.length > 160 ? `${prompt.slice(0, 160)}…` : prompt}`, dim: true }]]
+    : []
+  const replyLines = reply
+    .split('\n')
+    .map((line) =>
+      line
+        .replace(/\*\*/gu, '')
+        .replace(/^#+\s*/u, '')
+        .trimEnd()
+    )
+    .filter((line) => line.trim())
+    .slice(-(PEEK_LINES - promptLines.length))
+    .map((text): PeekLine => [{ text }])
+  const lines = [...promptLines, ...replyLines]
+  if (lines.length === 0 && asleep) {
+    return [[{ text: 'Chat dormindo desde que o Orca reabriu. Clique para acordar.', dim: true }]]
+  }
+  return lines
+}

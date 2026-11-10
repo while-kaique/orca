@@ -8,7 +8,7 @@ import { AgentTerminalPreview } from '../dashboard-popout/AgentTerminalPreview'
 import { useTerminalTail } from './canvas-chat-terminal-tail'
 import { canvasChatLinkHandlers } from './canvas-chat-terminal-links'
 import { buildFontFamily } from '@/lib/monospace-font-family'
-import { usePeekTheme } from './canvas-chat-peek-screen'
+import { savedChatPeek, usePeekTheme } from './canvas-chat-peek-screen'
 import { PEEK_W, usePeek, useSecondsWhile } from './use-canvas-chat-peek'
 import { useChatRestoring } from '@/lib/chat-restore-progress'
 import { ChatRestoreLoading } from '../terminal-pane/SessionRestoredBanner'
@@ -219,7 +219,9 @@ export function ChatNode({
       useAppStore.getState().setActiveView('terminal')
     }
   }
-  const peek = peeking.on && chat.ptyId !== null && tail.peek.length > 0
+  const peekLines =
+    tail.peek.length > 0 ? tail.peek : savedChatPeek(lastPrompt?.text, replyText, !livePty)
+  const peek = peeking.on && peekLines.length > 0
   const style = open
     ? {
         left: box.x + box.w / 2 - openSize.w / 2,
@@ -339,7 +341,9 @@ export function ChatNode({
             ) : (
               <div className="cc-terminal" />
             )}
-            {restoreSeconds >= 0 ? <ChatRestoreLoading seconds={restoreSeconds} /> : null}
+            {restoreSeconds >= 0 ? (
+              <ChatRestoreLoading seconds={restoreSeconds} background={peekTheme?.background} />
+            ) : null}
           </div>
           {livePty ? (
             <CanvasVoiceBar ptyId={livePty} cardRef={cardRef} autoStart={autoVoice} />
@@ -354,7 +358,7 @@ export function ChatNode({
             fontFamily: buildFontFamily(peekFont ?? '')
           }}
         >
-          {tail.peek.map((line, i) => (
+          {peekLines.map((line, i) => (
             <div key={i} className="cc-peek-line">
               {line.map((span, j) => (
                 <span

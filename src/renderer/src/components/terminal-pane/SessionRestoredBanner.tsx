@@ -92,15 +92,24 @@ export function SessionRestoredBanner({
           ? SESSION_RESUME_UNAVAILABLE_BANNER_TEXT
           : SESSION_RESTORED_BANNER_TEXT}
       </div>
-      {elapsed >= 0 ? <ChatRestoreLoading seconds={elapsed} /> : null}
+      {elapsed >= 0 ? (
+        <ChatRestoreLoading seconds={elapsed} background={terminal?.options.theme?.background} />
+      ) : null}
     </>
   )
 }
 
-/** Centered "restoring" notice with a live seconds counter, so a slow resume never looks frozen. */
-export function ChatRestoreLoading({ seconds }: { seconds: number }): React.JSX.Element {
+/** Opaque "restoring" screen with a live seconds counter: hides the half-drawn terminal until the chat is back. */
+export function ChatRestoreLoading({
+  seconds,
+  background
+}: {
+  seconds: number
+  /** The terminal's own background, so the cover looks like an empty terminal. */
+  background?: string
+}): React.JSX.Element {
   return (
-    <div className="chat-restore-loading" role="status">
+    <div className="chat-restore-loading" role="status" style={{ background }}>
       <span className="chat-restore-loading-spin" />
       <b>Restaurando o chat…</b>
       <small>

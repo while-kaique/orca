@@ -339,6 +339,7 @@
   gap: 8px;
   pointer-events: none;
   color: var(--foreground);
+  background: var(--background);
   font-family: var(--font-sans, system-ui);
 }
 .chat-restore-loading b {

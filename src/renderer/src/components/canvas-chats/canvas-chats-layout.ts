@@ -77,6 +77,8 @@ const AGENT_GAP = 12
 const PROJECT_GAP = 208
 const ROW_GAP = 195
 const AGENT_INDENT = 32
+// A squarer grid may cost up to 15% of zoom.
+const SQUARE_GRID_TOLERANCE = 0.85
 
 type Block = { project: CanvasProject; w: number; h: number }
 
@@ -105,7 +107,8 @@ export function layoutCanvas(
   if (blocks.length === 0) {
     return { boxes, bounds: { x: 0, y: 0, w: 0, h: 0 } }
   }
-  let best: { s: number; rows: Block[][]; colWidths: number[]; W: number; H: number } | null = null
+  type Grid = { s: number; rows: Block[][]; colWidths: number[]; W: number; H: number }
+  const grids: Grid[] = []
   for (let r = 1; r <= blocks.length; r++) {
     const per = Math.ceil(blocks.length / r)
     const rows: Block[][] = []
@@ -121,15 +124,21 @@ export function layoutCanvas(
       rows.reduce((sum, row) => sum + Math.max(...row.map((b) => b.h)), 0) +
       (rows.length - 1) * ROW_GAP
     const s = Math.min((viewport.w - 120) / W, (viewport.h - 120) / H)
-    if (!best || s > best.s) {
-      best = { s, rows, colWidths, W, H }
+    if (!grids.some((g) => g.rows.length === rows.length)) {
+      grids.push({ s, rows, colWidths, W, H })
     }
   }
+  // Near-equal zoom: the squarer grid wins (4 projects = 2x2, not one long row).
+  const topS = Math.max(...grids.map((g) => g.s))
+  const squareness = (g: Grid): number => Math.abs(g.rows.length - g.rows[0].length)
+  const best = grids
+    .filter((g) => g.s >= topS * SQUARE_GRID_TOLERANCE)
+    .sort((a, b) => squareness(a) - squareness(b) || b.s - a.s)[0]
   let y = 0
-  best!.rows.forEach((row) => {
+  best.rows.forEach((row) => {
     let cellX = 0
     row.forEach((block, c) => {
-      const cellW = best!.colWidths[c]
+      const cellW = best.colWidths[c]
       const x = cellX + (cellW - block.w) / 2
       cellX += cellW + PROJECT_GAP
       const chatsWidth =
@@ -151,7 +160,7 @@ export function layoutCanvas(
     })
     y += Math.max(...row.map((b) => b.h)) + ROW_GAP
   })
-  return { boxes, bounds: { x: 0, y: 0, w: best!.W, h: best!.H } }
+  return { boxes, bounds: { x: 0, y: 0, w: best.W, h: best.H } }
 }
 
 /** Project bottom → chat top: down, straight across, down, with rounded corners. */
