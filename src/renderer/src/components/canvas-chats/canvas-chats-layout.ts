@@ -131,9 +131,11 @@ export function layoutCanvas(
   // Near-equal zoom: the squarer grid wins (4 projects = 2x2, not one long row).
   const topS = Math.max(...grids.map((g) => g.s))
   const squareness = (g: Grid): number => Math.abs(g.rows.length - g.rows[0].length)
-  const best = grids
-    .filter((g) => g.s >= topS * SQUARE_GRID_TOLERANCE)
-    .sort((a, b) => squareness(a) - squareness(b) || b.s - a.s)[0]
+  // Before the viewport is measured every zoom is <= 0; the top grid is always a candidate.
+  const close = (g: Grid): boolean =>
+    g.s === topS || (topS > 0 && g.s >= topS * SQUARE_GRID_TOLERANCE)
+  const best =
+    grids.filter(close).sort((a, b) => squareness(a) - squareness(b) || b.s - a.s)[0] ?? grids[0]
   let y = 0
   best.rows.forEach((row) => {
     let cellX = 0
