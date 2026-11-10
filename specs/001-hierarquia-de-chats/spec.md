@@ -100,7 +100,10 @@ qualidade e só chama o Kaique no que é decisão dele.
 | Planejador | Opus   | A frente dele em detalhe, mais a ordem recebida                              | O caminho: pesquisa, plano, divisão em tarefas, critérios de aceite | Não muda o objetivo recebido. Não sai consertando o que não foi pedido. |
 | Executor   | Sonnet | Só a tarefa dele                                                             | Nada de produto. Só como cumprir a ordem                            | Não replaneja. Na dúvida, pergunta para cima.                           |
 
-### 5.2 Mudanças que proponho sobre a ideia do áudio
+### 5.2 Mudanças sobre a ideia do áudio
+
+> Itens 1, 3, 4 e 5 **aprovados pelo Kaique em 10/11/2026** (arquivo do PO, atalho, limite de
+> reprovações e Fila do Kaique). Itens 2, 6 e 7 seguem como proposta até a aprovação da spec.
 
 1. **O que o PO sabe mora em arquivo, não na conversa.** Uma conversa de semanas perde detalhe a
    cada compactação. O PO mantém um arquivo do produto (o que cumprir, nível de qualidade, o que
@@ -327,9 +330,8 @@ combinado com o Kaique.
       10/11/2026, corrigindo a resposta anterior de 4 executores no total).
 - [ ] **P-2a** Quantos planejadores ao mesmo tempo no piloto? _Sugestão: 2, o que dá até 11 chats
       (1 PO + 2 planejadores + 8 executores). O Kaique não fixou esse número._
-- [ ] **P-2b** O atalho do pedido pequeno (PO manda direto a um executor, seção 5.2 item 3)
-      continua valendo? O Kaique descreveu o PO criando planejadores, que criam executores.
-      _Sugestão: manter o atalho, por custo._
+- [x] **P-2b** O atalho do pedido pequeno (PO manda direto a um executor, seção 5.2 item 3)
+      continua valendo: **sim** (Kaique, 10/11/2026).
 - [x] **P-3** Ronda do PO: **só ao fim de cada entrega**; ele olha o produto e propõe o próximo
       pedido na Fila do Kaique. Nunca por relógio (Kaique, 10/11/2026).
 - [ ] **P-4** Em projeto sem controle de versão, o que conta como "juntar"? _Sugestão: piloto só em
