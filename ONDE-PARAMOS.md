@@ -30,6 +30,8 @@ visual: `Desktop\Projetos\orca-canvas-prototipos` (V1, README.md).
 
 **Pegadinhas:**
 
+- **Nunca ler campo cru do status; sempre a função da barra lateral.** O oficial trocou `entry.subagents` por `entry.children` em 30/09/2026 (PR #22614) e o fluxograma, que lia o campo velho, parou de mostrar agentes de fundo. Hoje usa `buildRunningAgentChildRowModels` (o mesmo da barra) e `useWorktreeActivityStatus`. Depois de atualizar do oficial, rodar `grep -rn "entry\.\|entry?\." src/renderer/src/components/canvas-chats` e conferir cada campo cru que sobrou.
+
 - O chat da voz (outra sessão) também comita em `canvas-chats/` — sempre `git merge feat/pc-como-mesa` antes de juntar.
 - Chat sem terminal após reabrir o Orca: abrir o card faz o mesmo que clicar na barra (ativa o chat) e remonta a tela.
 - Webview não desenha dentro de elemento com CSS transform: a telinha fica fora de `.cc-world`.
