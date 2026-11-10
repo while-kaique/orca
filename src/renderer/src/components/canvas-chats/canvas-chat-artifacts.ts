@@ -9,7 +9,10 @@ type Stored = {
 }
 
 const STORAGE_KEY = 'orca-fork.canvas-chat-artifacts'
-const ARTIFACT_LINK = /https:\/\/claude\.ai\/(?:code\/)?artifact\/[A-Za-z0-9_-]{6,}/g
+// Whole ids only (22-char artifact ids, UUIDs for code artifacts): a link the terminal wrapped mid-id must not count.
+const ARTIFACT_LINK =
+  /https:\/\/claude\.ai\/(?:artifact\/[A-Za-z0-9]{20,24}|code\/artifact\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?![A-Za-z0-9_-])/g
+const WHOLE_ARTIFACT_LINK = new RegExp(`^(?:${ARTIFACT_LINK.source})$`)
 const LOCAL_PORT = /(?:localhost|127\.0\.0\.1|0\.0\.0\.0):(\d{2,5})/g
 const listeners = new Set<() => void>()
 let stored: Stored = readStored()
@@ -78,6 +81,14 @@ export function useCanvasArtifactLinks(): CanvasArtifactLinks {
   )
 }
 
+/** Links saved before whole-id matching may be cut-off copies of one link: keep only whole ids, once each. */
+function wholeArtifactLinks(urls: readonly string[]): string[] {
+  const whole = [...new Set(urls.filter((url) => WHOLE_ARTIFACT_LINK.test(url)))]
+  // A wrap one character before the id ends still looks whole: the longer copy wins.
+  return whole.filter((url) => !whole.some((other) => other !== url && other.startsWith(url)))
+}
+
 export function artifactLinksForTab(links: CanvasArtifactLinks, tabId: string): readonly string[] {
-  return (links.links[tabId] ?? EMPTY).filter((url) => !links.dismissed.includes(url))
+  const urls = links.links[tabId] ?? EMPTY
+  return wholeArtifactLinks(urls).filter((url) => !links.dismissed.includes(url))
 }
