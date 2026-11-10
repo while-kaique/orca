@@ -62,15 +62,17 @@ export type CanvasLayout = {
 export const CANVAS_SIZES = {
   project: { w: 410, h: 116 },
   chat: { w: 340, h: 230 },
-  agent: { w: 300, h: 64 }
+  agent: { w: 316, h: 78 }
 } as const
 
-const COLUMN_GAP = 40
+// Gaps are 30% over the first version, leaving room for what hangs off each chat.
+const COLUMN_GAP = 52
 const PROJECT_TO_CHATS = 80
 const AGENT_TOP_GAP = 26
 const AGENT_GAP = 12
-const PROJECT_GAP = 160
-const ROW_GAP = 150
+const PROJECT_GAP = 208
+const ROW_GAP = 195
+const AGENT_INDENT = 32
 
 type Block = { project: CanvasProject; w: number; h: number }
 
@@ -130,7 +132,7 @@ export function layoutCanvas(
         const stacked = [...chat.agents.map((a) => a.id), ...chat.extras.map((x) => x.id)]
         stacked.forEach((id, j) => {
           boxes[id] = {
-            x: cx + 40,
+            x: cx + AGENT_INDENT,
             y: cy + C.h + AGENT_TOP_GAP + j * (A.h + AGENT_GAP),
             w: A.w,
             h: A.h
