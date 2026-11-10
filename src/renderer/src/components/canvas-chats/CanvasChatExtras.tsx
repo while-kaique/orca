@@ -20,16 +20,19 @@ import type { CanvasBox, CanvasExtra } from './canvas-chats-layout'
 export function ExtraNode({
   extra,
   box,
+  turnKey,
   onExpand
 }: {
   extra: CanvasExtra
   box: CanvasBox
+  /** Changes when the owning chat finishes a turn ('' while it works): the page may have been updated. */
+  turnKey: string
   onExpand: () => void
 }): React.JSX.Element {
   const [confirming, setConfirming] = useState(false)
   const [stopping, setStopping] = useState(false)
   const runtimeTarget = useWorktreeRuntimeTarget(extra.server?.worktreeId ?? null)
-  const preview = useCanvasPagePreview(extra.url)
+  const preview = useCanvasPagePreview(extra.url, turnKey)
   // A claude.ai login just imported: retake the artifact's picture, which showed the login page.
   const importStatus = useAppStore((s) => s.browserSessionImportState?.status)
   useEffect(() => {

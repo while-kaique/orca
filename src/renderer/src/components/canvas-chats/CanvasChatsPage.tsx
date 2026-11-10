@@ -377,6 +377,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
                           key={extra.id}
                           extra={extra}
                           box={xbox}
+                          turnKey={chat.status === 'working' ? '' : `${chat.startedAt}`}
                           onExpand={() => setExpandedExtra(extra)}
                         />
                       ) : null

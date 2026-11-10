@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 
 /** Fork: still pictures of the chats' localhost pages and artifacts, kept across restarts. */
 type Preview = { dataUrl: string; at: number }
@@ -10,6 +10,7 @@ const STALE_MS = 10 * 60_000
 
 const previews = new Map<string, Preview>(readStored())
 const pending = new Set<string>()
+const retakeAfter = new Set<string>()
 const listeners = new Set<() => void>()
 
 function readStored(): [string, Preview][] {
@@ -38,6 +39,8 @@ function notify(): void {
 /** Takes (or retakes) the picture; main runs one at a time, so cards fill in one by one. */
 export function refreshCanvasPagePreview(url: string): void {
   if (pending.has(url)) {
+    // A picture already on its way may show the page from before the update: take one more after it.
+    retakeAfter.add(url)
     return
   }
   pending.add(url)
@@ -51,7 +54,12 @@ export function refreshCanvasPagePreview(url: string): void {
       }
     })
     .catch(() => undefined)
-    .finally(() => pending.delete(url))
+    .finally(() => {
+      pending.delete(url)
+      if (retakeAfter.delete(url)) {
+        refreshCanvasPagePreview(url)
+      }
+    })
 }
 
 function subscribe(listener: () => void): () => void {
@@ -59,13 +67,25 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener)
 }
 
-/** The page's picture (null until the first one exists); asks for a fresh one when missing or stale. */
-export function useCanvasPagePreview(url: string): string | null {
+/**
+ * The page's picture (null until the first one exists). Retaken when missing or stale, and each time the
+ * chat that owns the page finishes a turn (`turnKey` changes), since that is when artifacts get republished.
+ */
+export function useCanvasPagePreview(url: string, turnKey: string): string | null {
   const preview = useSyncExternalStore(subscribe, () => previews.get(url))
   useEffect(() => {
     if (!preview || Date.now() - preview.at > STALE_MS) {
       refreshCanvasPagePreview(url)
     }
   }, [url, preview])
+  const seenTurn = useRef(turnKey)
+  useEffect(() => {
+    if (turnKey && turnKey !== seenTurn.current) {
+      refreshCanvasPagePreview(url)
+    }
+    if (turnKey) {
+      seenTurn.current = turnKey
+    }
+  }, [url, turnKey])
   return preview?.dataUrl ?? null
 }
