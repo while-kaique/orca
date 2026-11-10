@@ -62,7 +62,17 @@ export function ExtraNode({
       style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
       title={extra.url}
       onPointerDown={(e) => e.stopPropagation()}
-      onClick={() => (confirming ? undefined : onExpand())}
+      onClick={() => {
+        if (confirming) {
+          return
+        }
+        // Artifacts are private: the mini browser has no claude.ai login, the system browser does.
+        if (extra.kind === 'artifact') {
+          void window.api.shell.openUrl(extra.url)
+        } else {
+          onExpand()
+        }
+      }}
     >
       <span className="cc-xwrap">
         <button
@@ -94,7 +104,7 @@ export function ExtraNode({
       <div className="cc-agent-line">
         {extra.kind === 'server'
           ? translate('fork.canvas.serverOn', 'servidor ligado · clique para ver')
-          : translate('fork.canvas.artifactOpen', 'artifact · clique para ver')}
+          : translate('fork.canvas.artifactOpen', 'artifact · clique para abrir no navegador')}
       </div>
       {confirming ? (
         <div className="cc-confirm cc-confirm-row" onClick={(e) => e.stopPropagation()}>
