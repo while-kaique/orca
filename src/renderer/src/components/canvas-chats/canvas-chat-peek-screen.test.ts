@@ -8,9 +8,7 @@ const diffRow = (text: string): string => `${RED_BG}${text.padEnd(COLS)}${RESET}
 
 it('keeps padded diff rows as separate lines without their colored padding', async () => {
   const data = [
-    `${'x'.repeat(COLS - 2)}
-
-`,
+    `${'x'.repeat(COLS - 2)}\r\n`,
     diffRow('      36 -  paneKey: string | null'),
     diffRow('      37 -  ptyId: string | null')
   ].join('')
