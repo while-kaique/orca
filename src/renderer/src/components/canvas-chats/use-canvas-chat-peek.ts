@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 
 export const PEEK_W = 560
+// Short: the border band already keeps a passing pointer from opening it.
+const PEEK_DELAY_MS = 90
 
 /**
  * Hover a closed card for a moment to peek at it live; the close X's zone never starts it; leaving ends it.
@@ -27,12 +29,13 @@ export function usePeek(
   return {
     on: (held ?? on) && !open,
     over: (e) => {
-      if (held !== null || (e.target as Element).closest('.cc-xwrap, .cc-confirm')) {
+      // The border is where cords are pulled from: only the card's inside opens the peek.
+      if (held !== null || (e.target as Element).closest('.cc-xwrap, .cc-confirm, .cc-edge')) {
         stop()
         return
       }
       if (!on && timer.current === undefined) {
-        timer.current = setTimeout(() => setOn(true), 220)
+        timer.current = setTimeout(() => setOn(true), PEEK_DELAY_MS)
       }
     },
     leave: () => {

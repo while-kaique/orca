@@ -221,6 +221,7 @@
   animation: cc-grow 0.16s ease-out;
 }
 .cc-peek-body {
+  overflow: hidden;
   padding: 10px 14px 12px;
   background: #0d0d10;
   margin: 6px;
@@ -673,14 +674,17 @@
 
 /* close a chat: floating X above the card on hover, confirmation inside the card */
 .cc-xwrap {
+  /* Big hover zone above the corner (stops short of the project card 80px up); the X stays 26px above the card. */
   position: absolute;
-  right: -12px;
-  top: -52px;
-  width: 68px;
-  height: 52px;
+  right: -30px;
+  top: -76px;
+  width: 104px;
+  height: 76px;
+  box-sizing: border-box;
+  padding-bottom: 12px;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-end;
 }
 .cc-xbtn {
   width: 28px;
@@ -966,6 +970,8 @@
   top: -40px;
   width: 44px;
   height: 40px;
+  padding-bottom: 0;
+  align-items: center;
   pointer-events: none;
 }
 .cc-extra:hover .cc-xwrap {

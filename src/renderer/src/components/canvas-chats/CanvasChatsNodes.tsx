@@ -257,7 +257,7 @@ export function ChatNode({
       <span
         className="cc-xwrap"
         // The X stays where the small card's corner was, so it can be clicked before the peek grows.
-        style={peek ? { right: (PEEK_W - box.w) / 2 - 12 } : undefined}
+        style={peek ? { right: (PEEK_W - box.w) / 2 - 30 } : undefined}
         onPointerDown={(e) => e.stopPropagation()}
       >
         <button

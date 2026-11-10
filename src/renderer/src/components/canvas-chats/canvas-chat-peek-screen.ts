@@ -82,7 +82,8 @@ function trimEnd(line: PeekLine): PeekLine {
   const out = line.map((span) => ({ ...span }))
   while (out.length > 0) {
     const last = out.at(-1)!
-    const trimmed = last.background ? last.text : last.text.trimEnd()
+    // Colored padding too (diff rows fill the width): it would overflow the card and fake a wrapped line.
+    const trimmed = last.text.trimEnd()
     if (trimmed) {
       last.text = trimmed
       break
@@ -135,11 +136,22 @@ const LIST_ITEM = /^\s*(?:\d+[.)]|[-•*●⎿])\s/u
 /** Claude wraps long lines itself (hard newline + indent): glue those back so the card can re-wrap them. */
 function joinClaudeWraps(lines: PeekLine[], cols: number): PeekLine[] {
   const out: PeekLine[] = []
+  // Length of the previous terminal row itself, not of what was already glued onto it.
+  let prevRowLength = 0
   for (const line of lines) {
     const text = lineText(line)
     const prev = out.at(-1)
-    const prevText = prev ? lineText(prev) : ''
-    if (prev && prevText.length >= cols - 16 && /^\s+\S/u.test(text) && !LIST_ITEM.test(text)) {
+    const rowLength = prevRowLength
+    prevRowLength = text.length
+    // Colored rows (diffs, highlights) are drawn row by row on purpose, never wrapped text.
+    const colored = line.some((span) => span.background && span.text.trim())
+    if (
+      prev &&
+      rowLength >= cols - 16 &&
+      !colored &&
+      /^\s+\S/u.test(text) &&
+      !LIST_ITEM.test(text)
+    ) {
       const [first, ...rest] = line
       out[out.length - 1] = [
         ...prev,
