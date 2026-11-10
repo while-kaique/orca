@@ -1,4 +1,5 @@
 // Runtime preflight must stay independent of ipcMain registration.
+import { ORCA_ENXUTO_SWITCHES } from '../orca-enxuto-switches'
 import type {
   PathSource,
   ShellHydrationFailureReason
@@ -274,7 +275,9 @@ async function executePreflightCheck(
   const [gitProbe, ghProbe, glabProbe] = await Promise.all([
     detectCommandRuntime('git', context),
     detectCommandRuntime('gh', context),
-    detectCommandRuntime('glab', context)
+    ORCA_ENXUTO_SWITCHES.gitLabCliProbe
+      ? detectCommandRuntime('glab', context)
+      : Promise.resolve<CommandRuntime>({ installed: false })
   ])
 
   const [ghAuthenticated, glabAuthenticated, bitbucket, azureDevOps, gitea] = await Promise.all([

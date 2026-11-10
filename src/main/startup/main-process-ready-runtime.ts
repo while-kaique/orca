@@ -1,3 +1,4 @@
+import { ORCA_ENXUTO_SWITCHES } from '../orca-enxuto-switches'
 import { app, nativeTheme } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { performance } from 'node:perf_hooks'
@@ -63,7 +64,9 @@ export async function initializeReadyRuntimeServices(): Promise<void> {
   installFirstWorkRenameHookSubscription()
   await initializeMainProcessPlugins(runtime)
   state.starNag = new StarNagService(store, state.stats!)
-  state.starNag.start()
+  if (ORCA_ENXUTO_SWITCHES.starNag) {
+    state.starNag.start()
+  }
   state.starNag.registerIpcHandlers()
   state.agentBrowserBridge = new AgentBrowserBridge(browserManager, {
     onTabsChanged: (worktreeId) => runtime.notifyMobileSessionTabsChanged(worktreeId)
@@ -91,8 +94,10 @@ export async function initializeReadyRuntimeServices(): Promise<void> {
     }
   })
   // Only Orca-managed emulator helpers belong to workspaces; external serve-sim stays independent. macOS capability gates live in CLI/runtime.
-  state.emulatorBridge = new EmulatorBridge()
-  runtime.setEmulatorBridge(state.emulatorBridge)
+  if (ORCA_ENXUTO_SWITCHES.emulator) {
+    state.emulatorBridge = new EmulatorBridge()
+    runtime.setEmulatorBridge(state.emulatorBridge)
+  }
   // Finish recorded deletes and old trash left across crashes; defer disk sweeps so they do not compete with first paint/catalog hydration.
   runAfterFirstWindowShown(() => {
     void sweepStaleWorktreeTrash(
@@ -106,9 +111,11 @@ export async function initializeReadyRuntimeServices(): Promise<void> {
   runAfterFirstWindowShown(() => {
     refreshInstalledOpenCodeStatusPlugins(store.getSettings())
   }, WORKTREE_TRASH_SWEEP_FALLBACK_MS)
-  runAfterFirstWindowShown(() => {
-    new WslUsageReporter(store, app.getPath('userData')).start()
-  }, WORKTREE_TRASH_SWEEP_FALLBACK_MS)
+  if (ORCA_ENXUTO_SWITCHES.wslUsageReporter) {
+    runAfterFirstWindowShown(() => {
+      new WslUsageReporter(store, app.getPath('userData')).start()
+    }, WORKTREE_TRASH_SWEEP_FALLBACK_MS)
+  }
   runAfterFirstWindowShown(() => {
     void pruneDesktopOrcadArtifactCache(app.getPath('userData')).catch((error) => {
       console.warn('[orcad-artifacts] Failed to bound the slot cache:', error)

@@ -2,4 +2,6 @@
 export type PcDeskGlobalSettings = {
   /** One-shot guard: Agent sleep was turned on once with a 2 h idle window. */
   pcDeskAgentSleepPresetApplied?: boolean
+  /** One-shot guard (Orca enxuto): every agent except Claude was disabled once. */
+  orcaEnxutoAgentsPresetApplied?: boolean
 }
