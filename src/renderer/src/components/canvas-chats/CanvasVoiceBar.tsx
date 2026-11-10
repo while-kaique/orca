@@ -12,7 +12,7 @@ export function CanvasVoiceBar({
   cardRef: React.RefObject<HTMLDivElement | null>
   autoStart?: boolean
 }): React.JSX.Element {
-  const { state, start, cancel } = useCanvasVoicePrompt(ptyId, autoStart)
+  const { state, start, finish } = useCanvasVoicePrompt(ptyId, autoStart)
   const active = state.kind === 'starting' || state.kind === 'listening'
 
   useEffect(() => {
@@ -21,13 +21,14 @@ export function CanvasVoiceBar({
       return
     }
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key !== 'Escape') {
-        cancel()
+      // Typing takes over from the mic: keep what was said, written but not sent.
+      if (e.key !== 'Escape' && !(e.ctrlKey && e.key.toLowerCase() === 'e')) {
+        void finish('type')
       }
     }
     card.addEventListener('keydown', onKey, true)
     return () => card.removeEventListener('keydown', onKey, true)
-  }, [cardRef, active, cancel])
+  }, [cardRef, active, finish])
 
   let icon: React.JSX.Element
   let text: string
@@ -53,6 +54,10 @@ export function CanvasVoiceBar({
       icon = <Check size={13} />
       text = `Enviado: “${state.text}”`
       break
+    case 'typed':
+      icon = <Check size={13} />
+      text = `Escrito no chat, sem enviar: “${state.text}”`
+      break
     case 'empty':
       icon = <MicOff size={13} />
       text = 'Não entendi nada. Clique no microfone para tentar de novo.'
@@ -63,7 +68,9 @@ export function CanvasVoiceBar({
       break
     default:
       icon = <MicOff size={13} />
-      text = 'Microfone desligado. Digite no terminal ou clique para falar.'
+      text = autoStart
+        ? 'Microfone desligado. Clique para falar.'
+        : 'Escuta desligada (Ctrl+E liga). Digite no terminal ou clique para falar.'
   }
 
   const level = state.kind === 'listening' ? state.level : 0
@@ -73,8 +80,8 @@ export function CanvasVoiceBar({
       <button
         type="button"
         className="cc-voice-mic"
-        title={active ? 'Parar de ouvir' : 'Falar'}
-        onClick={() => (active ? cancel() : void start())}
+        title={active ? 'Parar e deixar escrito' : 'Falar'}
+        onClick={() => (active ? void finish('type') : void start())}
         style={{ '--cc-voice-level': level } as React.CSSProperties}
       >
         {icon}

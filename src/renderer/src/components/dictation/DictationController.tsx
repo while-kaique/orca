@@ -1,3 +1,4 @@
+import { toggleCanvasListenMode } from '../canvas-chats/canvas-voice-preference'
 import { useEffect, useRef, useCallback } from 'react'
 import { useAppStore } from '@/store'
 import { useAudioCapture } from '@/hooks/use-audio-capture'
@@ -282,6 +283,11 @@ export function DictationController() {
     }
 
     const handleKeyDown = (): void => {
+      // Fork: on the chat flowchart Ctrl+E toggles its listen mode instead of plain dictation.
+      if (useAppStore.getState().activeView === 'canvas') {
+        toggleCanvasListenMode()
+        return
+      }
       if (!settings?.voice?.enabled || dictationStateRef.current === 'stopping') {
         return
       }

@@ -4,8 +4,9 @@ import { useAudioCapture } from '@/hooks/use-audio-capture'
 import { formatFinalTranscriptSegment } from '../../../../shared/dictation-transcript-spacing'
 import type { DictationMeterState } from '../../../../shared/dictation-audio-meter'
 import { terminalPreviewApiFor } from '../dashboard-popout/terminal-preview-api'
+import { setActiveCanvasVoice } from './canvas-voice-preference'
 
-// Fork: opening a chat card listens to the mic; 3 s of silence after speech transcribes and submits to that chat.
+// Fork: an open chat card listens to the mic; 3 s of silence after speech transcribes and submits to that chat.
 export const CANVAS_VOICE_SILENCE_MS = 3000
 const STOP_TIMEOUT_MS = 10_000
 const SUBMIT_DELAY_MS = 250
@@ -16,8 +17,12 @@ export type CanvasVoiceState =
   | { kind: 'listening'; heard: boolean; silenceLeftMs: number | null; level: number }
   | { kind: 'transcribing' }
   | { kind: 'sent'; text: string }
+  | { kind: 'typed'; text: string }
   | { kind: 'empty' }
   | { kind: 'unavailable'; reason: string }
+
+/** auto: silence sends and keeps listening · send: card closed by clicking outside · type: Esc, Ctrl+E or typing. */
+export type CanvasVoiceFinishMode = 'auto' | 'send' | 'type'
 
 let sessionCounter = 0
 
@@ -35,6 +40,17 @@ export function useCanvasVoicePrompt(ptyId: string | null, autoStart: boolean) {
   const transcriptRef = useRef('')
   const stoppedRef = useRef(new Map<string, () => void>())
   const finishingRef = useRef(false)
+  const mountedRef = useRef(true)
+  const autoRef = useRef(autoStart)
+  autoRef.current = autoStart
+  const pendingUnsubscribeRef = useRef<(() => void) | null>(null)
+
+  // The card may close while a finish is still transcribing; updates then have nowhere to go.
+  const show = useCallback((next: CanvasVoiceState) => {
+    if (mountedRef.current) {
+      setState(next)
+    }
+  }, [])
 
   const onMeter = useCallback((meter: DictationMeterState) => {
     const m = meterRef.current
@@ -66,19 +82,22 @@ export function useCanvasVoicePrompt(ptyId: string | null, autoStart: boolean) {
     const sessionId = sessionRef.current
     sessionRef.current = null
     finishingRef.current = false
-    setState({ kind: 'off' })
+    show({ kind: 'off' })
     if (sessionId) {
       void teardown(sessionId)
     }
-  }, [teardown])
+  }, [show, teardown])
 
   const submit = useCallback(
-    async (text: string) => {
+    async (text: string, enter: boolean) => {
       if (!ptyId) {
         return
       }
       const api = terminalPreviewApiFor(ptyId)
       await api.input(ptyId, text.replace(/\s*\n\s*/g, ' '))
+      if (!enter) {
+        return
+      }
       // A separate Enter after a pause so agent TUIs treat it as submit, not as part of a paste.
       await new Promise((r) => setTimeout(r, SUBMIT_DELAY_MS))
       await api.input(ptyId, '\r')
@@ -86,29 +105,49 @@ export function useCanvasVoicePrompt(ptyId: string | null, autoStart: boolean) {
     [ptyId]
   )
 
-  const finish = useCallback(async () => {
-    const sessionId = sessionRef.current
-    if (!sessionId || finishingRef.current) {
-      return
-    }
-    finishingRef.current = true
-    setState({ kind: 'transcribing' })
-    await teardown(sessionId)
-    if (sessionRef.current !== sessionId) {
-      return
-    }
-    sessionRef.current = null
-    finishingRef.current = false
-    const text = transcriptRef.current.trim()
-    if (!text) {
-      // A cough or click is not a prompt: keep listening instead of dropping the mic.
-      setState({ kind: 'empty' })
-      void startRef.current()
-      return
-    }
-    await submit(text)
-    setState({ kind: 'sent', text })
-  }, [submit, teardown])
+  const startRef = useRef<() => Promise<void>>(async () => undefined)
+
+  const finish = useCallback(
+    async (mode: CanvasVoiceFinishMode) => {
+      const sessionId = sessionRef.current
+      if (!sessionId || finishingRef.current) {
+        return
+      }
+      finishingRef.current = true
+      show({ kind: 'transcribing' })
+      try {
+        await teardown(sessionId)
+        if (sessionRef.current !== sessionId) {
+          return
+        }
+        sessionRef.current = null
+        const text = transcriptRef.current.trim()
+        const keepListening = mode === 'auto' && mountedRef.current && autoRef.current
+        if (!text) {
+          // A cough or click is not a prompt: keep listening instead of dropping the mic.
+          show({ kind: keepListening ? 'empty' : 'off' })
+          if (keepListening) {
+            void startRef.current()
+          }
+          return
+        }
+        await submit(text, mode !== 'type')
+        show(mode === 'type' ? { kind: 'typed', text } : { kind: 'sent', text })
+        if (keepListening) {
+          void startRef.current()
+        }
+      } finally {
+        finishingRef.current = false
+        if (!mountedRef.current) {
+          pendingUnsubscribeRef.current?.()
+          pendingUnsubscribeRef.current = null
+        }
+      }
+    },
+    [show, submit, teardown]
+  )
+  const finishRef = useRef(finish)
+  finishRef.current = finish
 
   const start = useCallback(async () => {
     if (!ptyId || sessionRef.current) {
@@ -116,11 +155,11 @@ export function useCanvasVoicePrompt(ptyId: string | null, autoStart: boolean) {
     }
     const voice = settings?.voice
     if (!voice?.enabled || !voice.sttModel) {
-      setState({ kind: 'unavailable', reason: 'Ative o ditado em Configurações → Voice.' })
+      show({ kind: 'unavailable', reason: 'Ative o ditado em Configurações → Voice.' })
       return
     }
     if (globalDictation !== 'idle') {
-      setState({ kind: 'unavailable', reason: 'O ditado do Ctrl+E está em uso.' })
+      show({ kind: 'unavailable', reason: 'O ditado comum está em uso.' })
       return
     }
     sessionCounter += 1
@@ -129,7 +168,7 @@ export function useCanvasVoicePrompt(ptyId: string | null, autoStart: boolean) {
     transcriptRef.current = ''
     finishingRef.current = false
     meterRef.current = { speaking: false, changedAt: performance.now(), heard: false, level: 0 }
-    setState({ kind: 'starting' })
+    show({ kind: 'starting' })
     try {
       await captureRef.current.start({
         bufferAudio: true,
@@ -152,18 +191,16 @@ export function useCanvasVoicePrompt(ptyId: string | null, autoStart: boolean) {
         await teardown(sessionId)
         return
       }
-      setState({ kind: 'listening', heard: false, silenceLeftMs: null, level: 0 })
+      show({ kind: 'listening', heard: false, silenceLeftMs: null, level: 0 })
     } catch (err) {
       if (sessionRef.current === sessionId) {
         sessionRef.current = null
         captureRef.current.stop()
         void window.api.speech.stopDictation(sessionId).catch(() => undefined)
-        setState({ kind: 'unavailable', reason: `Não consegui ouvir: ${String(err)}` })
+        show({ kind: 'unavailable', reason: `Não consegui ouvir: ${String(err)}` })
       }
     }
-  }, [ptyId, settings, globalDictation, cancel, teardown])
-
-  const startRef = useRef(start)
+  }, [ptyId, settings, globalDictation, cancel, teardown, show])
   startRef.current = start
 
   useEffect(() => {
@@ -180,15 +217,23 @@ export function useCanvasVoicePrompt(ptyId: string | null, autoStart: boolean) {
       if (data.sessionId === sessionRef.current) {
         sessionRef.current = null
         captureRef.current.stop()
-        setState({ kind: 'unavailable', reason: `Erro na voz: ${data.error}` })
+        show({ kind: 'unavailable', reason: `Erro na voz: ${data.error}` })
       }
     })
     return () => {
-      offFinal()
-      offStopped()
-      offError()
+      const unsubscribe = (): void => {
+        offFinal()
+        offStopped()
+        offError()
+      }
+      // A finish still in flight needs the last transcript and the stopped signal.
+      if (finishingRef.current) {
+        pendingUnsubscribeRef.current = unsubscribe
+      } else {
+        unsubscribe()
+      }
     }
-  }, [])
+  }, [show])
 
   // Silence clock: after any speech, 3 s without speaking ends the prompt.
   useEffect(() => {
@@ -199,10 +244,10 @@ export function useCanvasVoicePrompt(ptyId: string | null, autoStart: boolean) {
       const m = meterRef.current
       const silentFor = m.speaking ? 0 : performance.now() - m.changedAt
       if (m.heard && !m.speaking && silentFor >= CANVAS_VOICE_SILENCE_MS) {
-        void finish()
+        void finish('auto')
         return
       }
-      setState({
+      show({
         kind: 'listening',
         heard: m.heard,
         silenceLeftMs: m.heard && !m.speaking ? CANVAS_VOICE_SILENCE_MS - silentFor : null,
@@ -210,19 +255,27 @@ export function useCanvasVoicePrompt(ptyId: string | null, autoStart: boolean) {
       })
     }, 100)
     return () => clearInterval(timer)
-  }, [state.kind, finish])
+  }, [state.kind, finish, show])
 
   useEffect(() => {
     if (autoStart && ptyId) {
       void start()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, ptyId])
+
+  useEffect(() => {
+    mountedRef.current = true
+    setActiveCanvasVoice((mode) => finishRef.current(mode))
     return () => {
-      if (sessionRef.current) {
+      mountedRef.current = false
+      setActiveCanvasVoice(null)
+      if (sessionRef.current && !finishingRef.current) {
         cancel()
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoStart, ptyId])
+  }, [])
 
-  return { state, start, cancel }
+  return { state, start, cancel, finish }
 }

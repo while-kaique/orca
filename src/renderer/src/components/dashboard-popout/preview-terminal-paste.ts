@@ -21,11 +21,15 @@ export function createPreviewClipboardPaster(deps: {
   isDisposed: () => boolean
 }): (activeElementAtDispatch: Element | null, source: PreviewTerminalPasteSource) => Promise<void> {
   return async (activeElementAtDispatch, source) => {
-    let text: string
+    let text = ''
     try {
       text = await window.api.ui.readClipboardText({ maxBytes: TERMINAL_PASTE_MAX_BYTES })
     } catch {
-      return
+      // Image-only clipboards can reject text reads; the image path below still applies.
+    }
+    if (!text) {
+      // Fork: like the main terminal, a copied image becomes a temp file whose path the agent attaches.
+      text = (await window.api.ui.saveClipboardImageAsTempFile().catch(() => null)) ?? ''
     }
     const pasteTerminal = deps.getTerminal()
     if (!pasteTerminal || !text) {

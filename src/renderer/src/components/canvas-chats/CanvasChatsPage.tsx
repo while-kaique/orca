@@ -11,7 +11,8 @@ import {
   type CanvasBox,
   type CanvasChat
 } from './canvas-chats-layout'
-import { AgentNode, ChatNode, OPEN_CARD, ProjectNode, STATUS_LABEL } from './CanvasChatsNodes'
+import { AgentNode, ChatNode, ProjectNode, STATUS_LABEL } from './CanvasChatsNodes'
+import { finishActiveCanvasVoice, useCanvasListenMode } from './canvas-voice-preference'
 import './canvas-chats.css'
 
 type View = { x: number; y: number; s: number }
@@ -88,13 +89,35 @@ export default function CanvasChatsPage(): React.JSX.Element {
     }
   }, [layout, viewport])
 
-  const closeCard = useCallback(() => {
-    setOpenKey(null)
-    if (savedViewRef.current) {
-      animateTo(savedViewRef.current)
-      savedViewRef.current = null
+  const listenMode = useCanvasListenMode()
+  // Big enough that the chat's terminal fits without spilling out of the card.
+  const openSize = {
+    w: Math.round(Math.min(1100, Math.max(640, viewport.w - 160))),
+    h: Math.round(Math.min(780, Math.max(460, viewport.h - 140)))
+  }
+  // The live terminal mounts after the zoom settles, so it measures its box at real size.
+  const [terminalReady, setTerminalReady] = useState(false)
+  useEffect(() => {
+    setTerminalReady(false)
+    if (!openKey) {
+      return
     }
-  }, [animateTo])
+    const timer = setTimeout(() => setTerminalReady(true), 450)
+    return () => clearTimeout(timer)
+  }, [openKey])
+
+  /** Esc/✕ keep what the mic heard written in the chat; clicking outside sends it right away. */
+  const closeCard = useCallback(
+    (voice: 'send' | 'type' = 'type') => {
+      void finishActiveCanvasVoice(voice)
+      setOpenKey(null)
+      if (savedViewRef.current) {
+        animateTo(savedViewRef.current)
+        savedViewRef.current = null
+      }
+    },
+    [animateTo]
+  )
 
   const openCard = useCallback(
     (chat: CanvasChat) => {
@@ -104,6 +127,8 @@ export default function CanvasChatsPage(): React.JSX.Element {
       }
       if (!openKey) {
         savedViewRef.current = view
+      } else if (openKey !== chat.key) {
+        void finishActiveCanvasVoice('send')
       }
       setOpenKey(chat.key)
       // Opening a chat counts as seeing it and the agents it finished (their results land in the chat).
@@ -119,20 +144,23 @@ export default function CanvasChatsPage(): React.JSX.Element {
       animateTo({
         s: 1,
         x: viewport.w / 2 - (box.x + box.w / 2),
-        y: viewport.h / 2 - (box.y + OPEN_CARD.h / 2)
+        y: viewport.h / 2 - (box.y + openSize.h / 2)
       })
     },
-    [layout, openKey, view, viewport, animateTo]
+    [layout, openKey, view, viewport, animateTo, openSize.h]
   )
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape' && openKey) {
-        closeCard()
+        // Capture phase: Esc must not reach the chat's terminal (it would interrupt the agent).
+        e.preventDefault()
+        e.stopPropagation()
+        closeCard('type')
       }
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
   }, [openKey, closeCard])
 
   const reorganize = (): void => {
@@ -164,7 +192,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
       if (!moved && openKey) {
-        closeCard()
+        closeCard('send')
       }
     }
     window.addEventListener('pointermove', move)
@@ -236,7 +264,9 @@ export default function CanvasChatsPage(): React.JSX.Element {
                       box={cbox}
                       open={openKey === chat.key}
                       onOpen={() => openCard(chat)}
-                      onClose={closeCard}
+                      onClose={() => closeCard('type')}
+                      openSize={openSize}
+                      terminalReady={terminalReady}
                     />
                     {chat.agents.map((agent) => {
                       const abox = layout.boxes[agent.id]
@@ -262,6 +292,15 @@ export default function CanvasChatsPage(): React.JSX.Element {
           </span>
         ))}
       </div>
+      {listenMode ? (
+        <div className="cc-listen-chip">
+          <span className="cc-listen-dot" />
+          {translate(
+            'fork.canvas.listenOn',
+            'Escuta ligada: abrir um chat já me ouve · Ctrl+E desliga'
+          )}
+        </div>
+      ) : null}
       <button className="cc-tidy" onPointerDown={(e) => e.stopPropagation()} onClick={reorganize}>
         <RotateCcw size={13} />
         {translate('fork.canvas.reorganize', 'Reorganizar')}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bot, ExternalLink, Plus, Volume2, VolumeX, X } from 'lucide-react'
+import { Bot, ExternalLink, Plus, X } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { revealTerminalPane } from '@/lib/reveal-terminal-pane'
@@ -8,11 +8,10 @@ import { terminalPreviewApiFor } from '../dashboard-popout/terminal-preview-api'
 import { CanvasVoiceBar } from './CanvasVoiceBar'
 import { useCanvasChatSummary } from './canvas-chats-summary'
 import { renderCanvasMarkdown } from './canvas-chats-markdown'
-import { toggleCanvasAutoVoice, useCanvasAutoVoice } from './canvas-voice-preference'
+import { useCanvasListenMode } from './canvas-voice-preference'
+import { useCanvasChatStatus } from './canvas-chats-data'
 import { openPcDeskChatInRepo } from '../sidebar/pc-desk-switcher/launch-pc-desk-chat'
 import type { CanvasAgent, CanvasBox, CanvasChat, CanvasProject } from './canvas-chats-layout'
-
-export const OPEN_CARD = { w: 640, h: 460 }
 
 export const STATUS_LABEL: Record<CanvasChat['status'], string> = {
   idle: translate('fork.canvas.statusIdle', 'parado'),
@@ -31,7 +30,6 @@ export function ProjectNode({
 }): React.JSX.Element {
   const count = (s: CanvasChat['status']): number =>
     project.chats.filter((c) => c.status === s).length
-  const autoVoice = useCanvasAutoVoice(project.id)
   const addChat = (): void => {
     const repo = useAppStore.getState().repos.find((r) => r.id === project.id)
     if (!repo) {
@@ -53,24 +51,6 @@ export function ProjectNode({
           onClick={addChat}
         >
           <Plus size={14} />
-        </button>
-        <button
-          className={`cc-head-button${autoVoice ? ' cc-on' : ''}`}
-          aria-pressed={autoVoice}
-          title={
-            autoVoice
-              ? translate(
-                  'fork.canvas.voiceAutoOn',
-                  'Microfone automático ligado (clique para só digitar)'
-                )
-              : translate(
-                  'fork.canvas.voiceAutoOff',
-                  'Microfone automático desligado (clique para ligar)'
-                )
-          }
-          onClick={() => toggleCanvasAutoVoice(project.id)}
-        >
-          {autoVoice ? <Volume2 size={14} /> : <VolumeX size={14} />}
         </button>
       </div>
       <div className="cc-project-name">{project.name}</div>
@@ -130,17 +110,22 @@ export function ChatNode({
   box,
   open,
   onOpen,
-  onClose
+  onClose,
+  openSize,
+  terminalReady
 }: {
   chat: CanvasChat
   box: CanvasBox
   open: boolean
   onOpen: () => void
   onClose: () => void
+  openSize: { w: number; h: number }
+  terminalReady: boolean
 }): React.JSX.Element {
   const cardRef = useRef<HTMLDivElement>(null)
-  const autoVoice = useCanvasAutoVoice(chat.projectId)
-  const tail = useTerminalTail(chat.lines.length === 0 && !open ? chat.ptyId : null, chat.status)
+  const status = useCanvasChatStatus(chat)
+  const autoVoice = useCanvasListenMode()
+  const tail = useTerminalTail(chat.lines.length === 0 && !open ? chat.ptyId : null, status)
   const lines =
     chat.lines.length > 0 ? chat.lines : tail.map((text) => ({ role: 'agent' as const, text }))
   const replyText = lines
@@ -148,7 +133,7 @@ export function ChatNode({
     .map((line) => line.text)
     .join('\n')
   // Haiku re-summarizes only after the chat stops working, so the card doesn't churn mid-turn.
-  const summary = useCanvasChatSummary(chat.tabId, chat.cwd, replyText, chat.status !== 'working')
+  const summary = useCanvasChatSummary(chat.tabId, chat.cwd, replyText, status !== 'working')
   const lastPrompt = chat.lines.find((line) => line.role === 'user')
   // Wrapped terminal lines read as one paragraph; bullets and tool markers are noise on a card.
   const preview = replyText
@@ -170,17 +155,17 @@ export function ChatNode({
   }
   const style = open
     ? {
-        left: box.x + box.w / 2 - OPEN_CARD.w / 2,
+        left: box.x + box.w / 2 - openSize.w / 2,
         top: box.y,
-        width: OPEN_CARD.w,
-        height: OPEN_CARD.h
+        width: openSize.w,
+        height: openSize.h
       }
     : { left: box.x, top: box.y, width: box.w, height: box.h }
   return (
     <div
       ref={cardRef}
       className={`cc-node cc-chat${open ? ' cc-open' : ''}`}
-      data-status={chat.status}
+      data-status={status}
       style={style}
       onClick={open ? undefined : onOpen}
       onPointerDown={(e) => e.stopPropagation()}
@@ -189,8 +174,8 @@ export function ChatNode({
         <span className="cc-dot" />
         <b>{chat.title}</b>
         <span className="cc-status">
-          {chat.status === 'working' ? <span className="cc-spin" /> : null}
-          {STATUS_LABEL[chat.status]}
+          {status === 'working' ? <span className="cc-spin" /> : null}
+          {STATUS_LABEL[status]}
         </span>
         {open ? (
           <>
@@ -213,12 +198,16 @@ export function ChatNode({
       </div>
       {open && chat.ptyId ? (
         <>
-          <AgentTerminalPreview
-            ptyId={chat.ptyId}
-            terminalInput={null}
-            className="cc-terminal"
-            onRequestClose={onClose}
-          />
+          {terminalReady ? (
+            <AgentTerminalPreview
+              ptyId={chat.ptyId}
+              terminalInput={null}
+              className="cc-terminal"
+              onRequestClose={onClose}
+            />
+          ) : (
+            <div className="cc-terminal" />
+          )}
           <CanvasVoiceBar ptyId={chat.ptyId} cardRef={cardRef} autoStart={autoVoice} />
         </>
       ) : (

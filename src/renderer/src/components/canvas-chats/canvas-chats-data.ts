@@ -8,6 +8,7 @@ import { parseAgentStatusPaneIdentity } from '../../../../shared/agent-status/id
 import type { AgentStatusEntry } from '../../../../shared/agent-status/contracts/agent-status-types'
 import { selectPcDeskChatAgentActivityFlags } from '../sidebar/pc-desk-switcher/pc-desk-chat-agent-activity'
 import { selectWorktreeHasUnseenDone } from '../sidebar/pc-desk-switcher/worktree-unseen-done'
+import { useWorktreeActivityStatus } from '../sidebar/workspace-card/activity/use-worktree-activity-status'
 import type {
   CanvasAgent,
   CanvasChat,
@@ -144,4 +145,20 @@ export function useCanvasProjects(): CanvasProject[] {
     }))
   )
   return useMemo(() => buildCanvasProjects(inputs), [inputs])
+}
+
+/** The card's border follows the exact same rule as the chat's dot in the sidebar. */
+export function useCanvasChatStatus(chat: CanvasChat): CanvasChatStatus {
+  const sidebarStatus = useWorktreeActivityStatus(chat.worktreeId, chat.tabId)
+  const unseen = useAppStore((s) => selectWorktreeHasUnseenDone(s, chat.worktreeId, chat.tabId))
+  if (chat.agents.some((agent) => agent.blocked) || sidebarStatus === 'permission') {
+    return 'waiting'
+  }
+  if (sidebarStatus === 'working' || sidebarStatus === 'monitoring') {
+    return 'working'
+  }
+  if (sidebarStatus === 'done' || sidebarStatus === 'failed' || sidebarStatus === 'interrupted') {
+    return unseen ? 'unseen' : 'seen'
+  }
+  return 'idle'
 }
