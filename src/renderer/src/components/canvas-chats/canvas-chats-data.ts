@@ -16,6 +16,70 @@ import type {
   CanvasProject
 } from './canvas-chats-layout'
 import { DEFAULT_REPO_BADGE_COLOR, REPO_COLORS } from '../../../../shared/repo-badge-color'
+import { getWorkspacePortsByWorktreeId } from '@/lib/workspace-ports/workspace-port-groups'
+import { browserUrlForPort } from '@/lib/workspace-ports/workspace-port-urls'
+import type { WorkspacePort } from '../../../../shared/workspace-ports'
+import {
+  artifactLinksForTab,
+  portsMentionedByTab,
+  useCanvasArtifactLinks,
+  type CanvasArtifactLinks
+} from './canvas-chat-artifacts'
+import type { CanvasExtra } from './canvas-chats-layout'
+
+/** Servers whose URL this chat's terminal printed, plus the claude.ai artifacts it showed. */
+function chatExtras(
+  state: CanvasInputs,
+  ports: readonly WorkspacePort[],
+  tabId: string,
+  ptyIds: readonly string[],
+  allPorts: readonly WorkspacePort[],
+  owner: { repoId: string; worktreeId: string }
+): CanvasExtra[] {
+  const extras: CanvasExtra[] = []
+  const mentioned = portsMentionedByTab(state.artifactLinks, tabId)
+  const seen = new Set<number>()
+  const push = (port: WorkspacePort, repoId: string, worktreeId: string): void => {
+    if (seen.has(port.port)) {
+      return
+    }
+    seen.add(port.port)
+    const url = browserUrlForPort(port)
+    extras.push({
+      id: `${tabId}::server:${port.port}`,
+      kind: 'server',
+      label: url.replace(/^https?:\/\//u, ''),
+      url,
+      ...(port.pid ? { server: { repoId, worktreeId, pid: port.pid, port: port.port } } : {})
+    })
+  }
+  for (const port of ports) {
+    // Tied to this chat when its terminal printed the URL, or the conversation mentions the port.
+    if (port.kind !== 'workspace') {
+      continue
+    }
+    const printedHere =
+      port.advertisedByPtyId !== undefined && ptyIds.includes(port.advertisedByPtyId)
+    if (printedHere || mentioned.includes(port.port)) {
+      push(port, port.owner.repoId, port.owner.worktreeId)
+    }
+  }
+  // Folder workspaces (e.g. Desktop\Projetos) get no port owner from Orca: match mentioned ports machine-wide.
+  for (const port of allPorts) {
+    if (mentioned.includes(port.port) && port.kind !== 'container') {
+      push(port, owner.repoId, owner.worktreeId)
+    }
+  }
+  for (const url of artifactLinksForTab(state.artifactLinks, tabId)) {
+    extras.push({
+      id: `${tabId}::artifact:${url}`,
+      kind: 'artifact',
+      label: `artifact ${url.split('/').pop()?.slice(0, 10) ?? ''}`,
+      url
+    })
+  }
+  return extras
+}
 
 const AUTO_COLORS = REPO_COLORS.filter((color) => color !== DEFAULT_REPO_BADGE_COLOR)
 
@@ -47,7 +111,8 @@ type CanvasInputs = Pick<
   | 'retainedAgentsByPaneKey'
   | 'acknowledgedAgentsByPaneKey'
   | 'migrationUnsupportedByPtyId'
-> & { worktreesByRepo: AppState['worktreesByRepo'] }
+  | 'workspacePortScan'
+> & { worktreesByRepo: AppState['worktreesByRepo']; artifactLinks: CanvasArtifactLinks }
 
 function chatStatus(state: CanvasInputs, worktreeId: string, tabId: string): CanvasChatStatus {
   const flags = selectPcDeskChatAgentActivityFlags(state as never, worktreeId, tabId)
@@ -99,6 +164,7 @@ function subagentStatus(state: string): { status: CanvasChatStatus; blocked: boo
 /** Same chats as the PC-desk sidebar: every open chat tab of every workspace, grouped by project. */
 export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
   const projects: CanvasProject[] = []
+  const portsByWorktree = getWorkspacePortsByWorktreeId(state.workspacePortScan?.result)
   for (const repo of state.repos) {
     const chats: CanvasChat[] = []
     for (const worktree of state.worktreesByRepo[repo.id] ?? []) {
@@ -140,6 +206,14 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
           status: agents.some((a) => a.blocked) ? 'waiting' : status,
           lines,
           agents,
+          extras: chatExtras(
+            state,
+            portsByWorktree.get(worktree.id) ?? [],
+            tab.id,
+            state.ptyIdsByTabId[tab.id] ?? (tab.ptyId ? [tab.ptyId] : []),
+            state.workspacePortScan?.result?.ports ?? [],
+            { repoId: repo.id, worktreeId: worktree.id }
+          ),
           startedAt: entry?.stateStartedAt ?? 0
         })
       }
@@ -169,10 +243,12 @@ export function useCanvasProjects(): CanvasProject[] {
       agentStatusByPaneKey: s.agentStatusByPaneKey,
       retainedAgentsByPaneKey: s.retainedAgentsByPaneKey,
       acknowledgedAgentsByPaneKey: s.acknowledgedAgentsByPaneKey,
-      migrationUnsupportedByPtyId: s.migrationUnsupportedByPtyId
+      migrationUnsupportedByPtyId: s.migrationUnsupportedByPtyId,
+      workspacePortScan: s.workspacePortScan
     }))
   )
-  return useMemo(() => buildCanvasProjects(inputs), [inputs])
+  const artifactLinks = useCanvasArtifactLinks()
+  return useMemo(() => buildCanvasProjects({ ...inputs, artifactLinks }), [inputs, artifactLinks])
 }
 
 /** The card's border follows the exact same rule as the chat's dot in the sidebar. */

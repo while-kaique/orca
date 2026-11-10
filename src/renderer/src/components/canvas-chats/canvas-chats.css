@@ -897,3 +897,102 @@
 .cc-board .cc-chat-head {
   box-shadow: inset 0 2px 0 var(--cc-pc, transparent);
 }
+
+/* chat extras: localhost servers and claude.ai artifacts as pills under the chat */
+.cc-extra {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 0 12px 0 7px;
+  border-radius: 16px;
+  border: 1.5px solid color-mix(in srgb, var(--cc-pc, #5d5d66) 55%, #3a3a42);
+  background: #121215;
+  box-shadow: 0 6px 16px #0007;
+  cursor: pointer;
+  --k: var(--cc-pc, #8f8f9a);
+}
+.cc-extra:hover {
+  border-color: var(--cc-pc, #8f8f9a);
+}
+.cc-extra:hover .cc-xbtn {
+  opacity: 1;
+  transform: none;
+}
+.cc-extra:hover .cc-xwrap {
+  pointer-events: auto;
+}
+.cc-extra .cc-agent-head b {
+  font:
+    600 calc(12.5px * var(--cc-inv)) / 1.15 ui-monospace,
+    Consolas,
+    monospace;
+  color: #e6e6ee;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cc-extra-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: var(--cc-pc, #8f8f9a);
+  background: color-mix(in srgb, var(--cc-pc, #8f8f9a) 20%, #1e1e23);
+}
+.cc-confirm-row {
+  flex-direction: row;
+  gap: 10px;
+  padding: 6px 12px;
+}
+.cc-confirm-row b {
+  font-size: 12.5px;
+}
+.cc-confirm-row div {
+  margin-top: 0;
+}
+
+/* mini browser: outside the zoomed board (webviews don't paint under transforms) */
+.cc-web {
+  position: absolute;
+  z-index: 70;
+  left: 6%;
+  top: 7%;
+  width: 88%;
+  height: 80%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #141417;
+  border: 1.5px solid #3a3a42;
+  box-shadow: 0 30px 90px #000d;
+}
+.cc-web-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 8px 12px;
+  background: #1d1d22;
+  border-bottom: 1px solid #2b2b31;
+}
+.cc-web-head b {
+  font:
+    600 13px ui-monospace,
+    Consolas,
+    monospace;
+  color: #ececf3;
+  margin-right: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cc-web-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  background: #fff;
+}

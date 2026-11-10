@@ -11,6 +11,7 @@ import { useCanvasChatSummary } from './canvas-chats-summary'
 import { renderCanvasMarkdown } from './canvas-chats-markdown'
 import { useCanvasListenMode } from './canvas-voice-preference'
 import { useCanvasChatStatus } from './canvas-chats-data'
+import { noteCanvasChatArtifacts } from './canvas-chat-artifacts'
 import { openPcDeskChatInRepo } from '../sidebar/pc-desk-switcher/launch-pc-desk-chat'
 import { closePcDeskChat } from '../sidebar/pc-desk-switcher/close-pc-desk-project'
 import type { CanvasAgent, CanvasBox, CanvasChat, CanvasProject } from './canvas-chats-layout'
@@ -169,7 +170,7 @@ export function ChatNode({
   const status = useCanvasChatStatus(chat)
   const [confirmingClose, setConfirmingClose] = useState(false)
   const autoVoice = useCanvasListenMode()
-  const tail = useTerminalTail(chat.lines.length === 0 && !open ? chat.ptyId : null, status)
+  const tail = useTerminalTail(open ? null : chat.ptyId, status, chat.tabId)
   const lines =
     chat.lines.length > 0 ? chat.lines : tail.map((text) => ({ role: 'agent' as const, text }))
   const replyText = lines
@@ -381,7 +382,7 @@ function conversationLines(text: string): string[] {
 }
 
 /** Last readable lines of the chat's terminal, for chats with no agent summary yet (e.g. right after a restart). */
-function useTerminalTail(ptyId: string | null, refreshKey: string): string[] {
+function useTerminalTail(ptyId: string | null, refreshKey: string, tabId: string): string[] {
   const [lines, setLines] = useState<string[]>([])
   useEffect(() => {
     if (!ptyId) {
@@ -390,9 +391,10 @@ function useTerminalTail(ptyId: string | null, refreshKey: string): string[] {
     let alive = true
     const api = terminalPreviewApiFor(ptyId)
     void api
-      .connect(ptyId, { scrollbackRows: 60 })
+      .connect(ptyId, { scrollbackRows: 2000 })
       .then((result) => {
         const raw = `${result.snapshot?.scrollbackAnsi ?? ''}\n${result.snapshot?.data ?? ''}`
+        noteCanvasChatArtifacts(tabId, raw)
         const text = conversationLines(stripTerminalCodes(raw))
         if (alive) {
           setLines(text.slice(-6))
@@ -403,6 +405,6 @@ function useTerminalTail(ptyId: string | null, refreshKey: string): string[] {
     return () => {
       alive = false
     }
-  }, [ptyId, refreshKey])
+  }, [ptyId, refreshKey, tabId])
   return lines
 }

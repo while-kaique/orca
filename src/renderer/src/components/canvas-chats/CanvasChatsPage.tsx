@@ -10,7 +10,8 @@ import {
   elbowPath,
   layoutCanvas,
   type CanvasBox,
-  type CanvasChat
+  type CanvasChat,
+  type CanvasExtra
 } from './canvas-chats-layout'
 import { AgentNode, ChatNode, ProjectNode, STATUS_LABEL } from './CanvasChatsNodes'
 import { finishActiveCanvasVoice, useCanvasListenMode } from './canvas-voice-preference'
@@ -22,6 +23,7 @@ import {
   useCanvasOffsets
 } from './canvas-chats-offsets'
 import { useCanvasCordLayer } from './use-canvas-cord-layer'
+import { CanvasWebPreview, ExtraNode } from './CanvasChatExtras'
 import './canvas-chats.css'
 
 type View = { x: number; y: number; s: number }
@@ -44,6 +46,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
   const [viewport, setViewport] = useState({ w: 0, h: 0 })
   const [view, setView] = useState<View>({ x: 0, y: 0, s: 1 })
   const [openKey, setOpenKey] = useState<string | null>(null)
+  const [expandedExtra, setExpandedExtra] = useState<CanvasExtra | null>(null)
   const savedViewRef = useRef<View | null>(null)
   const fittedRef = useRef(false)
   const animRef = useRef(0)
@@ -62,7 +65,10 @@ export default function CanvasChatsPage(): React.JSX.Element {
   // Layout is recomputed on demand (first load / Reorganizar) so cards don't jump while you look at them.
   const [layoutVersion, setLayoutVersion] = useState(0)
   const structureKey = projects
-    .map((p) => `${p.id}:${p.chats.map((c) => `${c.key}/${c.agents.length}`).join(',')}`)
+    .map(
+      (p) =>
+        `${p.id}:${p.chats.map((c) => `${c.key}/${c.agents.length}/${c.extras.length}`).join(',')}`
+    )
     .join('|')
   const layout = useMemo(
     () => layoutCanvas(projects, viewport),
@@ -226,6 +232,9 @@ export default function CanvasChatsPage(): React.JSX.Element {
     if (e.button !== 0) {
       return
     }
+    if (expandedExtra) {
+      setExpandedExtra(null)
+    }
     const sx = e.clientX
     const sy = e.clientY
     const origin = view
@@ -273,7 +282,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
       if (pbox && cbox) {
         lines.push(<path key={`b-${chat.key}`} className="cc-line-tree" d={busPath(pbox, cbox)} />)
       }
-      for (const agent of chat.agents) {
+      for (const agent of [...chat.agents, ...chat.extras]) {
         const abox = boxes[agent.id]
         if (cbox && abox) {
           lines.push(
@@ -356,6 +365,17 @@ export default function CanvasChatsPage(): React.JSX.Element {
                       const abox = boxes[agent.id]
                       return abox ? <AgentNode key={agent.id} agent={agent} box={abox} /> : null
                     })}
+                    {chat.extras.map((extra) => {
+                      const xbox = boxes[extra.id]
+                      return xbox ? (
+                        <ExtraNode
+                          key={extra.id}
+                          extra={extra}
+                          box={xbox}
+                          onExpand={() => setExpandedExtra(extra)}
+                        />
+                      ) : null
+                    })}
                   </div>
                 ) : null
               })}
@@ -363,6 +383,9 @@ export default function CanvasChatsPage(): React.JSX.Element {
           )
         })}
       </div>
+      {expandedExtra ? (
+        <CanvasWebPreview extra={expandedExtra} onClose={() => setExpandedExtra(null)} />
+      ) : null}
       {projects.length === 0 ? (
         <div className="cc-empty">
           {translate('fork.canvas.empty', 'Nenhum chat aberto ainda.')}

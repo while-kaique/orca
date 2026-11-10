@@ -11,6 +11,15 @@ export type CanvasAgent = {
   card: null
 }
 
+export type CanvasExtra = {
+  id: string
+  kind: 'server' | 'artifact'
+  label: string
+  url: string
+  /** Set for servers: what the stop button needs. */
+  server?: { repoId: string; pid: number; port: number; worktreeId: string }
+}
+
 export type CanvasChat = {
   /** The chat's tab id (same id the sidebar row and terminal view use). */
   key: string
@@ -28,6 +37,8 @@ export type CanvasChat = {
   status: CanvasChatStatus
   lines: { role: 'user' | 'agent' | 'ask'; text: string }[]
   agents: CanvasAgent[]
+  /** Localhost servers this chat's terminal started, and claude.ai artifacts it printed. */
+  extras: CanvasExtra[]
 }
 
 export type CanvasProject = {
@@ -70,7 +81,7 @@ export function layoutCanvas(
   const { project: P, chat: C, agent: A } = CANVAS_SIZES
   const blocks: Block[] = projects.map((project) => {
     const n = project.chats.length
-    const maxAgents = Math.max(0, ...project.chats.map((c) => c.agents.length))
+    const maxAgents = Math.max(0, ...project.chats.map((c) => c.agents.length + c.extras.length))
     return {
       project,
       w: Math.max(P.w, n * C.w + Math.max(0, n - 1) * COLUMN_GAP),
@@ -115,8 +126,9 @@ export function layoutCanvas(
         const cx = chatsX + i * (C.w + COLUMN_GAP)
         const cy = y + P.h + PROJECT_TO_CHATS
         boxes[chat.key] = { x: cx, y: cy, w: C.w, h: C.h }
-        chat.agents.forEach((agent, j) => {
-          boxes[agent.id] = {
+        const stacked = [...chat.agents.map((a) => a.id), ...chat.extras.map((x) => x.id)]
+        stacked.forEach((id, j) => {
+          boxes[id] = {
             x: cx + 40,
             y: cy + C.h + AGENT_TOP_GAP + j * (A.h + AGENT_GAP),
             w: A.w,
