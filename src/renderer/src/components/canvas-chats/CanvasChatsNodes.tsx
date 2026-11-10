@@ -5,13 +5,12 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { revealTerminalPane } from '@/lib/reveal-terminal-pane'
 import { AgentTerminalPreview } from '../dashboard-popout/AgentTerminalPreview'
-import { terminalPreviewApiFor } from '../dashboard-popout/terminal-preview-api'
+import { useTerminalTail } from './canvas-chat-terminal-tail'
 import { CanvasVoiceBar } from './CanvasVoiceBar'
 import { useCanvasChatSummary } from './canvas-chats-summary'
 import { renderCanvasMarkdown } from './canvas-chats-markdown'
 import { useCanvasListenMode } from './canvas-voice-preference'
 import { useCanvasChatStatus } from './canvas-chats-data'
-import { noteCanvasChatArtifacts } from './canvas-chat-artifacts'
 import { openPcDeskChatInRepo } from '../sidebar/pc-desk-switcher/launch-pc-desk-chat'
 import { closePcDeskChat } from '../sidebar/pc-desk-switcher/close-pc-desk-project'
 import type { CanvasAgent, CanvasBox, CanvasChat, CanvasProject } from './canvas-chats-layout'
@@ -170,9 +169,12 @@ export function ChatNode({
   const status = useCanvasChatStatus(chat)
   const [confirmingClose, setConfirmingClose] = useState(false)
   const autoVoice = useCanvasListenMode()
-  const tail = useTerminalTail(open ? null : chat.ptyId, status, chat.tabId)
+  const peeking = usePeek(open)
+  const tail = useTerminalTail(open ? null : chat.ptyId, status, chat.tabId, peeking.on)
   const lines =
-    chat.lines.length > 0 ? chat.lines : tail.map((text) => ({ role: 'agent' as const, text }))
+    chat.lines.length > 0
+      ? chat.lines
+      : tail.clean.map((text) => ({ role: 'agent' as const, text }))
   const replyText = lines
     .filter((line) => line.role !== 'user')
     .map((line) => line.text)
@@ -205,6 +207,7 @@ export function ChatNode({
       useAppStore.getState().setActiveView('terminal')
     }
   }
+  const peek = peeking.on && chat.ptyId !== null && tail.peek.length > 0
   const style = open
     ? {
         left: box.x + box.w / 2 - openSize.w / 2,
@@ -212,15 +215,19 @@ export function ChatNode({
         width: openSize.w,
         height: openSize.h
       }
-    : { left: box.x, top: box.y, width: box.w, height: box.h }
+    : peek
+      ? { left: box.x + box.w / 2 - PEEK_W / 2, top: box.y, width: PEEK_W, minHeight: box.h }
+      : { left: box.x, top: box.y, width: box.w, height: box.h }
   return (
     <div
       ref={cardRef}
-      className={`cc-node cc-chat${open ? ' cc-open' : ''}${linkRole ? ` cc-link-${linkRole}` : ''}`}
+      className={`cc-node cc-chat${open ? ' cc-open' : ''}${peek ? ' cc-peek' : ''}${linkRole ? ` cc-link-${linkRole}` : ''}`}
       data-chat-key={chat.key}
       data-status={status}
       style={style}
       onClick={open ? undefined : onOpen}
+      onPointerEnter={peeking.enter}
+      onPointerLeave={peeking.leave}
       onPointerDown={(e) => (open ? e.stopPropagation() : onDragStart(e))}
     >
       {open
@@ -313,6 +320,14 @@ export function ChatNode({
           )}
           <CanvasVoiceBar ptyId={chat.ptyId} cardRef={cardRef} autoStart={autoVoice} />
         </>
+      ) : peek ? (
+        <div className="cc-peek-body">
+          {tail.peek.map((line, i) => (
+            <div key={i} className="cc-peek-line">
+              {line}
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="cc-feed cc-feed-clean">
           {lastPrompt ? <div className="cc-prompt">› {lastPrompt.text}</div> : null}
@@ -331,80 +346,22 @@ export function ChatNode({
   )
 }
 
-/** Drops terminal escape codes (colors, cursor moves, window titles) so only the text remains. */
-function stripTerminalCodes(raw: string): string {
-  let out = ''
-  for (let i = 0; i < raw.length; i++) {
-    const code = raw.charCodeAt(i)
-    if (code !== 27) {
-      out += raw[i]
-      continue
-    }
-    const next = raw[i + 1]
-    if (next === '[') {
-      const start = i + 2
-      i = start
-      while (i < raw.length && (raw.charCodeAt(i) < 64 || raw.charCodeAt(i) > 126)) {
-        i++
-      }
-      // TUIs move the cursor right instead of printing spaces; keep those gaps as real spaces.
-      if (raw[i] === 'C') {
-        out += ' '.repeat(Math.min(200, Number.parseInt(raw.slice(start, i), 10) || 1))
-      }
-    } else if (next === ']') {
-      i += 2
-      while (i < raw.length && raw.charCodeAt(i) !== 7 && raw.charCodeAt(i) !== 27) {
-        i++
-      }
-      if (raw.charCodeAt(i) === 27) {
-        i++
-      }
-    } else {
-      i++
+const PEEK_W = 560
+
+/** Hover a closed card for a moment to peek at it live; leaving ends it at once. */
+function usePeek(open: boolean): { on: boolean; enter: () => void; leave: () => void } {
+  const [on, setOn] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(timer.current), [])
+  return {
+    on: on && !open,
+    enter: () => {
+      clearTimeout(timer.current)
+      timer.current = setTimeout(() => setOn(true), 220)
+    },
+    leave: () => {
+      clearTimeout(timer.current)
+      setOn(false)
     }
   }
-  return out
-}
-
-const FRAME_ONLY = /^[\s─━│┃╭╮╰╯┌┐└┘├┤┬┴┼═║>›?•·]*$/u
-const RULE_LINE = /─{10,}/u
-const AGENT_UI_LINE =
-  /esc to interrupt|shift\+tab to cycle|\? for shortcuts|bypass permissions|auto mode on|\d+(\.\d+)?k context|^[✻✶✢✳·*]\s*\w+ for \d|^[⎿└L]\s|^●?\s*(Read|Write|Edit|Bash|Grep|Glob|Update)\(|\(\d+ lines?\)|Compacted while idle|background (shell|tasks?)|Task ?ids?:|Tip:|ctrl\+o to expand|disable recaps/iu
-
-/** Conversation only: Claude's input box sits between the last two rules, with the status line below it. */
-function conversationLines(text: string): string[] {
-  const lines = text.split(/\r?\n/).map((line) => line.replace(/[│┃\r]/g, '').trim())
-  const rules = lines.flatMap((line, i) => (RULE_LINE.test(line) ? [i] : []))
-  const end = rules.at(-2) ?? rules.at(-1) ?? lines.length
-  return lines
-    .slice(0, end)
-    .filter((line) => line.length > 1 && !FRAME_ONLY.test(line) && !AGENT_UI_LINE.test(line))
-}
-
-/** Last readable lines of the chat's terminal, for chats with no agent summary yet (e.g. right after a restart). */
-function useTerminalTail(ptyId: string | null, refreshKey: string, tabId: string): string[] {
-  const [lines, setLines] = useState<string[]>([])
-  useEffect(() => {
-    if (!ptyId) {
-      return
-    }
-    let alive = true
-    const api = terminalPreviewApiFor(ptyId)
-    void api
-      .connect(ptyId, { scrollbackRows: 2000 })
-      .then((result) => {
-        const raw = `${result.snapshot?.scrollbackAnsi ?? ''}\n${result.snapshot?.data ?? ''}`
-        noteCanvasChatArtifacts(tabId, raw)
-        const text = conversationLines(stripTerminalCodes(raw))
-        if (alive) {
-          setLines(text.slice(-6))
-        }
-      })
-      .catch(() => undefined)
-      .finally(() => void api.unsubscribe(ptyId).catch(() => undefined))
-    return () => {
-      alive = false
-    }
-  }, [ptyId, refreshKey, tabId])
-  return lines
 }

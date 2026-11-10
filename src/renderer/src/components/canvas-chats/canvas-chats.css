@@ -198,8 +198,28 @@
     box-shadow 0.2s;
 }
 .cc-chat:not(.cc-open):hover {
-  transform: scale(1.06);
   z-index: 35;
+}
+/* hover peek: the card widens and shows Claude's last 7 rows, live */
+.cc-peek {
+  z-index: 36;
+  box-shadow: 0 22px 60px #000c;
+  animation: cc-grow 0.16s ease-out;
+}
+.cc-peek-body {
+  padding: 10px 14px 12px;
+  background: #0d0d10;
+  border-radius: 0 0 10px 10px;
+  font:
+    calc(11.5px * var(--cc-inv)) / 1.45 ui-monospace,
+    'Cascadia Code',
+    Consolas,
+    monospace;
+  color: #d4d4dc;
+}
+.cc-peek-line {
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .cc-chat-head {
   flex: none;
