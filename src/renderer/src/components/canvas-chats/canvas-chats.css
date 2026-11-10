@@ -558,3 +558,36 @@
 .cc-project-actions .cc-on {
   color: #7fd1a0;
 }
+
+/* closed card: headline first, last prompt on top, readable sans text instead of a terminal dump */
+.cc-feed-clean {
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  mask-image: none;
+  font-family: system-ui, sans-serif;
+}
+.cc-prompt {
+  font: 600 calc(11.5px * var(--cc-inv)) / 1.4 system-ui;
+  color: #8f8f9a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-feed-clean .cc-summary {
+  font: 600 calc(15px * var(--cc-inv)) / 1.35 system-ui;
+  color: #f2f2f6;
+  -webkit-line-clamp: 3;
+}
+.cc-preview {
+  font: calc(12.5px * var(--cc-inv)) / 1.5 system-ui;
+  color: #b8b8c2;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.cc-feed-clean .cc-line-empty {
+  font: calc(12px * var(--cc-inv)) system-ui;
+}

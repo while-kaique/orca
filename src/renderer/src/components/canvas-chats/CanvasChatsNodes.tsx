@@ -150,6 +150,12 @@ export function ChatNode({
   // Haiku re-summarizes only after the chat stops working, so the card doesn't churn mid-turn.
   const summary = useCanvasChatSummary(chat.tabId, chat.cwd, replyText, chat.status !== 'working')
   const lastPrompt = chat.lines.find((line) => line.role === 'user')
+  // Wrapped terminal lines read as one paragraph; bullets and tool markers are noise on a card.
+  const preview = replyText
+    .split('\n')
+    .map((line) => line.replace(/^[●•]\s*/u, '').trim())
+    .filter(Boolean)
+    .join(' ')
   const showInNormalView = (): void => {
     if (
       revealTerminalPane({
@@ -216,25 +222,16 @@ export function ChatNode({
           <CanvasVoiceBar ptyId={chat.ptyId} cardRef={cardRef} autoStart={autoVoice} />
         </>
       ) : (
-        <div className={`cc-feed${summary ? ' cc-feed-summary' : ''}`}>
+        <div className="cc-feed cc-feed-clean">
+          {lastPrompt ? <div className="cc-prompt">› {lastPrompt.text}</div> : null}
           {summary ? (
-            <>
-              {lastPrompt ? (
-                <div className="cc-line cc-line-user cc-clamp-1">› {lastPrompt.text}</div>
-              ) : null}
-              <div className="cc-summary">{renderCanvasMarkdown(summary)}</div>
-            </>
-          ) : lines.length === 0 ? (
-            <div className="cc-line cc-line-empty">
+            <div className="cc-summary">{renderCanvasMarkdown(summary)}</div>
+          ) : preview ? (
+            <div className="cc-preview">{renderCanvasMarkdown(preview)}</div>
+          ) : (
+            <div className="cc-line-empty">
               {translate('fork.canvas.noText', 'sem mensagens ainda')}
             </div>
-          ) : (
-            lines.map((line, i) => (
-              <div key={i} className={`cc-line cc-line-${line.role}`}>
-                {line.role === 'user' ? '› ' : ''}
-                {renderCanvasMarkdown(line.text)}
-              </div>
-            ))
           )}
         </div>
       )}
@@ -253,9 +250,14 @@ function stripTerminalCodes(raw: string): string {
     }
     const next = raw[i + 1]
     if (next === '[') {
-      i += 2
+      const start = i + 2
+      i = start
       while (i < raw.length && (raw.charCodeAt(i) < 64 || raw.charCodeAt(i) > 126)) {
         i++
+      }
+      // TUIs move the cursor right instead of printing spaces; keep those gaps as real spaces.
+      if (raw[i] === 'C') {
+        out += ' '.repeat(Math.min(200, Number.parseInt(raw.slice(start, i), 10) || 1))
       }
     } else if (next === ']') {
       i += 2
@@ -275,7 +277,7 @@ function stripTerminalCodes(raw: string): string {
 const FRAME_ONLY = /^[\s─━│┃╭╮╰╯┌┐└┘├┤┬┴┼═║>›?•·]*$/u
 const RULE_LINE = /─{10,}/u
 const AGENT_UI_LINE =
-  /esc to interrupt|shift\+tab to cycle|\? for shortcuts|bypass permissions|auto mode on|\d+(\.\d+)?k context/iu
+  /esc to interrupt|shift\+tab to cycle|\? for shortcuts|bypass permissions|auto mode on|\d+(\.\d+)?k context|^[✻✶✢✳·*]\s*\w+ for \d|^[⎿└L]\s|^●?\s*(Read|Write|Edit|Bash|Grep|Glob|Update)\(|\(\d+ lines?\)|Compacted while idle|background (shell|tasks?)|Task ?ids?:|Tip:|ctrl\+o to expand|disable recaps/iu
 
 /** Conversation only: Claude's input box sits between the last two rules, with the status line below it. */
 function conversationLines(text: string): string[] {
