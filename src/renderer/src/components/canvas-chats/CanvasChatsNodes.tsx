@@ -251,28 +251,26 @@ export function ChatNode({
               onPointerDown={onStartLink}
             />
           ))}
-      {open ? null : (
-        <span
-          className="cc-xwrap"
-          // The X stays where the small card's corner was, so it can be clicked before the peek grows.
-          style={peek ? { right: (PEEK_W - box.w) / 2 - 12 } : undefined}
-          onPointerDown={(e) => e.stopPropagation()}
+      <span
+        className="cc-xwrap"
+        // The X stays where the small card's corner was, so it can be clicked before the peek grows.
+        style={peek ? { right: (PEEK_W - box.w) / 2 - 12 } : undefined}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="cc-xbtn"
+          title={translate('fork.canvas.closeChat', 'Fechar este chat')}
+          onClick={(e) => {
+            e.stopPropagation()
+            peeking.hold()
+            setConfirmingClose(true)
+          }}
         >
-          <button
-            type="button"
-            className="cc-xbtn"
-            title={translate('fork.canvas.closeChat', 'Fechar este chat')}
-            onClick={(e) => {
-              e.stopPropagation()
-              peeking.hold()
-              setConfirmingClose(true)
-            }}
-          >
-            <X size={13} />
-          </button>
-        </span>
-      )}
-      {confirmingClose && !open ? (
+          <X size={13} />
+        </button>
+      </span>
+      {confirmingClose ? (
         <div
           className="cc-confirm"
           onClick={(e) => e.stopPropagation()}

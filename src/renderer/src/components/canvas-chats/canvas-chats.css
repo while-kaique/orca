@@ -698,6 +698,7 @@
     transform 0.15s,
     background 0.15s;
 }
+.cc-open .cc-xbtn,
 .cc-chat:hover .cc-xbtn {
   opacity: 1;
   transform: none;

@@ -184,6 +184,13 @@ export default function CanvasChatsPage(): React.JSX.Element {
     [animateTo]
   )
 
+  // The open chat was closed (its ✕, the sidebar, or the agent exited): leave the open view too.
+  useEffect(() => {
+    if (openKey && !projects.some((project) => project.chats.some((c) => c.key === openKey))) {
+      closeCard('type')
+    }
+  }, [openKey, projects, closeCard])
+
   const openCard = useCallback(
     (chat: CanvasChat) => {
       const box = boxes[chat.key]
