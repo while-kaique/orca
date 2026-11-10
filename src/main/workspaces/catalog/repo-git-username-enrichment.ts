@@ -43,6 +43,8 @@ async function enrichRepoGitUsernamesInBackground(
     (repo) =>
       repo.kind !== 'folder' &&
       !repo.connectionId &&
+      // Orca enxuto: a saved username skips the 5-git probe (worktree creation resolves fresh anyway).
+      !repo.gitUsername &&
       !attemptedLocations.has(getRepoLocationKey(repo))
   )
   let changed = false

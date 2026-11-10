@@ -54,7 +54,8 @@ export function resolveClientCreationActionPolicy(args: {
             ? 'paired-runtime'
             : 'local-client'
       },
-      'mobile-emulator': { state: 'enabled', provider: 'local-client' }
+      // Orca enxuto: emulator bridge is off in main (ORCA_ENXUTO_SWITCHES.emulator).
+      'mobile-emulator': { state: 'hidden', reason: MOBILE_EMULATOR_UNAVAILABLE_MESSAGE }
     }
   }
 

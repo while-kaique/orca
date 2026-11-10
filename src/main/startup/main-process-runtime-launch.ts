@@ -1,3 +1,4 @@
+import { ORCA_ENXUTO_SWITCHES } from '../orca-enxuto-switches'
 import { app, type BrowserWindow } from 'electron'
 import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../shared/layout-owner-switch'
 import { placeUnshownLiveTerminalsBestEffort } from '../runtime/terminal/adoption/unshown-live-terminal-placement'
@@ -245,12 +246,18 @@ async function launchDesktopMode(
     )
   }
   // Register before proxy await so concurrent token mints wait rather than fail provider_missing; installer requests are already guarded.
-  startDesktopRelayService(runtimeRpc)
-  connectDesktopConnectorCloud()
+  if (ORCA_ENXUTO_SWITCHES.mobileRelay) {
+    startDesktopRelayService(runtimeRpc)
+  }
+  if (ORCA_ENXUTO_SWITCHES.connectorCloud) {
+    connectDesktopConnectorCloud()
+  }
   // Create the window before awaiting proxy readiness; the request guard already fences fetches.
   await state.initialProxyApplicationReady
   // Apply persisted proxy before the push gateway's first request.
-  startDesktopPushService(runtimeRpc)
+  if (ORCA_ENXUTO_SWITCHES.mobilePush) {
+    startDesktopPushService(runtimeRpc)
+  }
   // Request macOS notification permission after reveal or the maximized window can hide it.
   win.once('show', () => {
     // Await i18n so the one-time prompt is not stuck in the English fallback.
@@ -283,7 +290,7 @@ export async function initializeMainProcessRuntimeLaunch(
   state.serveOptions = serveOptions
   installCloudSessionShutdownFlush()
   const runtimeRpc = installRuntimeRpc(runtime, serveOptions)
-  if (!serveOptions) {
+  if (!serveOptions && ORCA_ENXUTO_SWITCHES.connectorCloud) {
     installDesktopConnectorCloud()
   }
   const shellPathReady = shellPathHydration.whenReady()

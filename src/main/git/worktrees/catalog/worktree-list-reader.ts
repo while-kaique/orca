@@ -25,6 +25,7 @@ import {
   translateWorktreePath
 } from './worktree-path-comparison'
 import { gitExecFileAsync } from '../../command-runner/git-exec-file'
+import { readWorktreeListShared } from './worktree-list-result-cache'
 
 const PRUNABLE_EXISTENCE_PROBE_CONCURRENCY = 8
 
@@ -206,6 +207,16 @@ export async function readWorktreeList(
     ...options,
     timeout: options.timeout ?? WORKTREE_LIST_TIMEOUT_MS
   }
+  return readWorktreeListShared(repoPath, options.wslDistro, options.signal, () =>
+    readWorktreeListUncached(repoPath, options, execOptions)
+  )
+}
+
+function readWorktreeListUncached(
+  repoPath: string,
+  options: GitWorktreeExecOptions,
+  execOptions: GitWorktreeExecOptions & { cwd: string; timeout: number }
+): Promise<GitWorktreeInfo[]> {
   return withLocalGitCapabilityCacheForExecution(
     { cwd: repoPath, wslDistro: options.wslDistro, signal: options.signal },
     (capabilities) =>

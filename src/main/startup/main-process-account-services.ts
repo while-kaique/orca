@@ -1,3 +1,4 @@
+import { ORCA_ENXUTO_SWITCHES } from '../orca-enxuto-switches'
 import { app } from 'electron'
 import { KeybindingService } from '../keybindings/keybinding-service'
 import { createProviderAccountServices } from '../providers/accounts/provider-account-services'
@@ -61,9 +62,11 @@ export function initializeMainProcessAccountServices(): void {
   state.codexAccounts = services.codexAccounts
   state.claudeRuntimeAuth = services.claudeRuntimeAuth
   state.claudeAccounts = services.claudeAccounts
-  void startCodexStateDbBackfillRecoveryInBackground(getOrcaManagedCodexHomePath())
-  // Defer shared-home migration; compatibility launches re-arm non-destructive scans for new rollouts (#4444, #8612, #12480).
-  state.codexSessionMigration.scheduleInitialRun()
+  if (ORCA_ENXUTO_SWITCHES.codexBackgroundScans) {
+    void startCodexStateDbBackfillRecoveryInBackground(getOrcaManagedCodexHomePath())
+    // Defer shared-home migration; compatibility launches re-arm non-destructive scans for new rollouts (#4444, #8612, #12480).
+    state.codexSessionMigration.scheduleInitialRun()
+  }
   store.onSettingsChanged((updates) => {
     // An account switch would otherwise leave the next chat's picker on a cold catalog.
     if (MODEL_CATALOG_ACCOUNT_SETTINGS.some((key) => key in updates)) {

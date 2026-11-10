@@ -8,6 +8,7 @@ import {
 import type { GitWorktreeExecOptions } from '../worktree-operation-options'
 import { WORKTREE_LIST_TIMEOUT_MS } from '../worktree-operation-options'
 import { resolveGitAdmissionTier } from '../../command-runner/git-operation-executor'
+import { invalidateWorktreeListResults } from './worktree-list-result-cache'
 
 const inFlightWorktreeScans = new Map<string, Promise<GitWorktreeInfo[]>>()
 
@@ -26,6 +27,7 @@ function hasInFlightWorktreeScanForRepo(repoPath: string): boolean {
 }
 
 export function bumpWorktreeScanGeneration(repoPath: string): void {
+  invalidateWorktreeListResults(repoPath)
   // Retain generations only while a pre-mutation scan can still be joined.
   if (!hasInFlightWorktreeScanForRepo(repoPath)) {
     return
