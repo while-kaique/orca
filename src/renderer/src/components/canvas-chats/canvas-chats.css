@@ -106,6 +106,9 @@
   background: #141417;
   box-shadow: 0 12px 30px #0009;
 }
+.cc-board [data-status='idle'] {
+  --k: var(--cc-idle);
+}
 .cc-board [data-status='working'] {
   --k: var(--cc-work);
 }
