@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bot, ExternalLink, Plus, X } from 'lucide-react'
+import { Bot, ExternalLink, Plus } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { revealTerminalPane } from '@/lib/reveal-terminal-pane'
@@ -110,7 +110,6 @@ export function ChatNode({
   box,
   open,
   onOpen,
-  onClose,
   openSize,
   terminalReady
 }: {
@@ -118,7 +117,6 @@ export function ChatNode({
   box: CanvasBox
   open: boolean
   onOpen: () => void
-  onClose: () => void
   openSize: { w: number; h: number }
   terminalReady: boolean
 }): React.JSX.Element {
@@ -178,33 +176,19 @@ export function ChatNode({
           {STATUS_LABEL[status]}
         </span>
         {open ? (
-          <>
-            <button
-              className="cc-head-button"
-              title={translate('fork.canvas.openNormal', 'Abrir na visão normal')}
-              onClick={showInNormalView}
-            >
-              <ExternalLink size={13} />
-            </button>
-            <button
-              className="cc-head-button"
-              title={translate('fork.canvas.closeCard', 'Fechar (Esc)')}
-              onClick={onClose}
-            >
-              <X size={13} />
-            </button>
-          </>
+          <button
+            className="cc-head-button"
+            title={translate('fork.canvas.openNormal', 'Abrir na visão normal')}
+            onClick={showInNormalView}
+          >
+            <ExternalLink size={13} />
+          </button>
         ) : null}
       </div>
       {open && chat.ptyId ? (
         <>
           {terminalReady ? (
-            <AgentTerminalPreview
-              ptyId={chat.ptyId}
-              terminalInput={null}
-              className="cc-terminal"
-              onRequestClose={onClose}
-            />
+            <AgentTerminalPreview ptyId={chat.ptyId} terminalInput={null} className="cc-terminal" />
           ) : (
             <div className="cc-terminal" />
           )}

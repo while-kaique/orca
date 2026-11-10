@@ -150,19 +150,6 @@ export default function CanvasChatsPage(): React.JSX.Element {
     [layout, openKey, view, viewport, animateTo, openSize.h]
   )
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape' && openKey) {
-        // Capture phase: Esc must not reach the chat's terminal (it would interrupt the agent).
-        e.preventDefault()
-        e.stopPropagation()
-        closeCard('type')
-      }
-    }
-    window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
-  }, [openKey, closeCard])
-
   const reorganize = (): void => {
     if (openKey) {
       setOpenKey(null)
@@ -264,7 +251,6 @@ export default function CanvasChatsPage(): React.JSX.Element {
                       box={cbox}
                       open={openKey === chat.key}
                       onOpen={() => openCard(chat)}
-                      onClose={() => closeCard('type')}
                       openSize={openSize}
                       terminalReady={terminalReady}
                     />

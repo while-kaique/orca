@@ -21,7 +21,14 @@ export function CanvasVoiceBar({
       return
     }
     const onKey = (e: KeyboardEvent): void => {
-      // Typing takes over from the mic: keep what was said, written but not sent.
+      // Enter while speaking sends right away (instead of waiting the 3 s of silence).
+      if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault()
+        e.stopPropagation()
+        void finish('send')
+        return
+      }
+      // Esc goes to the chat as usual; any other key takes over from the mic, keeping what was said.
       if (e.key !== 'Escape' && !(e.ctrlKey && e.key.toLowerCase() === 'e')) {
         void finish('type')
       }
@@ -43,8 +50,8 @@ export function CanvasVoiceBar({
         state.silenceLeftMs !== null
           ? `Envio em ${Math.max(1, Math.ceil(state.silenceLeftMs / 1000))} s… (fale para continuar)`
           : state.heard
-            ? 'Ouvindo…'
-            : `Pode falar. ${CANVAS_VOICE_SILENCE_MS / 1000} s de silêncio envia.`
+            ? 'Ouvindo… (Enter envia agora)'
+            : `Pode falar. Enter ou ${CANVAS_VOICE_SILENCE_MS / 1000} s de silêncio envia.`
       break
     case 'transcribing':
       icon = <Loader2 size={13} className="cc-voice-spin" />
