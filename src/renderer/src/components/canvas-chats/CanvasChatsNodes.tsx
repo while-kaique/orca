@@ -18,6 +18,7 @@ import type { CanvasAgent, CanvasBox, CanvasChat, CanvasProject } from './canvas
 export const STATUS_LABEL: Record<CanvasChat['status'], string> = {
   idle: translate('fork.canvas.statusIdle', 'parado'),
   working: translate('fork.canvas.statusWorking', 'trabalhando'),
+  monitoring: translate('fork.canvas.statusMonitoring', 'esperando agentes de fundo'),
   unseen: translate('fork.canvas.statusUnseen', 'terminou'),
   seen: translate('fork.canvas.statusSeen', 'visto'),
   waiting: translate('fork.canvas.statusWaiting', 'precisa de você')
@@ -98,7 +99,7 @@ export function ProjectNode({
         <span className="cc-pill">
           {project.chats.length} chats · {agents} agentes
         </span>
-        {(['waiting', 'working', 'unseen'] as const).map((s) =>
+        {(['waiting', 'working', 'monitoring', 'unseen'] as const).map((s) =>
           count(s) ? (
             <span
               key={s}

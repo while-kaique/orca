@@ -1,5 +1,6 @@
 /** Border states drawn on the flowchart (fork spec: idle gray, working yellow, unseen green, seen dashed green, waiting red). */
-export type CanvasChatStatus = 'idle' | 'working' | 'unseen' | 'seen' | 'waiting'
+/** 'monitoring' = the turn ended but background agents/tasks are still running. */
+export type CanvasChatStatus = 'idle' | 'working' | 'monitoring' | 'unseen' | 'seen' | 'waiting'
 
 export type CanvasAgent = {
   id: string

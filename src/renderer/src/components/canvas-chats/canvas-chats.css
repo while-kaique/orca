@@ -8,6 +8,7 @@
 .cc-board {
   --cc-idle: #5d5d66;
   --cc-work: #e6b422;
+  --cc-bg-task: #8b8cf6;
   --cc-ok: #3ecf7a;
   --cc-wait: #ef4b4b;
   --cc-inv: 1.3;
@@ -94,6 +95,9 @@
 .cc-pill-working i {
   background: var(--cc-work);
 }
+.cc-pill-monitoring i {
+  background: var(--cc-bg-task);
+}
 .cc-pill-unseen i {
   background: var(--cc-ok);
 }
@@ -111,6 +115,16 @@
 }
 .cc-board [data-status='working'] {
   --k: var(--cc-work);
+}
+.cc-board [data-status='monitoring'] {
+  --k: var(--cc-bg-task);
+}
+.cc-chat[data-status='monitoring'],
+.cc-agent[data-status='monitoring'] {
+  border-color: #8b8cf699;
+  box-shadow:
+    0 0 14px #8b8cf61f,
+    0 12px 30px #0009;
 }
 .cc-board [data-status='unseen'] {
   --k: var(--cc-ok);

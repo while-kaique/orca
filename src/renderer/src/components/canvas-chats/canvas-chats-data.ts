@@ -15,6 +15,8 @@ import type {
   CanvasChatStatus,
   CanvasProject
 } from './canvas-chats-layout'
+import { buildRunningAgentChildRowModels } from '../../../../shared/running-agent-child-rows'
+import { agentChildRowContextForParent } from '../../../../shared/agent-status/presentation/agent-child-row-model'
 import { DEFAULT_REPO_BADGE_COLOR, REPO_COLORS } from '../../../../shared/repo-badge-color'
 import { getWorkspacePortsByWorktreeId } from '@/lib/workspace-ports/workspace-port-groups'
 import { browserUrlForPort } from '@/lib/workspace-ports/workspace-port-urls'
@@ -119,8 +121,11 @@ function chatStatus(state: CanvasInputs, worktreeId: string, tabId: string): Can
   if (flags.hasPermission) {
     return 'waiting'
   }
-  if (flags.hasLiveWorking || flags.hasLiveMonitoring) {
+  if (flags.hasLiveWorking) {
     return 'working'
+  }
+  if (flags.hasLiveMonitoring) {
+    return 'monitoring'
   }
   if (flags.hasLiveDone || flags.hasRetainedDone || flags.hasRetainedFailed || flags.hasFailed) {
     return selectWorktreeHasUnseenDone(state, worktreeId, tabId) ? 'unseen' : 'seen'
@@ -158,6 +163,9 @@ function subagentStatus(state: string): { status: CanvasChatStatus; blocked: boo
   if (state === 'working') {
     return { status: 'working', blocked: false }
   }
+  if (state === 'monitoring') {
+    return { status: 'monitoring', blocked: false }
+  }
   return { status: 'seen', blocked: false }
 }
 
@@ -175,12 +183,17 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
         const latest = latestEntry(state, tab.id)
         const entry = latest?.entry
         const status = chatStatus(state, worktree.id, tab.id)
-        const agents: CanvasAgent[] = (entry?.subagents ?? []).map((sub) => ({
-          id: `${tab.id}::${sub.id}`,
-          name: sub.description || sub.agentType || 'agente',
-          ...subagentStatus(sub.state),
-          card: null
-        }))
+        // Same rows as the sidebar: host child views (incl. background agents), else legacy subagents.
+        const agents: CanvasAgent[] = entry
+          ? buildRunningAgentChildRowModels(entry, agentChildRowContextForParent(entry, true)).map(
+              (row) => ({
+                id: `${tab.id}::${row.id}`,
+                name: row.name || row.agentType || 'agente',
+                ...subagentStatus(row.displayState),
+                card: null
+              })
+            )
+          : []
         const lines: CanvasChat['lines'] = []
         if (entry?.prompt) {
           lines.push({ role: 'user', text: entry.prompt })
@@ -258,8 +271,11 @@ export function useCanvasChatStatus(chat: CanvasChat): CanvasChatStatus {
   if (chat.agents.some((agent) => agent.blocked) || sidebarStatus === 'permission') {
     return 'waiting'
   }
-  if (sidebarStatus === 'working' || sidebarStatus === 'monitoring') {
+  if (sidebarStatus === 'working') {
     return 'working'
+  }
+  if (sidebarStatus === 'monitoring') {
+    return 'monitoring'
   }
   if (sidebarStatus === 'done' || sidebarStatus === 'failed' || sidebarStatus === 'interrupted') {
     return unseen ? 'unseen' : 'seen'

@@ -392,7 +392,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
         </div>
       ) : null}
       <div className="cc-legend" onPointerDown={(e) => e.stopPropagation()}>
-        {(['idle', 'working', 'unseen', 'seen', 'waiting'] as const).map((s) => (
+        {(['idle', 'working', 'monitoring', 'unseen', 'seen', 'waiting'] as const).map((s) => (
           <span key={s} data-status={s}>
             <em />
             {STATUS_LABEL[s]}
