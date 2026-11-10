@@ -83,12 +83,12 @@ opção de modelo do lançador de trabalhadores (Anexo A da spec, fato 1).
 
 ### 2.3 As travas (hooks do projeto piloto)
 
-| Trava                  | Quando dispara                                                                | O que faz                                                                  | Requisito |
-| ---------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------- |
-| Juntar sem OK          | Antes de comando que junta na versão principal ou envia ao GitHub             | Bloqueia, a menos que o registro tenha um OK do Kaique para aquela entrega | FR-14     |
-| Gravar em sistema real | Antes de rodar o robô em modo que cria de verdade no Spree, Factory ou portal | Bloqueia sem OK registrado. Ensaio e leitura passam                        | FR-14a    |
-| Kaique no meio         | Quando chega mensagem digitada num planejador ou executor                     | Marca o chat e obriga o relato para cima no fim do turno                   | FR-17     |
-| Executor criando chat  | Coberta pelo comando `ordem`, que recusa                                      | Não precisa de hook                                                        | FR-5      |
+| Trava                  | Quando dispara                                                             | O que faz                                                                  | Requisito |
+| ---------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------- |
+| Juntar sem OK          | Antes de comando que junta na versão principal ou envia ao GitHub          | Bloqueia, a menos que o registro tenha um OK do Kaique para aquela entrega | FR-14     |
+| Gravar em sistema real | Antes de publicar o app no ar (GoDeploy) ou de semear o banco do app no ar | Bloqueia sem OK registrado. Servidor local e geração local passam          | FR-14a    |
+| Kaique no meio         | Quando chega mensagem digitada num planejador ou executor                  | Marca o chat e obriga o relato para cima no fim do turno                   | FR-17     |
+| Executor criando chat  | Coberta pelo comando `ordem`, que recusa                                   | Não precisa de hook                                                        | FR-5      |
 
 A trava "Kaique no meio" depende de distinguir mensagem do Kaique de mensagem que veio da
 orquestração. Hipótese: a ordem chega com um cabeçalho próprio do Orca e os recados seguintes
@@ -175,7 +175,7 @@ e a spec é atualizada junto. Custo do plano B: o PO vira gargalo de lançamento
 | 3.4 | Fila do Kaique com OK e Devolver                                      | Print; clicar no item abre o chat de origem; OK aparece no registro     |
 | 3.5 | Medir a velocidade do fluxograma com 11 chats contra a versão de hoje | Dois números lado a lado, anotados aqui                                 |
 
-### Fase 4 — Piloto na Automação de Cadastros (3 a 5 dias de uso)
+### Fase 4 — Piloto no Creative Astra (3 a 5 dias de uso)
 
 | #   | O que fazer                                                                                                          | Prova                                                                                                                                                                     |
 | --- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -185,11 +185,21 @@ e a spec é atualizada junto. Custo do plano B: o PO vira gargalo de lançamento
 | 4.4 | Medir o gasto por pedido somando o uso anotado nas conversas de cada chat, contra o mesmo tipo de pedido num chat só | Tabela com os três pedidos (CS-6). Se as conversas não guardarem o uso de forma somável, a medida passa a ser o painel de uso da assinatura antes e depois de cada pedido |
 | 4.5 | Relatório do piloto e decisão: segue, ajusta ou para                                                                 | Kaique decide                                                                                                                                                             |
 
-**Aviso sobre o piloto:** em 10/11/2026 o próximo passo da Automação de Cadastros está travado em
-terceiro (acesso de administrador no Spree) e parte do trabalho está indo para um bot numa máquina
-virtual, fora do Orca (`ONDE-PARAMOS.md` do projeto). Se continuar assim quando o piloto começar,
-os três pedidos têm que ser de coisas que não dependem do Spree, ou o piloto muda de projeto.
-Decisão do Kaique na etapa 4.3.
+**Por que o Creative Astra serve de piloto** (conferido em 10/11/2026 no `CLAUDE.md` do projeto):
+tem git, já usa SDD (specs 105 a 121) e já tem várias frentes andando em paralelo em pastas
+separadas (anúncios, pedestais licenciado, forms, black). É o desenho da hierarquia: uma frente
+por planejador.
+
+**Três cuidados próprios deste piloto:**
+
+1. **O app está no ar e a equipe usa** (GoDeploy `49128ff5`). Publicar e gravar no banco do ar só
+   com OK do Kaique (FR-14a). O `CLAUDE.md` do projeto também exige uma geração de verdade no ar
+   depois de publicar; isso vira critério de aceite de toda ordem que termina em publicação.
+2. **Gerar imagem custa dinheiro no AI Proxy da empresa**, além do limite da assinatura. O teto de
+   gerações por pedido é combinado com o Kaique na etapa 4.1 e entra em `PRODUTO.md`. Sem teto
+   combinado, executor não gera imagem.
+3. **Já existem outros chats trabalhando nesse repositório.** O PO só coordena os chats que ele
+   mesmo criou; os outros aparecem na tela como "fora da hierarquia" e ninguém mexe na pasta deles.
 
 **Total estimado:** 8 a 10 dias de trabalho depois que a versão enxuta ficar pronta, mais os
 dias de uso do piloto. Estimativa minha, sem base medida.
@@ -221,20 +231,24 @@ dias de uso do piloto. Estimativa minha, sem base medida.
 ## 6. Segredos
 
 Este plano não cria nem lê senha, chave ou segredo. O registro guarda só texto de ordem, entrega
-e decisão. As senhas do piloto (Spree, portais) continuam onde o projeto já define, fora do
-alcance desta entrega. Regra para os papéis: nenhum chat copia segredo para ordem, entrega ou
+e decisão. As chaves do piloto (AI Proxy e planilha) ficam no arquivo `.env` do projeto, que está
+fora do git (declarado no `CLAUDE.md` do projeto); quem acessa é o servidor local do projeto, e
+continua assim. Como cada executor trabalha numa cópia separada da pasta, a cópia nasce sem `.env`:
+a forma de o executor rodar o servidor local sem copiar a chave para outro lugar é definida na
+etapa 4.2, com o Kaique. Regra para os papéis: nenhum chat copia segredo para ordem, entrega ou
 registro.
 
 ## 7. Riscos do plano
 
-| #   | Risco                                                                   | O que fazer                                                                                    | Responsável                 | Prazo        |
-| --- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------- | ------------ |
-| P-1 | A versão enxuta mudar a orquestração ou o fluxograma até terminar       | Etapa 0.2 antes de qualquer código                                                             | Claude                      | Fase 0       |
-| P-2 | Motor não aguentar dois níveis                                          | Plano B da Fase 0, com OK do Kaique para o novo texto do FR-4                                  | Claude prova; Kaique decide | Fase 0       |
-| P-3 | Não dar para distinguir mensagem do Kaique da mensagem da orquestração  | Se a hipótese da seção 2.3 falhar, a marca passa a ser um botão "vou mexer aqui" no card       | Claude                      | Fase 0 (0.5) |
-| P-4 | Chat ignorar o comando e usar o motor do Orca direto, pulando as regras | Texto do papel proíbe; a tela mostra como "fora da hierarquia" todo chat sem linha no registro | Claude                      | Fase 2       |
-| P-5 | Onze chats derrubarem o serviço de terminais por memória                | Subir o teto aos poucos no piloto: começar com 1 planejador e 2 executores                     | Claude                      | Fase 4       |
-| P-6 | Piloto travado por acesso de terceiro                                   | Aviso da Fase 4; decisão na etapa 4.3                                                          | Kaique                      | Fase 4       |
+| #   | Risco                                                                   | O que fazer                                                                                    | Responsável                  | Prazo        |
+| --- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------- | ------------ |
+| P-1 | A versão enxuta mudar a orquestração ou o fluxograma até terminar       | Etapa 0.2 antes de qualquer código                                                             | Claude                       | Fase 0       |
+| P-2 | Motor não aguentar dois níveis                                          | Plano B da Fase 0, com OK do Kaique para o novo texto do FR-4                                  | Claude prova; Kaique decide  | Fase 0       |
+| P-3 | Não dar para distinguir mensagem do Kaique da mensagem da orquestração  | Se a hipótese da seção 2.3 falhar, a marca passa a ser um botão "vou mexer aqui" no card       | Claude                       | Fase 0 (0.5) |
+| P-4 | Chat ignorar o comando e usar o motor do Orca direto, pulando as regras | Texto do papel proíbe; a tela mostra como "fora da hierarquia" todo chat sem linha no registro | Claude                       | Fase 2       |
+| P-5 | Onze chats derrubarem o serviço de terminais por memória                | Subir o teto aos poucos no piloto: começar com 1 planejador e 2 executores                     | Claude                       | Fase 4       |
+| P-6 | Gasto de geração de imagem no AI Proxy subir com vários executores      | Teto de gerações por pedido em `PRODUTO.md`; sem teto, executor não gera                       | Kaique define; Claude aplica | Fase 4 (4.1) |
+| P-7 | O PO esbarrar em chats que já trabalham no repositório do piloto        | PO só coordena o que criou; cada executor em cópia separada                                    | Claude                       | Fase 4       |
 
 Os prazos são por fase porque a data de início depende de a versão enxuta terminar.
 
@@ -246,6 +260,7 @@ Os prazos são por fase porque a data de início depende de a versão enxuta ter
 | O que o PO sabe em arquivo; atalho do pedido pequeno; limite de duas reprovações; Fila do Kaique | Kaique                                               | 10/11/2026 |
 | Teto: 2 planejadores, até 4 executores cada                                                      | Kaique                                               | 10/11/2026 |
 | Testar só depois e subir só na versão enxuta                                                     | Kaique                                               | 10/11/2026 |
+| Piloto no Creative Astra, no lugar da Automação de Cadastros                                     | Kaique                                               | 10/11/2026 |
 | Cordas manuais continuam só desenho; piloto só em projeto com git                                | Sugestão do Claude, **sem resposta do Kaique ainda** | —          |
 
 ## 9. O que dá para fazer antes de a versão enxuta terminar

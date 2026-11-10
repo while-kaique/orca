@@ -234,9 +234,9 @@ Cada um responde o que sabe e só repassa o que não sabe.
   caso um nível.
 - **FR-14** O SISTEMA NÃO DEVE juntar trabalho na versão principal nem publicar sem um OK do
   Kaique registrado para aquela entrega.
-- **FR-14a** O SISTEMA NÃO DEVE gravar em sistema real de fora do projeto (no piloto: Spree,
-  Factory e portais das licenciadoras) sem um OK do Kaique registrado para aquela gravação.
-  Ler e simular é livre.
+- **FR-14a** O SISTEMA NÃO DEVE gravar em sistema real de fora do projeto (no piloto: publicar o
+  app no ar pelo GoDeploy e gravar no banco do app no ar) sem um OK do Kaique registrado para
+  aquela gravação. Rodar e gerar imagem no computador local é livre.
 - **FR-14b** QUANDO o PO aprova uma entrega, O SISTEMA DEVE fazê-lo olhar o produto e propor o
   próximo pedido na Fila do Kaique, sem mandar executar.
 - **FR-15** O SISTEMA DEVE guardar o histórico de cada entrega: quem conferiu, quando, resultado e motivo.
@@ -328,8 +328,10 @@ combinado com o Kaique.
 
 ## 12. Perguntas em aberto
 
-- [x] **P-1** Qual projeto é o piloto? **Automação de Cadastros** (Kaique, 10/11/2026). Consequência:
-      o projeto escreve em sistemas reais, então vale o FR-14a.
+- [x] **P-1** Qual projeto é o piloto? **Creative Astra** (repositório `astra-designer`, pasta
+      `Desktop\Projetos\Astra Designer`) (Kaique, 10/11/2026, trocando a primeira escolha, que era
+      a Automação de Cadastros). Consequência: o app está no ar e é usado pela equipe, então vale
+      o FR-14a.
 - [x] **P-2** Teto: **1 PO por projeto; cada planejador cria até 4 executores** (Kaique,
       10/11/2026, corrigindo a resposta anterior de 4 executores no total).
 - [x] **P-2a** Planejadores ao mesmo tempo no piloto: **2**, o que dá até 11 chats (1 PO +
