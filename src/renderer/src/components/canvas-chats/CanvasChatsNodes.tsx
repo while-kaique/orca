@@ -215,6 +215,19 @@ function stripTerminalCodes(raw: string): string {
 }
 
 const FRAME_ONLY = /^[\s─━│┃╭╮╰╯┌┐└┘├┤┬┴┼═║>›?•·]*$/u
+const RULE_LINE = /─{10,}/u
+const AGENT_UI_LINE =
+  /esc to interrupt|shift\+tab to cycle|\? for shortcuts|bypass permissions|auto mode on|\d+(\.\d+)?k context/iu
+
+/** Conversation only: Claude's input box sits between the last two rules, with the status line below it. */
+function conversationLines(text: string): string[] {
+  const lines = text.split(/\r?\n/).map((line) => line.replace(/[│┃\r]/g, '').trim())
+  const rules = lines.flatMap((line, i) => (RULE_LINE.test(line) ? [i] : []))
+  const end = rules.at(-2) ?? rules.at(-1) ?? lines.length
+  return lines
+    .slice(0, end)
+    .filter((line) => line.length > 1 && !FRAME_ONLY.test(line) && !AGENT_UI_LINE.test(line))
+}
 
 /** Last readable lines of the chat's terminal, for chats with no agent summary yet (e.g. right after a restart). */
 function useTerminalTail(ptyId: string | null, refreshKey: string): string[] {
@@ -229,15 +242,7 @@ function useTerminalTail(ptyId: string | null, refreshKey: string): string[] {
       .connect(ptyId, { scrollbackRows: 60 })
       .then((result) => {
         const raw = `${result.snapshot?.scrollbackAnsi ?? ''}\n${result.snapshot?.data ?? ''}`
-        const text = stripTerminalCodes(raw)
-          .split(/\r?\n/)
-          .map((line) =>
-            line
-              .replace(/\r/g, '')
-              .replace(/[│┃]/g, '')
-              .trim()
-          )
-          .filter((line) => line.length > 1 && !FRAME_ONLY.test(line))
+        const text = conversationLines(stripTerminalCodes(raw))
         if (alive) {
           setLines(text.slice(-6))
         }
