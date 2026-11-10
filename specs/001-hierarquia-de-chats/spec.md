@@ -4,6 +4,7 @@ id: '001'
 status: clarified # draft | clarified | planned | in-progress | done
 created: '2026-11-10'
 spec_version: 1
+aprovada: '2026-11-10 (Kaique)'
 metodo: SDD # decidido pelo Kaique em 10/11/2026 (só SDD, sem TDD obrigatório)
 ---
 
@@ -311,13 +312,16 @@ Cada um responde o que sabe e só repassa o que não sabe.
 
 ## 11. Riscos
 
-| #   | Risco                                                                      | O que fazer                                                                          | Responsável                            | Prazo                        |
-| --- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------- | ---------------------------- |
-| R-1 | Três níveis gastam o limite da assinatura rápido demais                    | Atalho (5.2 item 3), teto (FR-20) e medição CS-6                                     | Claude mede; Kaique decide se continua | Fim do piloto                |
-| R-2 | O motor atual do Orca não aguenta dois níveis de chat criando chat         | Provar com um teste mínimo antes de escrever o resto do plano (Anexo A, itens 2 e 5) | Claude                                 | Antes de aprovar o `plan.md` |
-| R-3 | Portão vira carimbo: todo mundo aprova tudo                                | CS-5 mais conferência contra texto escrito antes (5.3)                               | Claude monta; Kaique avalia no piloto  | Fim do piloto                |
-| R-4 | O PO renascido não sabe o que o antigo sabia                               | FR-8 e teste CS-3                                                                    | Claude                                 | Antes de liberar o piloto    |
-| R-5 | O serviço de terminais cai com muitos chats (já caiu por falta de memória) | Teto baixo no piloto; estado vem do registro (SC-5, SC-9)                            | Claude                                 | Durante o piloto             |
+| #   | Risco                                                                      | O que fazer                                                                                        | Responsável                            | Prazo                     |
+| --- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | -------------------------------------- | ------------------------- |
+| R-1 | Três níveis gastam o limite da assinatura rápido demais                    | Atalho (5.2 item 3), teto (FR-20) e medição CS-6                                                   | Claude mede; Kaique decide se continua | Fim do piloto             |
+| R-2 | O motor atual do Orca não aguenta dois níveis de chat criando chat         | Provar com um teste mínimo na Fase 0 do `plan.md`, antes de qualquer código (Anexo A, itens 2 e 5) | Claude                                 | Fase 0 do plano           |
+| R-3 | Portão vira carimbo: todo mundo aprova tudo                                | CS-5 mais conferência contra texto escrito antes (5.3)                                             | Claude monta; Kaique avalia no piloto  | Fim do piloto             |
+| R-4 | O PO renascido não sabe o que o antigo sabia                               | FR-8 e teste CS-3                                                                                  | Claude                                 | Antes de liberar o piloto |
+| R-5 | O serviço de terminais cai com muitos chats (já caiu por falta de memória) | Teto baixo no piloto; estado vem do registro (SC-5, SC-9)                                          | Claude                                 | Durante o piloto          |
+
+O teste do R-2 ficou para depois de a versão enxuta do Orca terminar, por decisão do Kaique em
+10/11/2026 (o fluxograma v2 sobe só em cima dela). Por isso o prazo dele é a Fase 0 do plano.
 
 Os prazos estão amarrados a etapas, não a datas, porque o calendário do piloto ainda não foi
 combinado com o Kaique.
