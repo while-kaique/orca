@@ -1,7 +1,7 @@
 ---
 feature: 'hierarquia-de-chats'
 id: '001'
-status: draft # draft | clarified | planned | in-progress | done
+status: clarified # draft | clarified | planned | in-progress | done
 created: '2026-11-10'
 spec_version: 1
 metodo: SDD # decidido pelo Kaique em 10/11/2026 (só SDD, sem TDD obrigatório)
@@ -328,8 +328,8 @@ combinado com o Kaique.
       o projeto escreve em sistemas reais, então vale o FR-14a.
 - [x] **P-2** Teto: **1 PO por projeto; cada planejador cria até 4 executores** (Kaique,
       10/11/2026, corrigindo a resposta anterior de 4 executores no total).
-- [ ] **P-2a** Quantos planejadores ao mesmo tempo no piloto? _Sugestão: 2, o que dá até 11 chats
-      (1 PO + 2 planejadores + 8 executores). O Kaique não fixou esse número._
+- [x] **P-2a** Planejadores ao mesmo tempo no piloto: **2**, o que dá até 11 chats (1 PO +
+      2 planejadores + 8 executores) (Kaique, 10/11/2026).
 - [x] **P-2b** O atalho do pedido pequeno (PO manda direto a um executor, seção 5.2 item 3)
       continua valendo: **sim** (Kaique, 10/11/2026).
 - [x] **P-3** Ronda do PO: **só ao fim de cada entrega**; ele olha o produto e propõe o próximo
