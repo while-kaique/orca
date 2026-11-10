@@ -1,9 +1,11 @@
+import { useRef } from 'react'
 import { Bot, ExternalLink, X } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { revealDashboardAgent } from '../dashboard/reveal-dashboard-agent'
 import { AgentTerminalPreview } from '../dashboard-popout/AgentTerminalPreview'
 import type { CanvasAgent, CanvasBox, CanvasChat, CanvasProject } from './canvas-chats-layout'
+import { CanvasVoiceBar } from './CanvasVoiceBar'
 
 export const OPEN_CARD = { w: 640, h: 460 }
 
@@ -93,6 +95,7 @@ export function ChatNode({
   onClose: () => void
 }): React.JSX.Element {
   const { card } = chat
+  const cardRef = useRef<HTMLDivElement>(null)
   const showInNormalView = (): void => {
     if (
       revealDashboardAgent({
@@ -116,6 +119,7 @@ export function ChatNode({
     : { left: box.x, top: box.y, width: box.w, height: box.h }
   return (
     <div
+      ref={cardRef}
       className={`cc-node cc-chat${open ? ' cc-open' : ''}`}
       data-status={chat.status}
       style={style}
@@ -149,12 +153,15 @@ export function ChatNode({
         ) : null}
       </div>
       {open && card.ptyId ? (
-        <AgentTerminalPreview
-          ptyId={card.ptyId}
-          terminalInput={card.terminalInput ?? null}
-          className="cc-terminal"
-          onRequestClose={onClose}
-        />
+        <>
+          <AgentTerminalPreview
+            ptyId={card.ptyId}
+            terminalInput={card.terminalInput ?? null}
+            className="cc-terminal"
+            onRequestClose={onClose}
+          />
+          <CanvasVoiceBar ptyId={card.ptyId} cardRef={cardRef} />
+        </>
       ) : (
         <div className="cc-feed">
           {chat.lines.length === 0 ? (

@@ -432,3 +432,74 @@
   border-color: #7a7a85;
   background: #1c1c21;
 }
+
+/* voice strip (open card) */
+.cc-voice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 6px 6px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: #121215;
+  font: 500 calc(11px * var(--cc-inv)) system-ui;
+  color: #9a9aa6;
+}
+.cc-voice-mic {
+  --cc-voice-level: 0;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #3b3b44;
+  background: #1f1f24;
+  color: #9a9aa6;
+  cursor: pointer;
+  transition:
+    box-shadow 0.08s,
+    background 0.15s;
+}
+.cc-voice-mic:hover {
+  background: #2a2a31;
+  color: #e8e8ee;
+}
+.cc-voice[data-voice='listening'] .cc-voice-mic {
+  border-color: var(--cc-ok);
+  color: var(--cc-ok);
+  box-shadow: 0 0 0 calc(2px + var(--cc-voice-level) * 7px)
+    color-mix(in srgb, var(--cc-ok) 28%, transparent);
+}
+.cc-voice[data-voice='listening'] .cc-voice-text,
+.cc-voice[data-voice='sent'] .cc-voice-text {
+  color: #d6d6de;
+}
+.cc-voice[data-voice='transcribing'] .cc-voice-mic,
+.cc-voice[data-voice='starting'] .cc-voice-mic {
+  border-color: var(--cc-work);
+  color: var(--cc-work);
+}
+.cc-voice[data-voice='sent'] .cc-voice-mic {
+  border-color: var(--cc-ok);
+  color: var(--cc-ok);
+}
+.cc-voice[data-voice='unavailable'] .cc-voice-mic {
+  border-color: var(--cc-wait);
+  color: var(--cc-wait);
+}
+.cc-voice-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cc-voice-spin {
+  animation: cc-voice-rotate 0.9s linear infinite;
+}
+@keyframes cc-voice-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
