@@ -535,3 +535,26 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* project hover actions: new chat + auto-mic switch */
+.cc-project-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.cc-project:hover .cc-project-actions,
+.cc-project:focus-within .cc-project-actions {
+  opacity: 1;
+}
+.cc-project-actions .cc-head-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+}
+.cc-project-actions .cc-on {
+  color: #7fd1a0;
+}

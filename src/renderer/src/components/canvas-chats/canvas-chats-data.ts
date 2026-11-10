@@ -103,6 +103,7 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
         }
         chats.push({
           key: tab.id,
+          projectId: repo.id,
           worktreeId: worktree.id,
           cwd: worktree.path,
           tabId: tab.id,

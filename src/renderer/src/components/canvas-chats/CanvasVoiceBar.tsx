@@ -5,12 +5,14 @@ import { CANVAS_VOICE_SILENCE_MS, useCanvasVoicePrompt } from './use-canvas-voic
 // Fork: voice strip at the bottom of an open chat card; typing in the card hands control back to the keyboard.
 export function CanvasVoiceBar({
   ptyId,
-  cardRef
+  cardRef,
+  autoStart = true
 }: {
   ptyId: string
   cardRef: React.RefObject<HTMLDivElement | null>
+  autoStart?: boolean
 }): React.JSX.Element {
-  const { state, start, cancel } = useCanvasVoicePrompt(ptyId, true)
+  const { state, start, cancel } = useCanvasVoicePrompt(ptyId, autoStart)
   const active = state.kind === 'starting' || state.kind === 'listening'
 
   useEffect(() => {

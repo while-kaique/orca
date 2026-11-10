@@ -14,6 +14,8 @@ export type CanvasAgent = {
 export type CanvasChat = {
   /** The chat's tab id (same id the sidebar row and terminal view use). */
   key: string
+  /** Project (repo) this chat belongs to. */
+  projectId: string
   worktreeId: string
   tabId: string
   /** Workspace folder, where Haiku runs to summarize the chat. */
