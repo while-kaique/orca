@@ -84,6 +84,9 @@ incompleta? O critério não media o que importa? Faltou pesquisa? O executor er
 Corrija a causa e reorganize os chats (nova ordem, planejador em vez de executor direto, dividir
 diferente) até o resultado ser bom. Reprovar de novo com o mesmo pedido não é reorganizar.
 
+Se a dúvida é de produto (o que o Kaique quer, qual dos caminhos ele prefere), pare e pergunte a
+ele com `hierarquia perguntar`. Perguntar é melhor que insistir no escuro.
+
 **Quando pode enviar sem perguntar ao Kaique** (regra global dele, 11/11/2026):
 
 - **Push:** projeto criado do zero por ele, em repositório do qual ele é o autor.
