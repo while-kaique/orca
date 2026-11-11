@@ -8,6 +8,10 @@ import {
   settleClaudeTaskNotification
 } from './claude-owed-task-notifications'
 import { readClaudeTaskNotification } from '../../claude-task-notification-text'
+import {
+  recordClaudeRunningNonAgentTaskIds,
+  releaseClaudeShellFinishedByNotification
+} from './claude-finished-shell-notification'
 import type { HookListenerState } from '../listener-state'
 import { readString } from '../tool-input-preview'
 
@@ -20,6 +24,7 @@ export function trackClaudeTaskNotificationDelivery(
   inventory: ReturnType<typeof readClaudeBackgroundAgentTasks>
 ): boolean {
   let tasks = state.claudeLaunchedBackgroundTasksByPaneKey.get(paneKey)
+  recordClaudeRunningNonAgentTaskIds(state, paneKey, hookPayload['background_tasks'], inventory)
   if (eventName === 'PostToolUse') {
     const toolName = readString(hookPayload, 'tool_name')
     const response = hookPayload['tool_response']
@@ -38,6 +43,7 @@ export function trackClaudeTaskNotificationDelivery(
   }
   if (eventName === 'UserPromptSubmit') {
     const notification = readClaudeTaskNotification(readString(hookPayload, 'prompt') ?? '')
+    releaseClaudeShellFinishedByNotification(state, paneKey, notification)
     const child = notification
       ? state.claudeSubagentRosterByPaneKey.get(paneKey)?.get(notification.taskId)
       : undefined
