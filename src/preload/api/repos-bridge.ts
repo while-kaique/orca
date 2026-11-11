@@ -1,3 +1,9 @@
+import type {
+  CanvasHierarchyDecision,
+  CanvasHierarchyDecisionResult,
+  CanvasHierarchySnapshot
+} from '../../shared/canvas-hierarchy'
+import type { CanvasContextTokens } from '../../shared/canvas-context-tokens'
 import { ipcRenderer } from 'electron'
 import type { BaseRefDefaultResult, BaseRefSearchResult } from '../../shared/repo-types'
 import type { ExecutionHostId } from '../../shared/execution-host'
@@ -36,10 +42,28 @@ export const reposApi = {
     text: string
   }): Promise<{ kind: 'ok'; summary: string } | { kind: 'error'; error: string }> =>
     ipcRenderer.invoke('repos:summarizeCanvasReply', request),
+  nameCanvasExecutor: (request: {
+    cwd: string
+    text: string
+  }): Promise<{ kind: 'ok'; summary: string } | { kind: 'error'; error: string }> =>
+    ipcRenderer.invoke('repos:nameCanvasExecutor', request),
   captureCanvasPagePreview: (
     url: string
   ): Promise<{ kind: 'ok'; dataUrl: string } | { kind: 'error'; error: string }> =>
     ipcRenderer.invoke('repos:captureCanvasPagePreview', url),
+  readCanvasHierarchy: (folders: string[]): Promise<CanvasHierarchySnapshot[]> =>
+    ipcRenderer.invoke('repos:readCanvasHierarchy', folders),
+  readCanvasContextTokens: (transcriptPaths: string[]): Promise<CanvasContextTokens> =>
+    ipcRenderer.invoke('repos:readCanvasContextTokens', transcriptPaths),
+  readCanvasImage: (request: {
+    path: string
+    size: 'thumb' | 'full'
+  }): Promise<{ kind: 'ok'; dataUrl: string } | { kind: 'error'; error: string }> =>
+    ipcRenderer.invoke('repos:readCanvasImage', request),
+  decideCanvasHierarchyOrder: (
+    decision: CanvasHierarchyDecision
+  ): Promise<CanvasHierarchyDecisionResult> =>
+    ipcRenderer.invoke('repos:decideCanvasHierarchyOrder', decision),
   setPcDeskSmartTitles: (enabled: boolean): Promise<void> =>
     ipcRenderer.invoke('repos:setPcDeskSmartTitles', enabled),
 

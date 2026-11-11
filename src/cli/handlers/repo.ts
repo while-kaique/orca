@@ -40,6 +40,11 @@ export const REPO_HANDLERS: Record<string, CommandHandler> = {
       })
     printResult(result, json, formatRepoShow)
   },
+  'repo rm': async ({ flags, client, json }) => {
+    const repo = getRequiredStringFlag(flags, 'repo')
+    const result = await client.call<Record<string, unknown>>('repo.rm', { repo })
+    printResult(result, json, () => `Removed ${repo} from Orca.`)
+  },
   'repo show': async ({ flags, client, json }) => {
     const result = await client.call<{ repo: Record<string, unknown> }>('repo.show', {
       repo: getRequiredStringFlag(flags, 'repo')

@@ -93,6 +93,14 @@ export async function summarizeCanvasReply(request: {
     text,
     '</resposta>'
   ].join('\n')
+  return askHaikuOneLine(request.cwd, prompt)
+}
+
+/** Haiku's first line for a flowchart card, stripped of quotes and trailing dots. */
+async function askHaikuOneLine(
+  cwd: string,
+  prompt: string
+): Promise<{ kind: 'ok'; summary: string } | { kind: 'error'; error: string }> {
   const execution = runLocalSourceControlPlan({
     plan: {
       binary: 'claude',
@@ -100,7 +108,7 @@ export async function summarizeCanvasReply(request: {
       stdinPayload: prompt,
       label: 'Claude'
     },
-    cwd: existsSync(request.cwd) ? request.cwd : process.cwd(),
+    cwd: existsSync(cwd) ? cwd : process.cwd(),
     env: undefined,
     operation: 'session-title',
     spawnAgent: spawnSessionTitleAgent
@@ -115,10 +123,39 @@ export async function summarizeCanvasReply(request: {
   return summary ? { kind: 'ok', summary } : { kind: 'error', error: 'empty output' }
 }
 
+const EXECUTOR_NAME_MAX_INPUT = 1500
+
+/** Fork: a one or two word job title for an executor chat, shown on its round flowchart card. */
+export async function nameCanvasExecutor(request: {
+  cwd: string
+  text: string
+}): Promise<{ kind: 'ok'; summary: string } | { kind: 'error'; error: string }> {
+  const text = request.text.trim().slice(0, EXECUTOR_NAME_MAX_INPUT)
+  if (!text) {
+    return { kind: 'error', error: 'empty' }
+  }
+  const prompt = [
+    'Abaixo está a ordem dada a um executor, um assistente de código que cumpre uma tarefa.',
+    'Dê a ele um título de função em português, de UMA ou DUAS palavras, épico porém claro,',
+    'que diga o propósito dele. Exemplos do tom: Mestre UI/UX · Debugger · Implementador ·',
+    'Corretor · Validador · Criador de Testes.',
+    'Responda só o título, sem aspas, sem ponto, sem explicação.',
+    '',
+    '<ordem>',
+    text,
+    '</ordem>'
+  ].join('\n')
+  return askHaikuOneLine(request.cwd, prompt)
+}
+
 export function registerPcDeskSessionTitleHandlers(): void {
   ipcMain.removeHandler('repos:summarizeCanvasReply')
   ipcMain.handle('repos:summarizeCanvasReply', (_event, request: { cwd: string; text: string }) =>
     summarizeCanvasReply(request)
+  )
+  ipcMain.removeHandler('repos:nameCanvasExecutor')
+  ipcMain.handle('repos:nameCanvasExecutor', (_event, request: { cwd: string; text: string }) =>
+    nameCanvasExecutor(request)
   )
   ipcMain.removeHandler('repos:setPcDeskSmartTitles')
   ipcMain.handle('repos:setPcDeskSmartTitles', (_event, enabled: unknown) => {

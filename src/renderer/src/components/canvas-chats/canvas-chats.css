@@ -216,6 +216,94 @@
 .cc-chat:not(.cc-open):hover {
   z-index: 35;
 }
+/* roles keep their slot but draw differently: planner = slim card, executor = hexagon with its job title */
+.cc-shape-slim .cc-prompt,
+.cc-shape-slim .cc-gate {
+  display: none;
+}
+/* one quiet sentence under the head: where the planner's work stands */
+.cc-shape-slim .cc-feed {
+  padding: calc(6px * var(--cc-inv)) 11px;
+}
+.cc-shape-slim .cc-feed-clean .cc-summary,
+.cc-shape-slim .cc-feed-clean .cc-preview,
+.cc-shape-slim .cc-line-empty {
+  display: block;
+  font: 500 calc(12px * var(--cc-inv)) / 1.4 system-ui;
+  color: #b4b4bf;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-chat.cc-shape-crest {
+  border: none;
+  background: none;
+  box-shadow: none;
+}
+.cc-chat.cc-shape-crest::before {
+  display: none;
+}
+.cc-shape-crest > :not(.cc-crest-body, .cc-xwrap, .cc-edge, .cc-confirm) {
+  display: none;
+}
+.cc-crest-body {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(7px * var(--cc-inv));
+  padding: 0 calc(20px * var(--cc-inv));
+  text-align: center;
+}
+.cc-crest-outline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 6px 10px #0009);
+}
+.cc-crest-outline polygon {
+  fill: #121215;
+  stroke: var(--k);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+/* hovering an executor only lifts it a little: it opens on click, never as a peek */
+.cc-crest-outline polygon {
+  transition: stroke-width 0.15s;
+}
+.cc-chat.cc-shape-crest {
+  transition: transform 0.18s ease;
+}
+.cc-chat.cc-shape-crest:hover {
+  transform: scale(1.04);
+}
+.cc-chat.cc-shape-crest:hover .cc-crest-outline polygon {
+  fill: #18181d;
+  stroke-width: 3.2;
+}
+.cc-chat[data-status='seen'] .cc-crest-outline polygon {
+  stroke-dasharray: 7 6;
+}
+.cc-chat[data-status='unseen'] .cc-crest-outline,
+.cc-chat[data-status='working'] .cc-crest-outline,
+.cc-chat[data-status='waiting'] .cc-crest-outline {
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--k) 55%, transparent));
+}
+.cc-crest-body b,
+.cc-crest-body .cc-context {
+  position: relative;
+}
+.cc-crest-body b {
+  font: 700 calc(15px * var(--cc-inv)) / 1.15 system-ui;
+  color: #ececf3;
+  text-wrap: balance;
+}
 /* hover peek: the card widens and shows Claude's last 7 rows, live */
 .cc-peek {
   z-index: 36;
@@ -242,20 +330,186 @@
 .cc-chat-head {
   flex: none;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: calc(4px * var(--cc-inv));
   padding: calc(7px * var(--cc-inv)) 11px;
   background: #1d1d22;
   border-bottom: 1px solid #2b2b31;
   border-radius: 9px 9px 0 0;
+}
+/* name on its own row so it is never cut; context, model and state below */
+.cc-head-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   white-space: nowrap;
-  overflow: hidden;
 }
 .cc-chat-head b {
+  flex: 1;
+  min-width: 0;
   font: 600 calc(13px * var(--cc-inv)) system-ui;
   color: #ececf3;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+/* hierarchy: role beside the name, delivery state under the head, the user's queue on the board */
+.cc-role {
+  flex: none;
+  padding: calc(1px * var(--cc-inv)) calc(6px * var(--cc-inv));
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--cc-pc, #5d5d66) 30%, #1d1d22);
+  font: 700 calc(10px * var(--cc-inv)) system-ui;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ececf3;
+}
+.cc-gate {
+  flex: none;
+  padding: calc(4px * var(--cc-inv)) 11px;
+  border-bottom: 1px solid #2b2b31;
+  font: 600 calc(11px * var(--cc-inv)) system-ui;
+  color: #b4b4bf;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.cc-gate[data-gate='esperando_kaique'],
+.cc-gate[data-gate='subiu'],
+.cc-gate[data-gate='parou'] {
+  color: var(--cc-wait);
+}
+.cc-gate[data-gate='devolvido'],
+.cc-gate[data-gate='em_prova'] {
+  color: var(--cc-work);
+}
+.cc-gate[data-gate='aprovado'],
+.cc-gate[data-gate='liberado'] {
+  color: var(--cc-ok);
+}
+.cc-queue {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 320px;
+  max-height: 60%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1.5px solid var(--cc-wait);
+  border-radius: 12px;
+  background: #141417f2;
+  box-shadow: 0 12px 30px #0009;
+  font: 500 12px system-ui;
+  color: #ececf3;
+}
+.cc-queue > b {
+  font: 700 12px system-ui;
+  color: var(--cc-wait);
+}
+.cc-queue-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border-left: 3px solid #5d5d66;
+  background: #1d1d22;
+  border-radius: 6px;
+}
+.cc-queue-item small {
+  color: #8d8d99;
+}
+.cc-queue-item > div {
+  display: flex;
+  gap: 6px;
+}
+.cc-queue button {
+  padding: 3px 9px;
+  border: 1px solid #3b3b44;
+  border-radius: 6px;
+  background: #24242a;
+  font: 600 11px system-ui;
+  color: #ececf3;
+  cursor: pointer;
+}
+.cc-queue button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.cc-queue .cc-queue-ok {
+  border-color: var(--cc-ok);
+  color: var(--cc-ok);
+}
+.cc-queue-reason input {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 7px;
+  border: 1px solid #3b3b44;
+  border-radius: 6px;
+  background: #101013;
+  font: 500 11px system-ui;
+  color: #ececf3;
+}
+.cc-queue-error {
+  color: var(--cc-wait);
+}
+/* model the chat runs on: neutral pill, the family only changes the weight */
+.cc-model {
+  flex: none;
+  padding: calc(1px * var(--cc-inv)) calc(6px * var(--cc-inv));
+  border: 1px solid #3b3b44;
+  border-radius: 999px;
+  font: 500 calc(10.5px * var(--cc-inv)) system-ui;
+  color: #b4b4bf;
+}
+/* context meter: how full the chat's context is, 0 to 1M tokens */
+.cc-context {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5px * var(--cc-inv));
+  --cc-context-color: var(--cc-ok);
+}
+.cc-context[data-level='warn'] {
+  --cc-context-color: var(--cc-work);
+}
+.cc-context[data-level='full'] {
+  --cc-context-color: var(--cc-wait);
+}
+.cc-context-track {
+  width: calc(64px * var(--cc-inv));
+  height: calc(5px * var(--cc-inv));
+  border-radius: 999px;
+  background: #2b2b31;
+  overflow: hidden;
+}
+.cc-context-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--cc-context-color);
+}
+.cc-context-label {
+  font:
+    600 calc(10.5px * var(--cc-inv)) ui-monospace,
+    monospace;
+  color: #b4b4bf;
+}
+.cc-model[data-family='fable'],
+.cc-model[data-family='mythos'] {
+  font-weight: 700;
+  color: #ececf3;
+  border-color: #6b6b78;
+}
+.cc-model[data-family='sonnet'],
+.cc-model[data-family='haiku'] {
+  color: #8d8d99;
+}
+/* a chat created by another chat: a stronger neutral line (the project color stays on the project card) */
+.cc-line-created {
+  stroke-opacity: 0.75;
 }
 .cc-dot {
   flex: none;
@@ -365,6 +619,17 @@
   min-height: 0;
   margin: 6px;
 }
+.cc-terminal-gone {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.7;
+}
 .cc-dim .cc-node:not(.cc-open) {
   opacity: 0.4;
   transition: opacity 0.2s;
@@ -460,10 +725,16 @@
 .cc-legend [data-status='seen'] em {
   border-style: dashed;
 }
-.cc-tidy {
+.cc-actions {
   position: absolute;
   right: 14px;
   bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cc-tidy,
+.cc-add {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -475,7 +746,9 @@
   font: 600 12.5px system-ui;
   cursor: pointer;
 }
-.cc-tidy:hover {
+.cc-tidy:hover,
+.cc-add:hover,
+.cc-add[data-state='open'] {
   border-color: #7a7a85;
   background: #1c1c21;
 }
@@ -708,7 +981,8 @@
     background 0.15s;
 }
 .cc-open .cc-xbtn,
-.cc-chat:hover .cc-xbtn {
+.cc-chat:hover .cc-xbtn,
+.cc-project:hover .cc-xbtn {
   opacity: 1;
   transform: none;
 }
@@ -1083,4 +1357,219 @@
 }
 .cc-extra:hover .cc-extra-shot {
   border-color: color-mix(in srgb, var(--cc-pc, #8f8f9a) 60%, transparent);
+}
+
+/* attachments: one thin row of chips under a chat (agents, artifacts, localhosts, images); a chip opens its gallery */
+.cc-chips {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  z-index: 20;
+}
+.cc-chips-open {
+  z-index: 45;
+}
+.cc-chip {
+  --c: #8f8f9a;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px 0 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--c) 45%, #2b2b31);
+  background: color-mix(in srgb, var(--c) 12%, #121215);
+  font:
+    700 calc(10.5px * var(--cc-inv)) ui-monospace,
+    Consolas,
+    monospace;
+  color: #ececf3;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.cc-chip svg {
+  color: var(--c);
+}
+.cc-chip:hover,
+.cc-chip[data-on] {
+  background: color-mix(in srgb, var(--c) 28%, #121215);
+  border-color: var(--c);
+}
+.cc-chip[data-kind='agent'],
+.cc-chip-pop[data-kind='agent'] {
+  --c: #8b8cf6;
+}
+.cc-chip[data-kind='artifact'],
+.cc-chip-pop[data-kind='artifact'] {
+  --c: #4fb3d9;
+}
+.cc-chip[data-kind='server'],
+.cc-chip-pop[data-kind='server'] {
+  --c: #3ecf7a;
+}
+.cc-chip[data-kind='image'],
+.cc-chip-pop[data-kind='image'] {
+  --c: #e58fb1;
+}
+.cc-chip-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--c);
+  border-radius: 12px;
+  background: #17171c;
+  box-shadow: 0 18px 44px #000c;
+  cursor: default;
+}
+.cc-chip-pop-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: 600 calc(11px * var(--cc-inv)) system-ui;
+  color: #b4b4bf;
+  white-space: nowrap;
+}
+.cc-chip-pop-head svg {
+  color: var(--c);
+}
+.cc-chip-pop-head b {
+  color: #ececf3;
+}
+.cc-chip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 168px);
+  gap: 10px;
+  width: max-content;
+  max-width: 536px;
+}
+.cc-chip-agents {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 260px;
+}
+.cc-chip-agent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid #2b2b31;
+  background: #121215;
+  color: #b4b4bf;
+}
+.cc-chip-agent b {
+  font: 600 calc(12px * var(--cc-inv)) system-ui;
+  color: #ececf3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-chip-agent small {
+  margin-left: auto;
+  font: 500 calc(10.5px * var(--cc-inv)) system-ui;
+  color: #8d8d99;
+  white-space: nowrap;
+}
+.cc-extra.cc-extra-tile {
+  position: relative;
+  width: 168px;
+  height: 138px;
+  border-radius: 10px;
+  padding: 6px;
+  gap: 5px;
+}
+.cc-extra-tile .cc-agent-head b {
+  font-size: calc(10.5px * var(--cc-inv));
+}
+.cc-image-tile {
+  position: relative;
+  width: 168px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1.5px solid #3a3a42;
+  background: #121215;
+  cursor: pointer;
+}
+.cc-image-tile:hover {
+  border-color: var(--c);
+}
+.cc-image-shot {
+  height: 104px;
+  border-radius: 6px;
+  background: #0c0c0f;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #8d8d99;
+  font: 500 calc(10px * var(--cc-inv)) system-ui;
+  text-align: center;
+}
+.cc-image-shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cc-image-tile b {
+  font:
+    600 calc(10px * var(--cc-inv)) ui-monospace,
+    Consolas,
+    monospace;
+  color: #b4b4bf;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-image-x {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid #3a3a42;
+  background: #17171ccc;
+  color: #ececf3;
+  opacity: 0;
+  cursor: pointer;
+}
+.cc-image-tile:hover .cc-image-x {
+  opacity: 1;
+}
+.cc-image-view-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 14px;
+  background: #0c0c0f;
+  color: #8d8d99;
+}
+.cc-image-view-body img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+/* the open chat's own X: asks before closing the chat, like the floating X of a closed card */
+.cc-head-close:hover {
+  background: #ef4b4b;
+  border-color: #ef4b4b;
+  color: #fff;
 }

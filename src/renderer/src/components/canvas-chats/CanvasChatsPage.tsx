@@ -9,15 +9,18 @@ import {
 } from '@/constants/terminal'
 import { parseAgentStatusPaneIdentity } from '../../../../shared/agent-status/identity/agent-status-worktree-attribution'
 import { useCanvasProjects } from './canvas-chats-data'
+import { useCanvasContextTokensRefresh } from './canvas-chat-context-tokens'
 import {
-  busPath,
-  elbowPath,
+  chatDescendants,
   layoutCanvas,
   type CanvasBox,
   type CanvasChat,
   type CanvasExtra
 } from './canvas-chats-layout'
-import { AgentNode, ChatNode, ProjectNode, STATUS_LABEL } from './CanvasChatsNodes'
+import { canvasChatTreeLines } from './CanvasChatTreeLines'
+import { CanvasUserQueue } from './CanvasUserQueue'
+import { ChatNode, ProjectNode, STATUS_LABEL } from './CanvasChatsNodes'
+import { CanvasChatAttachments, CanvasImagePreview } from './CanvasChatAttachments'
 import { finishActiveCanvasVoice, useCanvasListenMode } from './canvas-voice-preference'
 import {
   applyCanvasOffsets,
@@ -27,7 +30,8 @@ import {
   useCanvasOffsets
 } from './canvas-chats-offsets'
 import { useCanvasCordLayer } from './use-canvas-cord-layer'
-import { CanvasWebPreview, ExtraNode } from './CanvasChatExtras'
+import { CanvasWebPreview } from './CanvasChatExtras'
+import { CanvasAddProjectButton } from './CanvasAddProjectButton'
 import './canvas-chats.css'
 
 type View = { x: number; y: number; s: number }
@@ -46,6 +50,7 @@ function fitView(bounds: CanvasBox, viewport: { w: number; h: number }, pad = 60
 
 export default function CanvasChatsPage(): React.JSX.Element {
   const projects = useCanvasProjects()
+  useCanvasContextTokensRefresh(projects)
   const rootRef = useRef<HTMLDivElement>(null)
   const [viewport, setViewport] = useState({ w: 0, h: 0 })
   const [view, setView] = useState<View>({ x: 0, y: 0, s: 1 })
@@ -71,7 +76,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
   const structureKey = projects
     .map(
       (p) =>
-        `${p.id}:${p.chats.map((c) => `${c.key}/${c.agents.length}/${c.extras.length}`).join(',')}`
+        `${p.id}:${p.chats.map((c) => `${c.key}/${c.parentKey ?? ''}/${c.agents.length}/${c.extras.length}`).join(',')}`
     )
     .join('|')
   const layout = useMemo(
@@ -149,9 +154,10 @@ export default function CanvasChatsPage(): React.JSX.Element {
    * After a restart Orca keeps a chat asleep until its pane is shown. Opening a card wakes just that chat in
    * the background; the card shows "Restaurando o chat…" until its terminal is live and drawn.
    */
-  const wakeChat = (chat: CanvasChat): void => {
+  const wakeChat = (chat: CanvasChat, terminalIsGone = false): void => {
     const state = useAppStore.getState()
-    if ((state.ptyIdsByTabId[chat.tabId]?.length ?? 0) > 0) {
+    // A saved terminal id after a restart is only a hint; the card says when it found no terminal behind it.
+    if (!terminalIsGone && (state.ptyIdsByTabId[chat.tabId]?.length ?? 0) > 0) {
       return
     }
     // Orca's own background wake, aimed at this one chat: mount its pane hidden, then wake it if it was held asleep.
@@ -279,24 +285,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
 
   const cordLayer = useCanvasCordLayer({ boxes, view, rootRef })
 
-  const lines: React.JSX.Element[] = []
-  for (const project of projects) {
-    const pbox = boxes[`project:${project.id}`]
-    for (const chat of project.chats) {
-      const cbox = boxes[chat.key]
-      if (pbox && cbox) {
-        lines.push(<path key={`b-${chat.key}`} className="cc-line-tree" d={busPath(pbox, cbox)} />)
-      }
-      for (const agent of [...chat.agents, ...chat.extras]) {
-        const abox = boxes[agent.id]
-        if (cbox && abox) {
-          lines.push(
-            <path key={`e-${agent.id}`} className="cc-line-tree" d={elbowPath(cbox, abox)} />
-          )
-        }
-      }
-    }
-  }
+  const lines = canvasChatTreeLines(projects, boxes)
 
   return (
     <div
@@ -323,7 +312,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
         {projects.map((project) => {
           const pbox = boxes[`project:${project.id}`]
           return (
-            <div key={project.id} style={{ '--cc-pc': project.color } as React.CSSProperties}>
+            <div key={project.id}>
               {pbox ? (
                 <ProjectNode
                   project={project}
@@ -352,8 +341,15 @@ export default function CanvasChatsPage(): React.JSX.Element {
                           openCard(chat)
                         }
                       }}
+                      onWake={() => wakeChat(chat, true)}
                       onDragStart={(e) =>
-                        startCardDrag([chat.key, ...chat.agents.map((a) => a.id)], e)
+                        startCardDrag(
+                          [chat, ...chatDescendants(project.chats, chat.key)].flatMap((c) => [
+                            c.key,
+                            ...c.agents.map((a) => a.id)
+                          ]),
+                          e
+                        )
                       }
                       openSize={openSize}
                       terminalReady={terminalReady}
@@ -366,22 +362,9 @@ export default function CanvasChatsPage(): React.JSX.Element {
                       }
                       onStartLink={(e) => cordLayer.startLink(chat.key, e)}
                     />
-                    {chat.agents.map((agent) => {
-                      const abox = boxes[agent.id]
-                      return abox ? <AgentNode key={agent.id} agent={agent} box={abox} /> : null
-                    })}
-                    {chat.extras.map((extra) => {
-                      const xbox = boxes[extra.id]
-                      return xbox ? (
-                        <ExtraNode
-                          key={extra.id}
-                          extra={extra}
-                          box={xbox}
-                          turnKey={chat.status === 'working' ? '' : `${chat.startedAt}`}
-                          onExpand={() => setExpandedExtra(extra)}
-                        />
-                      ) : null
-                    })}
+                    {openKey === chat.key ? null : (
+                      <CanvasChatAttachments chat={chat} box={cbox} onExpand={setExpandedExtra} />
+                    )}
                   </div>
                 ) : null
               })}
@@ -389,7 +372,9 @@ export default function CanvasChatsPage(): React.JSX.Element {
           )
         })}
       </div>
-      {expandedExtra ? (
+      {expandedExtra?.kind === 'image' ? (
+        <CanvasImagePreview extra={expandedExtra} onClose={() => setExpandedExtra(null)} />
+      ) : expandedExtra ? (
         <CanvasWebPreview extra={expandedExtra} onClose={() => setExpandedExtra(null)} />
       ) : null}
       {projects.length === 0 ? (
@@ -397,6 +382,15 @@ export default function CanvasChatsPage(): React.JSX.Element {
           {translate('fork.canvas.empty', 'Nenhum chat aberto ainda.')}
         </div>
       ) : null}
+      <CanvasUserQueue
+        projects={projects}
+        onOpenChat={(key) => {
+          const chat = projects.flatMap((project) => project.chats).find((c) => c.key === key)
+          if (chat) {
+            openCard(chat)
+          }
+        }}
+      />
       <div className="cc-legend" onPointerDown={(e) => e.stopPropagation()}>
         {(['idle', 'working', 'monitoring', 'unseen', 'seen', 'waiting'] as const).map((s) => (
           <span key={s} data-status={s}>
@@ -414,10 +408,13 @@ export default function CanvasChatsPage(): React.JSX.Element {
           )}
         </div>
       ) : null}
-      <button className="cc-tidy" onPointerDown={(e) => e.stopPropagation()} onClick={reorganize}>
-        <RotateCcw size={13} />
-        {translate('fork.canvas.reorganize', 'Reorganizar')}
-      </button>
+      <div className="cc-actions">
+        <CanvasAddProjectButton />
+        <button className="cc-tidy" onPointerDown={(e) => e.stopPropagation()} onClick={reorganize}>
+          <RotateCcw size={13} />
+          {translate('fork.canvas.reorganize', 'Reorganizar')}
+        </button>
+      </div>
     </div>
   )
 }

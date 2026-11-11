@@ -1,3 +1,9 @@
+import type {
+  CanvasHierarchyDecision,
+  CanvasHierarchyDecisionResult,
+  CanvasHierarchySnapshot
+} from '../../shared/canvas-hierarchy'
+import type { CanvasContextTokens } from '../../shared/canvas-context-tokens'
 import type { PcDeskHomeFolderListing } from '../../shared/pc-desk-home-folder-types'
 import type {
   PcDeskSessionTitleRequest,
@@ -103,10 +109,28 @@ export type RepositoryApi = {
     cwd: string
     text: string
   }) => Promise<{ kind: 'ok'; summary: string } | { kind: 'error'; error: string }>
+  /** Fork-only: Haiku's one or two word job title for an executor chat's round flowchart card. */
+  nameCanvasExecutor: (request: {
+    cwd: string
+    text: string
+  }) => Promise<{ kind: 'ok'; summary: string } | { kind: 'error'; error: string }>
   /** Fork-only: still picture of a chat's localhost page or claude.ai artifact, for its flowchart card. */
   captureCanvasPagePreview: (
     url: string
   ) => Promise<{ kind: 'ok'; dataUrl: string } | { kind: 'error'; error: string }>
+  /** Fork-only: each folder's chat hierarchy (PO > planner > executor), for the flowchart. */
+  readCanvasHierarchy: (folders: string[]) => Promise<CanvasHierarchySnapshot[]>
+  /** Fork-only: tokens in each chat's context, read from its Claude transcript, for the flowchart. */
+  readCanvasContextTokens: (transcriptPaths: string[]) => Promise<CanvasContextTokens>
+  /** Fork-only: an image file a chat printed, as a thumbnail or full picture, for the flowchart. */
+  readCanvasImage: (request: {
+    path: string
+    size: 'thumb' | 'full'
+  }) => Promise<{ kind: 'ok'; dataUrl: string } | { kind: 'error'; error: string }>
+  /** Fork-only: the user's OK or send-back on a delivery, from the flowchart queue. */
+  decideCanvasHierarchyOrder: (
+    decision: CanvasHierarchyDecision
+  ) => Promise<CanvasHierarchyDecisionResult>
   /** Fork-only: lets main name phone workspace rows like the PC-desk sidebar. */
   setPcDeskSmartTitles: (enabled: boolean) => Promise<void>
   onCloneProgress: (callback: (data: { phase: string; percent: number }) => void) => () => void

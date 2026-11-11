@@ -1,6 +1,8 @@
 import { fixtureScreenshotPath } from './fixture-paths.mjs'
 
 const FIXTURE_TIMEOUT_MS = 60_000
+// Fork: a cold Vite transform of the renderer takes minutes behind this PC's antivirus.
+const PAGE_LOAD_TIMEOUT_MS = 300_000
 
 // Reuse a page per device scale, reloading after source changes so shots reflect disk.
 export function createFixturePageRunner(baseUrl, browserPromise) {
@@ -40,7 +42,9 @@ export function createFixturePageRunner(baseUrl, browserPromise) {
     worker.pageErrors = []
     if (worker.revision !== sourceRevision) {
       const revision = sourceRevision
-      await worker.page.goto(`${baseUrl}/fixtures.html?worker=1`)
+      await worker.page.goto(`${baseUrl}/fixtures.html?worker=1`, {
+        timeout: PAGE_LOAD_TIMEOUT_MS
+      })
       await worker.page.waitForFunction(
         () => Boolean(window.__orcaComponentFixtureHost),
         undefined,

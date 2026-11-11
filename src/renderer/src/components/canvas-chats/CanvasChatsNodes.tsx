@@ -1,17 +1,14 @@
 import { useRef, useState } from 'react'
-import { Bot, ExternalLink, Palette, Plus, SquareTerminal, X } from 'lucide-react'
+import { ExternalLink, Palette, Plus, X } from 'lucide-react'
 import { DEFAULT_REPO_BADGE_COLOR, REPO_COLORS } from '../../../../shared/repo-badge-color'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { revealTerminalPane } from '@/lib/reveal-terminal-pane'
-import { AgentTerminalPreview } from '../dashboard-popout/AgentTerminalPreview'
 import { useTerminalTail } from './canvas-chat-terminal-tail'
-import { canvasChatLinkHandlers } from './canvas-chat-terminal-links'
 import { buildFontFamily } from '@/lib/monospace-font-family'
 import { savedChatPeek, usePeekTheme } from './canvas-chat-peek-screen'
-import { PEEK_W, usePeek, useSecondsWhile } from './use-canvas-chat-peek'
-import { useChatRestoring } from '@/lib/chat-restore-progress'
-import { ChatRestoreLoading } from '../terminal-pane/SessionRestoredBanner'
+import { PEEK_W, usePeek } from './use-canvas-chat-peek'
+import { CanvasChatTerminal } from './CanvasChatTerminal'
 import { CanvasVoiceBar } from './CanvasVoiceBar'
 import { useCanvasChatSummary } from './canvas-chats-summary'
 import { renderCanvasMarkdown } from './canvas-chats-markdown'
@@ -19,7 +16,14 @@ import { useCanvasListenMode } from './canvas-voice-preference'
 import { useCanvasChatStatus } from './canvas-chats-data'
 import { openPcDeskChatInRepo } from '../sidebar/pc-desk-switcher/launch-pc-desk-chat'
 import { closePcDeskChat } from '../sidebar/pc-desk-switcher/close-pc-desk-project'
-import type { CanvasAgent, CanvasBox, CanvasChat, CanvasProject } from './canvas-chats-layout'
+import type { CanvasBox, CanvasChat, CanvasProject } from './canvas-chats-layout'
+import { canvasChatModelLabel } from './canvas-chat-model-label'
+import { CanvasChatContextMeter } from './CanvasChatContextMeter'
+import { CanvasExecutorCrest } from './CanvasExecutorCrest'
+import { useCanvasExecutorName } from './canvas-chat-executor-name'
+import { chatShape, chatVisualBox } from './canvas-chat-shape'
+import { CanvasChatGate, CanvasChatRole } from './CanvasChatHierarchyBadges'
+import { CanvasProjectClose } from './CanvasProjectClose'
 
 export const STATUS_LABEL: Record<CanvasChat['status'], string> = {
   idle: translate('fork.canvas.statusIdle', 'parado'),
@@ -66,6 +70,7 @@ export function ProjectNode({
       }
       onPointerDown={onDragStart}
     >
+      <CanvasProjectClose project={project} />
       <div className="cc-project-actions" onPointerDown={(e) => e.stopPropagation()}>
         <button
           className="cc-head-button"
@@ -122,37 +127,6 @@ export function ProjectNode({
   )
 }
 
-export function AgentNode({
-  agent,
-  box
-}: {
-  agent: CanvasAgent
-  box: CanvasBox
-}): React.JSX.Element {
-  const line = agent.blocked
-    ? translate('fork.canvas.agentBlocked', '⏸ esperando você responder o chat')
-    : agent.kind === 'task'
-      ? translate('fork.canvas.taskRunning', 'processo rodando em segundo plano')
-      : STATUS_LABEL[agent.status]
-  return (
-    <div
-      className="cc-node cc-agent"
-      data-status={agent.status}
-      data-blocked={agent.blocked ? '1' : undefined}
-      style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
-      title={agent.name}
-    >
-      <div className="cc-agent-head">
-        <span className="cc-bot">
-          {agent.kind === 'task' ? <SquareTerminal size={13} /> : <Bot size={13} />}
-        </span>
-        <b>{agent.name}</b>
-      </div>
-      <div className="cc-agent-line">{line}</div>
-    </div>
-  )
-}
-
 export function ChatNode({
   chat,
   box,
@@ -161,6 +135,7 @@ export function ChatNode({
   openSize,
   terminalReady,
   linkRole,
+  onWake,
   onStartLink,
   onDragStart
 }: {
@@ -171,6 +146,8 @@ export function ChatNode({
   openSize: { w: number; h: number }
   terminalReady: boolean
   linkRole: 'source' | 'target' | null
+  /** Wakes just this chat when its saved terminal no longer exists (after an Orca restart). */
+  onWake: () => void
   onStartLink: (e: React.PointerEvent) => void
   onDragStart: (e: React.PointerEvent) => void
 }): React.JSX.Element {
@@ -178,10 +155,8 @@ export function ChatNode({
   const status = useCanvasChatStatus(chat)
   const [confirmingClose, setConfirmingClose] = useState(false)
   const autoVoice = useCanvasListenMode()
-  const peeking = usePeek(open, cardRef)
+  const peeking = usePeek(open || chat.hierarchy?.role === 'executor', cardRef)
   const livePty = useAppStore((s) => s.ptyIdsByTabId[chat.tabId]?.[0] ?? null)
-  const restoring = useChatRestoring(chat.tabId)
-  const restoreSeconds = useSecondsWhile(open && (!livePty || restoring))
   const peekTheme = usePeekTheme()
   const peekFont = useAppStore((s) => s.settings?.terminalFontFamily)
   const tail = useTerminalTail(open ? null : chat.ptyId, status, chat.tabId, peeking.on, peekTheme)
@@ -201,6 +176,8 @@ export function ChatNode({
     chat.startedAt ? String(chat.startedAt) : ''
   )
   const lastPrompt = chat.lines.find((line) => line.role === 'user')
+  const executorName = useCanvasExecutorName(chat, lastPrompt?.text ?? '')
+  const modelLabel = canvasChatModelLabel(chat.model)
   // Wrapped terminal lines read as one paragraph; bullets and tool markers are noise on a card.
   const preview = replyText
     .split('\n')
@@ -222,6 +199,9 @@ export function ChatNode({
   const peekLines =
     tail.peek.length > 0 ? tail.peek : savedChatPeek(lastPrompt?.text, replyText, !livePty)
   const peek = peeking.on && peekLines.length > 0
+  // A planner is a slim card and an executor a hexagon, inside the same slot; open or peeking they are full cards.
+  const shape = open || peek ? 'card' : chatShape(chat)
+  const visual = shape === 'card' ? box : chatVisualBox(chat, box)
   const style = open
     ? {
         left: box.x + box.w / 2 - openSize.w / 2,
@@ -231,11 +211,11 @@ export function ChatNode({
       }
     : peek
       ? { left: box.x + box.w / 2 - PEEK_W / 2, top: box.y, width: PEEK_W, minHeight: box.h }
-      : { left: box.x, top: box.y, width: box.w, height: box.h }
+      : { left: visual.x, top: visual.y, width: visual.w, height: visual.h }
   return (
     <div
       ref={cardRef}
-      className={`cc-node cc-chat${open ? ' cc-open' : ''}${peek ? ' cc-peek' : ''}${linkRole ? ` cc-link-${linkRole}` : ''}`}
+      className={`cc-node cc-chat${open ? ' cc-open' : ''}${peek ? ' cc-peek' : ''}${shape === 'card' ? '' : ` cc-shape-${shape}`}${linkRole ? ` cc-link-${linkRole}` : ''}`}
       data-chat-key={chat.key}
       data-status={status}
       style={style}
@@ -254,12 +234,7 @@ export function ChatNode({
               onPointerDown={onStartLink}
             />
           ))}
-      <span
-        className="cc-xwrap"
-        // The X stays where the small card's corner was, so it can be clicked before the peek grows.
-        style={peek ? { right: (PEEK_W - box.w) / 2 - 30 } : undefined}
-        onPointerDown={(e) => e.stopPropagation()}
-      >
+      <span className="cc-xwrap" onPointerDown={(e) => e.stopPropagation()}>
         <button
           type="button"
           className="cc-xbtn"
@@ -310,41 +285,54 @@ export function ChatNode({
           </div>
         </div>
       ) : null}
+      {shape === 'crest' ? <CanvasExecutorCrest chat={chat} name={executorName} /> : null}
       <div className="cc-chat-head">
-        <span className="cc-dot" />
-        <b>{chat.title}</b>
-        <span className="cc-status">
-          {status === 'working' ? <span className="cc-spin" /> : null}
-          {STATUS_LABEL[status]}
-        </span>
-        {open ? (
-          <button
-            className="cc-head-button"
-            title={translate('fork.canvas.openNormal', 'Abrir na visão normal')}
-            onClick={showInNormalView}
-          >
-            <ExternalLink size={13} />
-          </button>
-        ) : null}
+        <div className="cc-head-row">
+          <span className="cc-dot" />
+          <CanvasChatRole chat={chat} />
+          <b>{chat.title}</b>
+          {open ? (
+            <>
+              <button
+                className="cc-head-button"
+                title={translate('fork.canvas.openNormal', 'Abrir na visão normal')}
+                onClick={showInNormalView}
+              >
+                <ExternalLink size={13} />
+              </button>
+              <button
+                className="cc-head-button cc-head-close"
+                title={translate('fork.canvas.closeChat', 'Fechar este chat')}
+                onClick={() => setConfirmingClose(true)}
+              >
+                <X size={13} />
+              </button>
+            </>
+          ) : null}
+        </div>
+        <div className="cc-head-row">
+          <CanvasChatContextMeter transcriptPath={chat.transcriptPath} />
+          {modelLabel ? (
+            <span className="cc-model" data-family={modelLabel.family}>
+              {modelLabel.label}
+            </span>
+          ) : null}
+          <span className="cc-status">
+            {status === 'working' ? <span className="cc-spin" /> : null}
+            {STATUS_LABEL[status]}
+          </span>
+        </div>
       </div>
+      {open ? null : <CanvasChatGate chat={chat} />}
       {open ? (
         <>
-          <div className="cc-terminal-wrap">
-            {livePty && terminalReady ? (
-              <AgentTerminalPreview
-                key={livePty}
-                ptyId={livePty}
-                terminalInput={null}
-                linkHandlers={canvasChatLinkHandlers}
-                className="cc-terminal"
-              />
-            ) : (
-              <div className="cc-terminal" />
-            )}
-            {restoreSeconds >= 0 ? (
-              <ChatRestoreLoading seconds={restoreSeconds} background={peekTheme?.background} />
-            ) : null}
-          </div>
+          <CanvasChatTerminal
+            tabId={chat.tabId}
+            livePty={livePty}
+            terminalReady={terminalReady}
+            background={peekTheme?.background}
+            onWake={onWake}
+          />
           {livePty ? (
             <CanvasVoiceBar ptyId={livePty} cardRef={cardRef} autoStart={autoVoice} />
           ) : null}

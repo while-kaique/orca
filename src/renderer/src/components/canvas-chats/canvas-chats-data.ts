@@ -16,92 +16,12 @@ import type {
   CanvasProject
 } from './canvas-chats-layout'
 import { runningChildWork } from './canvas-chat-child-work'
-import { DEFAULT_REPO_BADGE_COLOR, REPO_COLORS } from '../../../../shared/repo-badge-color'
+import type { CanvasChatLatestEntry } from './canvas-chat-lineage'
+import { linkProjectChats, useCanvasHierarchy } from './canvas-chat-hierarchy'
+import { projectColor, projectInitials } from './canvas-project-badge'
 import { getWorkspacePortsByWorktreeId } from '@/lib/workspace-ports/workspace-port-groups'
-import { browserUrlForPort } from '@/lib/workspace-ports/workspace-port-urls'
-import type { WorkspacePort } from '../../../../shared/workspace-ports'
-import {
-  artifactLinksForTab,
-  pageForPort,
-  portsMentionedByTab,
-  useCanvasArtifactLinks,
-  type CanvasArtifactLinks
-} from './canvas-chat-artifacts'
-import type { CanvasExtra } from './canvas-chats-layout'
-
-/** Servers whose URL this chat's terminal printed, plus the claude.ai artifacts it showed. */
-function chatExtras(
-  state: CanvasInputs,
-  ports: readonly WorkspacePort[],
-  tabId: string,
-  ptyIds: readonly string[],
-  allPorts: readonly WorkspacePort[],
-  owner: { repoId: string; worktreeId: string }
-): CanvasExtra[] {
-  const extras: CanvasExtra[] = []
-  const mentioned = portsMentionedByTab(state.artifactLinks, tabId)
-  const seen = new Set<number>()
-  const push = (port: WorkspacePort, repoId: string, worktreeId: string): void => {
-    if (seen.has(port.port)) {
-      return
-    }
-    seen.add(port.port)
-    const url = pageForPort(state.artifactLinks, tabId, port.port) ?? browserUrlForPort(port)
-    extras.push({
-      id: `${tabId}::server:${port.port}`,
-      kind: 'server',
-      label: url.replace(/^https?:\/\//u, ''),
-      url,
-      ...(port.pid ? { server: { repoId, worktreeId, pid: port.pid, port: port.port } } : {})
-    })
-  }
-  for (const port of ports) {
-    // Tied to this chat when its terminal printed the URL, or the conversation mentions the port.
-    if (port.kind !== 'workspace') {
-      continue
-    }
-    const printedHere =
-      port.advertisedByPtyId !== undefined && ptyIds.includes(port.advertisedByPtyId)
-    if (printedHere || mentioned.includes(port.port)) {
-      push(port, port.owner.repoId, port.owner.worktreeId)
-    }
-  }
-  // Folder workspaces (e.g. Desktop\Projetos) get no port owner from Orca: match mentioned ports machine-wide.
-  for (const port of allPorts) {
-    if (mentioned.includes(port.port) && port.kind !== 'container') {
-      push(port, owner.repoId, owner.worktreeId)
-    }
-  }
-  for (const url of artifactLinksForTab(state.artifactLinks, tabId)) {
-    extras.push({
-      id: `${tabId}::artifact:${url}`,
-      kind: 'artifact',
-      label: `artifact ${url.split('/').pop()?.slice(0, 10) ?? ''}`,
-      url
-    })
-  }
-  return extras
-}
-
-const AUTO_COLORS = REPO_COLORS.filter((color) => color !== DEFAULT_REPO_BADGE_COLOR)
-
-/** The sidebar badge color, or an automatic one per project while that is still the default gray. */
-function projectColor(repoId: string, badgeColor: string | undefined): string {
-  if (badgeColor && badgeColor.toLowerCase() !== DEFAULT_REPO_BADGE_COLOR) {
-    return badgeColor
-  }
-  let h = 0
-  for (let i = 0; i < repoId.length; i++) {
-    h = (h * 31 + repoId.charCodeAt(i)) | 0
-  }
-  return AUTO_COLORS[Math.abs(h) % AUTO_COLORS.length]
-}
-
-function projectInitials(name: string): string {
-  const words = name.split(/[\s_-]+/u).filter(Boolean)
-  const letters = words.length > 1 ? `${words[0][0]}${words[1][0]}` : name.slice(0, 2)
-  return letters.toUpperCase()
-}
+import { useCanvasArtifactLinks, type CanvasArtifactLinks } from './canvas-chat-artifacts'
+import { chatExtras } from './canvas-chat-extras-data'
 
 type CanvasInputs = Pick<
   AppState,
@@ -115,7 +35,11 @@ type CanvasInputs = Pick<
   | 'migrationUnsupportedByPtyId'
   | 'workspacePortScan'
   | 'sleepingAgentSessionsByPaneKey'
-> & { worktreesByRepo: AppState['worktreesByRepo']; artifactLinks: CanvasArtifactLinks }
+> & {
+  worktreesByRepo: AppState['worktreesByRepo']
+  artifactLinks: CanvasArtifactLinks
+  hierarchy: ReturnType<typeof useCanvasHierarchy>
+}
 
 function chatStatus(state: CanvasInputs, worktreeId: string, tabId: string): CanvasChatStatus {
   const flags = selectPcDeskChatAgentActivityFlags(state as never, worktreeId, tabId)
@@ -161,7 +85,7 @@ function latestEntry(
 function sleepingRecord(
   state: CanvasInputs,
   tabId: string
-): { prompt: string; lastAssistantMessage?: string } | null {
+): CanvasInputs['sleepingAgentSessionsByPaneKey'][string] | null {
   let best: CanvasInputs['sleepingAgentSessionsByPaneKey'][string] | null = null
   for (const record of Object.values(state.sleepingAgentSessionsByPaneKey ?? {})) {
     if (record.tabId === tabId && (!best || record.updatedAt > best.updatedAt)) {
@@ -190,6 +114,7 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
   const portsByWorktree = getWorkspacePortsByWorktreeId(state.workspacePortScan?.result)
   for (const repo of state.repos) {
     const chats: CanvasChat[] = []
+    const latestByChat = new Map<string, CanvasChatLatestEntry>()
     for (const worktree of state.worktreesByRepo[repo.id] ?? []) {
       if (worktree.isArchived) {
         continue
@@ -197,6 +122,9 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
       for (const tab of state.tabsByWorktree[worktree.id] ?? []) {
         const latest = latestEntry(state, tab.id)
         const entry = latest?.entry
+        if (latest) {
+          latestByChat.set(tab.id, latest)
+        }
         const status = chatStatus(state, worktree.id, tab.id)
         // Same records as the sidebar, plus background commands (e.g. a training left running).
         const agents: CanvasAgent[] = entry
@@ -240,12 +168,16 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
             tab.title ||
             worktree.displayName ||
             repo.displayName,
+          parentKey: null,
+          model: entry?.model?.trim() || null,
+          transcriptPath: (entry ?? asleep)?.providerSession?.transcriptPath ?? null,
+          hierarchy: null,
           // Agents never ask the user directly: a stuck agent turns its chat red.
           status: agents.some((a) => a.blocked) ? 'waiting' : status,
           lines,
           agents,
           extras: chatExtras(
-            state,
+            state.artifactLinks,
             portsByWorktree.get(worktree.id) ?? [],
             tab.id,
             state.ptyIdsByTabId[tab.id] ?? (tab.ptyId ? [tab.ptyId] : []),
@@ -256,6 +188,8 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
         })
       }
     }
+    const folders = (state.worktreesByRepo[repo.id] ?? []).map((w) => w.path)
+    const queue = linkProjectChats(chats, latestByChat, state.hierarchy, folders)
     if (chats.length > 0) {
       projects.push({
         id: repo.id,
@@ -263,7 +197,8 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
         color: projectColor(repo.id, repo.badgeColor),
         initials: projectInitials(repo.displayName),
         detail: '',
-        chats
+        chats,
+        queue
       })
     }
   }
@@ -287,7 +222,19 @@ export function useCanvasProjects(): CanvasProject[] {
     }))
   )
   const artifactLinks = useCanvasArtifactLinks()
-  return useMemo(() => buildCanvasProjects({ ...inputs, artifactLinks }), [inputs, artifactLinks])
+  const folders = useMemo(
+    () =>
+      Object.values(inputs.worktreesByRepo)
+        .flat()
+        .filter((worktree) => !worktree.isArchived)
+        .map((worktree) => worktree.path),
+    [inputs.worktreesByRepo]
+  )
+  const hierarchy = useCanvasHierarchy(folders)
+  return useMemo(
+    () => buildCanvasProjects({ ...inputs, artifactLinks, hierarchy }),
+    [inputs, artifactLinks, hierarchy]
+  )
 }
 
 /** The card's border follows the exact same rule as the chat's dot in the sidebar. */

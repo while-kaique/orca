@@ -95,6 +95,7 @@ export const ROOT_HELP_TEXT_PRIMARY = [
   'Repos:',
   '  repo list                 List repos registered in Orca',
   '  repo add                  Add a project to Orca by filesystem path',
+  '  repo rm                   Remove a project from Orca (files stay on disk)',
   '  repo show                 Show one registered repo',
   '  repo set                  Set whether non-Orca worktrees are shown for a repo',
   "  repo set-base-ref         Set the repo's default base ref for future worktrees",

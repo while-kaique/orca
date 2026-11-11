@@ -8,6 +8,8 @@ type Stored = {
   ports?: Record<string, number[]>
   /** The full page address each chat showed per port (e.g. localhost:8799/relatorio/), opened instead of the bare port. */
   pages?: Record<string, Record<string, string>>
+  /** Image files each chat printed (screenshots, generated art), newest last. */
+  images?: Record<string, string[]>
 }
 
 const STORAGE_KEY = 'orca-fork.canvas-chat-artifacts'
@@ -18,6 +20,11 @@ const WHOLE_ARTIFACT_LINK = new RegExp(`^(?:${ARTIFACT_LINK.source})$`)
 const LOCAL_PORT = /(?:localhost|127\.0\.0\.1|0\.0\.0\.0):(\d{2,5})/g
 const LOCAL_PAGE =
   /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0):(\d{2,5})(\/[^\s"'<>()[\]{}]*)?/gu
+// Whole absolute paths only (C:\… or /c/…): a path the terminal wrapped loses its start or its extension.
+// A Windows path may hold single spaces ("Astra Designer"); it never holds a second drive colon.
+const IMAGE_PATH =
+  /(?:[A-Za-z]:[\\/](?:[^\s"'<>|*?`:()[\]{}]| (?=\S)){1,240}?|\/(?=[A-Za-z0-9._~-])[^\s"'<>|*?`:()[\]{}]{1,240}?)\.(?:png|jpe?g|webp|gif|bmp)(?![A-Za-z0-9])/giu
+const MAX_IMAGES_PER_CHAT = 24
 const ESCAPE_CODE_STARTS = [String.fromCharCode(27), String.fromCharCode(7)]
 
 /** Latest address with a path the chat showed for each port; a wrap-cut copy loses to the longer one it starts. */
@@ -82,14 +89,34 @@ export function noteCanvasChatArtifacts(tabId: string, rawTerminalText: string):
     }
   }
   const pagesChanged = Object.keys(pages).some((port) => pages[port] !== knownPages[port])
-  if (fresh.length > 0 || freshPorts.length > 0 || pagesChanged) {
+  const knownImages = stored.images?.[tabId] ?? []
+  const freshImages = [...new Set(imagePathsIn(rawTerminalText))].filter(
+    (path) => !knownImages.includes(path)
+  )
+  if (fresh.length > 0 || freshPorts.length > 0 || pagesChanged || freshImages.length > 0) {
     save({
       ...stored,
       links: { ...stored.links, [tabId]: [...known, ...fresh] },
       ports: { ...stored.ports, [tabId]: [...knownPorts, ...freshPorts] },
-      pages: { ...stored.pages, [tabId]: pages }
+      pages: { ...stored.pages, [tabId]: pages },
+      images: {
+        ...stored.images,
+        [tabId]: [...knownImages, ...freshImages].slice(-MAX_IMAGES_PER_CHAT)
+      }
     })
   }
+}
+
+/** Image file paths in a chat's terminal text; a temp path with a URL scheme before it is a link, not a file. */
+export function imagePathsIn(rawTerminalText: string): string[] {
+  const text = ESCAPE_CODE_STARTS.reduce((acc, code) => acc.split(code).join(' '), rawTerminalText)
+  return [...text.matchAll(IMAGE_PATH)]
+    .filter((match) => !/[A-Za-z0-9:/]$/u.test(text.slice(0, match.index)))
+    .map((match) => match[0])
+}
+
+export function imagesForTab(links: CanvasArtifactLinks, tabId: string): readonly string[] {
+  return (links.images?.[tabId] ?? EMPTY).filter((path) => !links.dismissed.includes(path))
 }
 
 export function portsMentionedByTab(links: CanvasArtifactLinks, tabId: string): readonly number[] {

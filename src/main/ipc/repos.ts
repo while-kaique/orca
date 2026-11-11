@@ -15,6 +15,9 @@ import { registerBaseRefQueryHandlers } from './repos/base-ref-query-handlers'
 import { registerPcDeskHomeFolderHandlers } from './repos/pc-desk-home-folder-handlers'
 import { registerPcDeskSessionTitleHandlers } from './repos/pc-desk-session-title-handlers'
 import { registerCanvasPagePreviewHandler } from './repos/canvas-page-preview-handler'
+import { registerCanvasHierarchyHandlers } from './repos/canvas-hierarchy-handlers'
+import { registerCanvasContextTokensHandler } from './repos/canvas-context-tokens-handler'
+import { registerCanvasImageHandler } from './repos/canvas-image-handler'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 
 export function registerRepoHandlers(
@@ -82,4 +85,7 @@ export function registerRepoHandlers(
   registerPcDeskHomeFolderHandlers()
   registerPcDeskSessionTitleHandlers()
   registerCanvasPagePreviewHandler()
+  registerCanvasHierarchyHandlers()
+  registerCanvasContextTokensHandler()
+  registerCanvasImageHandler()
 }

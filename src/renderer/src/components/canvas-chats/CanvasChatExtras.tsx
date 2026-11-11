@@ -24,7 +24,8 @@ export function ExtraNode({
   onExpand
 }: {
   extra: CanvasExtra
-  box: CanvasBox
+  /** Absent inside a chip's gallery, where the grid places the tile. */
+  box?: CanvasBox
   /** Changes when the owning chat finishes a turn ('' while it works): the page may have been updated. */
   turnKey: string
   onExpand: () => void
@@ -70,9 +71,9 @@ export function ExtraNode({
 
   return (
     <div
-      className="cc-node cc-extra"
+      className={box ? 'cc-node cc-extra' : 'cc-extra cc-extra-tile'}
       data-kind={extra.kind}
-      style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
+      style={box ? { left: box.x, top: box.y, width: box.w, height: box.h } : undefined}
       title={extra.url}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={() => {

@@ -32,6 +32,7 @@ import {
   claudePaneHasRunningChildWork,
   claudeRowHasUnlistedLiveWork
 } from './claude-pane-hold-evidence'
+import { claudeReportedStateName } from './claude-reported-state'
 import { buildClaudeStatusPayload } from './claude-status-build'
 import { trackClaudeTaskNotificationDelivery } from './claude-task-notification-delivery'
 import { recordClaudeTeammateSpawn } from './claude-teammate-spawn'
@@ -129,17 +130,12 @@ export function normalizeClaudeEvent(
       updateToolSnapshot: true
     })
   }
-  const reportedStateName =
-    eventName === 'UserPromptSubmit' ||
-    eventName === 'PostToolUse' ||
-    eventName === 'PostToolUseFailure' ||
-    (eventName === 'PreToolUse' && !isAskUserQuestion)
-      ? 'working'
-      : eventName === 'PermissionRequest' || eventName === 'Elicitation' || isAskUserQuestion
-        ? 'waiting'
-        : isTurnBoundary || isManualCompactCompletion
-          ? 'done'
-          : null
+  const reportedStateName = claudeReportedStateName(
+    eventName,
+    hookPayload,
+    isAskUserQuestion,
+    isTurnBoundary || isManualCompactCompletion
+  )
 
   if (!reportedStateName) {
     return null

@@ -20,6 +20,16 @@ export const REPO_COMMAND_SPECS: CommandSpec[] = [
     examples: ['orca repo add --path /abs/path/to/folder --kind folder --json']
   },
   {
+    path: ['repo', 'rm'],
+    summary: 'Remove a project from Orca (its files stay on disk)',
+    usage: 'orca repo rm --repo <selector> [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'repo'],
+    notes: [
+      'Only the registration goes away. Use an id selector when two projects share one path.'
+    ],
+    examples: ['orca repo rm --repo id:<repoId> --json']
+  },
+  {
     path: ['repo', 'show'],
     summary: 'Show one registered repo',
     usage: 'orca repo show --repo <selector> [--json]',
