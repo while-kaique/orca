@@ -1,0 +1,166 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="x-ua-compatible" content="ie=9">
+<title>Abrindo o Orca…</title>
+<HTA:APPLICATION ID="tela" BORDER="none" CAPTION="no" SHOWINTASKBAR="yes" SCROLL="no" SINGLEINSTANCE="yes" SYSMENU="no" INNERBORDER="no" />
+<!--
+  Tela "Abrindo o Orca": aparece no clique do atalho (abrir-orca-fork.vbs) e some quando a janela do
+  Orca aparece. Vê a etapa pelos arquivos abertura-etapa-* (criados pelo abrir-orca-montado.bat; a
+  tela nunca abre esses arquivos, para não travar quem escreve) e
+  estima cada etapa pelo tempo que ela levou da última vez (abertura-tempos.txt). mshta abre em ~1 s
+  neste PC; PowerShell levava 3 s e um .exe novo fica preso no antivírus.
+-->
+<style>
+  html, body { margin: 0; padding: 0; overflow: hidden; background: #18181b; cursor: default; }
+  body { font-family: 'Segoe UI', sans-serif; color: #f4f4f5; padding: 18px 24px; }
+  #titulo { font-size: 19px; font-weight: 600; }
+  #etapa { margin-top: 10px; font-size: 13px; color: #a1a1aa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #trilho { margin-top: 12px; height: 6px; background: #27272a; overflow: hidden; }
+  #barra { height: 6px; width: 0; background: #e6b422; }
+  #falta { margin-top: 10px; font-size: 12px; color: #a1a1aa; }
+</style>
+</head>
+<body onclick="window.close()">
+<div id="titulo">Abrindo o Orca</div>
+<div id="etapa">Começando…</div>
+<div id="trilho"><div id="barra"></div></div>
+<div id="falta"></div>
+<script>
+// mshta ignora o zoom do Windows: escala pela densidade da tela (150% = 1,5x).
+var zoom = screen.deviceXDPI ? Math.max(1, screen.deviceXDPI / 96) : 1;
+document.body.style.zoom = zoom;
+var W = Math.round(440 * zoom), H = Math.round(140 * zoom);
+window.resizeTo(W, H);
+window.moveTo(Math.round((screen.availWidth - W) / 2), Math.round((screen.availHeight - H) / 2));
+
+var fso = new ActiveXObject('Scripting.FileSystemObject');
+var sh = new ActiveXObject('WScript.Shell');
+var appData = sh.ExpandEnvironmentStrings('%APPDATA%');
+var logDir = appData + '\\orca-fork\\logs';
+var argLog = tela.commandLine.match(/\.hta"?\s+"([^"]+)"/);
+if (argLog) { logDir = argLog[1]; }
+var temposFile = logDir + '\\abertura-tempos.txt';
+var orcaLock = appData + '\\orca-fork\\lockfile';
+
+var ORDEM = ['conferir', 'montar', 'preparar', 'abrir'];
+var TEXTOS = {
+  conferir: 'Conferindo se o Orca mudou',
+  montar: 'Montando a versão nova do Orca',
+  preparar: 'Preparando os terminais',
+  abrir: 'Abrindo a janela'
+};
+var esperado = { conferir: 3, montar: 90, preparar: 5, abrir: 15 };
+var feitas = {}, puladas = {};
+var atual = null, atualDesde = 0, inicio = new Date().getTime(), orcaVivoDesde = 0, parado = false;
+
+function lerTexto(caminho) {
+  try {
+    if (!fso.FileExists(caminho)) { return ''; }
+    var f = fso.OpenTextFile(caminho, 1);
+    var t = f.AtEndOfStream ? '' : f.ReadAll();
+    f.Close();
+    return t;
+  } catch (e) { return ''; }
+}
+function emUso(caminho) {
+  if (!fso.FileExists(caminho)) { return false; }
+  try { fso.OpenTextFile(caminho, 8).Close(); return false; } catch (e) { return true; }
+}
+(function lerTempos() {
+  var linhas = lerTexto(temposFile).split(/\r?\n/);
+  for (var i = 0; i < linhas.length; i++) {
+    var p = linhas[i].split('=');
+    if (p.length === 2 && esperado.hasOwnProperty(p[0]) && !isNaN(parseFloat(p[1]))) {
+      esperado[p[0]] = Math.max(1, parseFloat(p[1]));
+    }
+  }
+})();
+function salvarTempos() {
+  try {
+    var out = [];
+    for (var i = 0; i < ORDEM.length; i++) {
+      var k = ORDEM[i];
+      if (feitas.hasOwnProperty(k)) { esperado[k] = Math.max(1, feitas[k]); }
+      out.push(k + '=' + esperado[k].toFixed(1));
+    }
+    var f = fso.CreateTextFile(temposFile, true);
+    f.Write(out.join('\r\n'));
+    f.Close();
+  } catch (e) {}
+}
+function texto(id, t) { document.getElementById(id).innerText = t; }
+
+function passo() {
+  if (parado) { return; }
+  var agora = new Date().getTime();
+  var chave = null;
+  for (var c = 0; c < ORDEM.length; c++) {
+    if (fso.FileExists(logDir + '\\abertura-etapa-' + ORDEM[c])) { chave = ORDEM[c]; }
+  }
+  if (fso.FileExists(logDir + '\\abertura-etapa-erro')) {
+    parado = true;
+    texto('etapa', 'O modo rápido falhou; abrindo no modo de edição (demora mais).');
+    texto('falta', 'Pode fechar esta tela (clique nela). O Orca aparece sozinho.');
+    return;
+  }
+  if (esperado.hasOwnProperty(chave) && chave !== atual) {
+    if (atual) { feitas[atual] = (agora - atualDesde) / 1000; }
+    for (var i = 0; i < ORDEM.length && ORDEM[i] !== chave; i++) {
+      if (!feitas.hasOwnProperty(ORDEM[i])) { puladas[ORDEM[i]] = true; }
+    }
+    atual = chave;
+    atualDesde = agora;
+  }
+  // Orca no ar = perfil travado + uma janela chamada "Orca" (AppActivate também a traz para a frente).
+  if (atual === 'abrir' && emUso(orcaLock)) {
+    if (!orcaVivoDesde) { orcaVivoDesde = agora; }
+    var achou = false;
+    try { achou = sh.AppActivate('Orca'); } catch (e) {}
+    if (achou || agora - orcaVivoDesde > 30000) {
+      feitas.abrir = (agora - atualDesde) / 1000;
+      parado = true;
+      salvarTempos();
+      window.close();
+      return;
+    }
+  }
+
+  var total = 0, feito = 0, restante = 0;
+  for (var j = 0; j < ORDEM.length; j++) {
+    var k = ORDEM[j];
+    if (puladas[k]) { continue; }
+    var e = esperado[k];
+    total += e;
+    if (feitas.hasOwnProperty(k)) { feito += e; }
+    else if (k === atual) {
+      var passou = (agora - atualDesde) / 1000;
+      feito += Math.min(e * 0.97, passou);
+      restante += Math.max(0, e - passou);
+    } else if (atual) { restante += e; }
+  }
+  if (total > 0) { document.getElementById('barra').style.width = Math.round(100 * Math.min(0.97, feito / total)) + '%'; }
+
+  if (atual) {
+    var visiveis = [];
+    for (var v = 0; v < ORDEM.length; v++) { if (!puladas[ORDEM[v]]) { visiveis.push(ORDEM[v]); } }
+    var n = 0;
+    for (var x = 0; x < visiveis.length; x++) { if (visiveis[x] === atual) { n = x + 1; } }
+    texto('etapa', 'Etapa ' + n + ' de ' + visiveis.length + ': ' + TEXTOS[atual]);
+    var seg = Math.ceil(restante);
+    texto('falta', seg <= 1 ? 'Quase lá…'
+      : seg < 60 ? 'Falta cerca de ' + seg + ' s. Não precisa clicar de novo.'
+      : 'Falta cerca de ' + Math.ceil(seg / 60) + ' min. Não precisa clicar de novo.');
+  }
+  if (agora - inicio > 6 * 60 * 1000) {
+    parado = true;
+    texto('etapa', 'Está demorando demais. Veja logs\\main-console.log.');
+    texto('falta', 'Clique para fechar esta tela.');
+  }
+}
+passo();
+window.setInterval(passo, 250);
+</script>
+</body>
+</html>

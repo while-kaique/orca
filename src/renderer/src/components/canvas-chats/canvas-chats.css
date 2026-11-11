@@ -164,6 +164,8 @@
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   animation: cc-lap 3.1s linear infinite;
+  /* Orca enxuto: own layer, so each frame repaints only the ring, not the card and its live terminal. */
+  will-change: opacity;
 }
 @keyframes cc-lap {
   to {

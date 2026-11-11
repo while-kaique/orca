@@ -24,10 +24,11 @@ volta a ser igual ao do Orca oficial (`stablyai/orca`). Para conferir o original
 
 ## Otimizado (não é corte, é o mesmo resultado com menos git)
 
-| O quê                                        | Antes                                                          | Agora                                                                                            | Onde                                                                  |
-| -------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| Descobrir seu usuário do git em cada projeto | 5 comandos git por projeto a **cada** abertura (~110 no total) | Só em projeto sem usuário salvo                                                                  | `workspaces/catalog/repo-git-username-enrichment.ts`                  |
-| Ler a lista de worktrees                     | 3 leituras iguais por projeto ao abrir, cada uma com seu git   | Leituras iguais dentro de 3 s usam o mesmo resultado; criar/mover/remover worktree limpa na hora | `git/worktrees/catalog/worktree-list-result-cache.ts` (teste ao lado) |
+| O quê                                        | Antes                                                                                                           | Agora                                                                                                            | Onde                                                                            |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Descobrir seu usuário do git em cada projeto | 5 comandos git por projeto a **cada** abertura (~110 no total)                                                  | Só em projeto sem usuário salvo                                                                                  | `workspaces/catalog/repo-git-username-enrichment.ts`                            |
+| Ler a lista de worktrees                     | 3 leituras iguais por projeto ao abrir, cada uma com seu git                                                    | Leituras iguais dentro de 3 s usam o mesmo resultado; criar/mover/remover worktree limpa na hora                 | `git/worktrees/catalog/worktree-list-result-cache.ts` (teste ao lado)           |
+| Card aberto no fluxograma                    | Recalculava o layout da tela inteira a cada linha que o chat escrevia (16% de um núcleo com 1 chat trabalhando) | Só recalcula quando o tamanho muda; escrita só reposiciona o cursor. Anel de luz em camada própria. Visual igual | `dashboard-popout/preview-terminal-box-fit.ts`, `canvas-chats/canvas-chats.css` |
 
 ## Não cortado (de propósito)
 

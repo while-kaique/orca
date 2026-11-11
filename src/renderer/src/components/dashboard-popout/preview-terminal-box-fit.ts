@@ -7,41 +7,81 @@ type PreviewBoxFitTerminal = Pick<Terminal, 'rows' | 'buffer'>
 export function createPreviewBoxFit(args: {
   container: HTMLElement
   getTerminal: () => PreviewBoxFitTerminal | null
-}): { fit: () => void; schedule: () => void; dispose: () => void } {
+}): {
+  fit: () => void
+  schedule: () => void
+  scheduleAfterWrite: () => void
+  dispose: () => void
+} {
   let disposed = false
   const frames = new PaneReparentFrameTracker(() => disposed)
+  // Orca enxuto: geometry from the last full fit. Writes only move the cursor, so they re-anchor
+  // from this cache instead of forcing a whole-document layout on every streamed chunk.
+  let measured: { scale: number; cellHeight: number; boxHeight: number; rows: number } | null = null
+  let anchoredTop: boolean | null = null
+  const applyAnchor = (box: HTMLElement, anchorTop: boolean): void => {
+    if (anchoredTop === anchorTop) {
+      return
+    }
+    anchoredTop = anchorTop
+    box.style.alignItems = anchorTop ? 'flex-start' : 'flex-end'
+    args.container.style.transformOrigin = anchorTop ? 'top left' : 'bottom left'
+  }
   const fit = (): void => {
     const terminal = args.getTerminal()
     const screen = args.container.querySelector<HTMLElement>('.xterm-screen')
     const box = args.container.parentElement
     if (!screen || !box || !terminal) {
+      measured = null
       return
     }
     const scale = Math.min(1, box.clientWidth / Math.max(1, screen.offsetWidth))
     args.container.style.transform = scale < 1 ? `scale(${scale})` : ''
-    const cellHeight = screen.offsetHeight / Math.max(1, terminal.rows)
+    const rows = Math.max(1, terminal.rows)
+    const cellHeight = screen.offsetHeight / rows
+    const boxHeight = box.clientHeight
+    measured = { scale, cellHeight, boxHeight, rows: terminal.rows }
+    anchoredTop = null
     const cursorBottom = (terminal.buffer.active.cursorY + 1) * cellHeight * scale
-    const anchorTop = cursorBottom <= box.clientHeight
-    box.style.alignItems = anchorTop ? 'flex-start' : 'flex-end'
-    args.container.style.transformOrigin = anchorTop ? 'top left' : 'bottom left'
+    applyAnchor(box, cursorBottom <= boxHeight)
   }
-
-  // Re-fit after every parsed write (cursor may move ends); rAF coalesces.
-  let scheduled = false
-  const schedule = (): void => {
-    if (disposed || scheduled) {
+  const reanchor = (): void => {
+    const terminal = args.getTerminal()
+    const box = args.container.parentElement
+    if (!measured || !terminal || !box || terminal.rows !== measured.rows) {
+      fit()
       return
     }
-    scheduled = true
+    const cursorBottom = (terminal.buffer.active.cursorY + 1) * measured.cellHeight * measured.scale
+    applyAnchor(box, cursorBottom <= measured.boxHeight)
+  }
+
+  // rAF coalesces; a pending full fit wins over a cursor-only re-anchor.
+  let scheduled: 'full' | 'cursor' | null = null
+  const request = (kind: 'full' | 'cursor'): void => {
+    if (disposed) {
+      return
+    }
+    if (scheduled) {
+      if (kind === 'full') {
+        scheduled = 'full'
+      }
+      return
+    }
+    scheduled = kind
     frames.request(() => {
-      scheduled = false
-      fit()
+      const run = scheduled === 'full' ? fit : reanchor
+      scheduled = null
+      run()
     })
   }
 
   return {
     fit,
-    schedule,
+    // Size changes (box resize, snapshot replace): full measurement.
+    schedule: (): void => request('full'),
+    // After a parsed write the cursor may move ends; the grid size did not change.
+    scheduleAfterWrite: (): void => request('cursor'),
     dispose: (): void => {
       if (disposed) {
         return
