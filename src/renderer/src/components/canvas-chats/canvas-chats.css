@@ -585,10 +585,16 @@
 .cc-legend [data-status='seen'] em {
   border-style: dashed;
 }
-.cc-tidy {
+.cc-actions {
   position: absolute;
   right: 14px;
   bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cc-tidy,
+.cc-add {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -600,7 +606,9 @@
   font: 600 12.5px system-ui;
   cursor: pointer;
 }
-.cc-tidy:hover {
+.cc-tidy:hover,
+.cc-add:hover,
+.cc-add[data-state='open'] {
   border-color: #7a7a85;
   background: #1c1c21;
 }
@@ -833,7 +841,8 @@
     background 0.15s;
 }
 .cc-open .cc-xbtn,
-.cc-chat:hover .cc-xbtn {
+.cc-chat:hover .cc-xbtn,
+.cc-project:hover .cc-xbtn {
   opacity: 1;
   transform: none;
 }

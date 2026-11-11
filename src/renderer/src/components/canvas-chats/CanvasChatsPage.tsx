@@ -29,6 +29,7 @@ import {
 } from './canvas-chats-offsets'
 import { useCanvasCordLayer } from './use-canvas-cord-layer'
 import { CanvasWebPreview, ExtraNode } from './CanvasChatExtras'
+import { CanvasAddProjectButton } from './CanvasAddProjectButton'
 import './canvas-chats.css'
 
 type View = { x: number; y: number; s: number }
@@ -413,10 +414,13 @@ export default function CanvasChatsPage(): React.JSX.Element {
           )}
         </div>
       ) : null}
-      <button className="cc-tidy" onPointerDown={(e) => e.stopPropagation()} onClick={reorganize}>
-        <RotateCcw size={13} />
-        {translate('fork.canvas.reorganize', 'Reorganizar')}
-      </button>
+      <div className="cc-actions">
+        <CanvasAddProjectButton />
+        <button className="cc-tidy" onPointerDown={(e) => e.stopPropagation()} onClick={reorganize}>
+          <RotateCcw size={13} />
+          {translate('fork.canvas.reorganize', 'Reorganizar')}
+        </button>
+      </div>
     </div>
   )
 }

@@ -22,6 +22,7 @@ import { closePcDeskChat } from '../sidebar/pc-desk-switcher/close-pc-desk-proje
 import type { CanvasAgent, CanvasBox, CanvasChat, CanvasProject } from './canvas-chats-layout'
 import { canvasChatModelLabel } from './canvas-chat-model-label'
 import { CanvasChatGate, CanvasChatRole } from './CanvasChatHierarchyBadges'
+import { CanvasProjectClose } from './CanvasProjectClose'
 
 export const STATUS_LABEL: Record<CanvasChat['status'], string> = {
   idle: translate('fork.canvas.statusIdle', 'parado'),
@@ -68,6 +69,7 @@ export function ProjectNode({
       }
       onPointerDown={onDragStart}
     >
+      <CanvasProjectClose project={project} />
       <div className="cc-project-actions" onPointerDown={(e) => e.stopPropagation()}>
         <button
           className="cc-head-button"
