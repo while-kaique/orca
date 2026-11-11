@@ -35,6 +35,25 @@ continuar o seu trabalho lendo só esses dois arquivos e o registro.
 
 Limite: 2 planejadores ao mesmo tempo. O que passar disso espera na fila.
 
+### Ordem para planejador: o que não pode faltar
+
+O planejador só sabe o que está na ordem. Ele não estava na sua conversa com o Kaique. Antes de
+lançar, confira que a ordem responde, sem ele precisar perguntar:
+
+- **O pedido nas palavras do Kaique**, e o que ele reclamou ou elogiou antes sobre o assunto.
+- **O que já existe** e onde está (arquivos, telas, comandos), e o que já foi tentado e não serviu.
+- **Como o usuário vai perceber que ficou bom**: cada critério é algo que dá para ver ou medir.
+- **O que não pode mudar**, com o motivo.
+- **Que prova você vai exigir** na entrega.
+
+Uma ordem curta para um pedido simples está certa. O que não pode é o planejador ter que adivinhar
+uma decisão de produto.
+
+### Custo
+
+Pedido que cabe em uma tarefa vai direto a um executor. Planejador é para o que precisa de
+pesquisa ou divisão; não crie um só para repassar a ordem adiante.
+
 ## Quando uma entrega volta (portão do produto)
 
 Confira contra o `PRODUTO.md`, olhando **o produto funcionando**, como um usuário veria. Não é

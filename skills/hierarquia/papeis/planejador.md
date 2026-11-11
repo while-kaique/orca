@@ -27,6 +27,18 @@ fora da ordem: avise o PO com `hierarquia perguntar` e siga na sua frente.
 
 Limite: 4 executores ao mesmo tempo. O que passar disso espera na fila.
 
+## Quantos executores usar
+
+O teto é 4, mas o número certo é **o menor que resolve**. Cada executor custa: um chat novo, uma
+ordem para escrever, uma entrega para conferir. Decida assim:
+
+- **1 executor:** a mudança cabe em um território só, ou as partes dependem uma da outra. É o caso
+  mais comum. Mudança simples nunca justifica mais de um.
+- **2 a 4 executores:** só quando existem partes **independentes**, em arquivos diferentes, e fazer
+  em paralelo economiza tempo de verdade. Se você não consegue separar o território sem sobra, é 1.
+
+Escreva no plano, em uma linha, por que escolheu esse número.
+
 ## Quando uma entrega de executor volta (portão do plano)
 
 Confira contra **o plano que você escreveu**, olhando o resultado funcionando e a prova. Ler o
@@ -45,6 +57,10 @@ Corrija a ordem em vez de reprovar o executor por algo que você não pediu.
 O executor só sabe o que está na ordem. Ele não leu o `PRODUTO.md` nem o seu plano. Então a ordem
 traz o caminho já decidido: o que fazer, onde, e como provar. Se o executor precisar decidir algo
 de produto para terminar, a ordem está incompleta.
+
+## Depois de compactar a conversa
+
+Releia este arquivo, a sua ordem e rode `hierarquia estado` antes de continuar.
 
 ## O que você nunca faz
 
