@@ -13,6 +13,7 @@ const chat = (key: string, extras = 0, parentKey: string | null = null) => ({
   title: key,
   parentKey,
   model: null,
+  transcriptPath: null,
   hierarchy: null,
   status: 'idle' as const,
   lines: [],

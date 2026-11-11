@@ -9,6 +9,7 @@ import {
 } from '@/constants/terminal'
 import { parseAgentStatusPaneIdentity } from '../../../../shared/agent-status/identity/agent-status-worktree-attribution'
 import { useCanvasProjects } from './canvas-chats-data'
+import { useCanvasContextTokensRefresh } from './canvas-chat-context-tokens'
 import {
   chatDescendants,
   layoutCanvas,
@@ -48,6 +49,7 @@ function fitView(bounds: CanvasBox, viewport: { w: number; h: number }, pad = 60
 
 export default function CanvasChatsPage(): React.JSX.Element {
   const projects = useCanvasProjects()
+  useCanvasContextTokensRefresh(projects)
   const rootRef = useRef<HTMLDivElement>(null)
   const [viewport, setViewport] = useState({ w: 0, h: 0 })
   const [view, setView] = useState<View>({ x: 0, y: 0, s: 1 })

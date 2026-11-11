@@ -3,6 +3,7 @@ import type {
   CanvasHierarchyDecisionResult,
   CanvasHierarchySnapshot
 } from '../../shared/canvas-hierarchy'
+import type { CanvasContextTokens } from '../../shared/canvas-context-tokens'
 import { ipcRenderer } from 'electron'
 import type { BaseRefDefaultResult, BaseRefSearchResult } from '../../shared/repo-types'
 import type { ExecutionHostId } from '../../shared/execution-host'
@@ -47,6 +48,8 @@ export const reposApi = {
     ipcRenderer.invoke('repos:captureCanvasPagePreview', url),
   readCanvasHierarchy: (folders: string[]): Promise<CanvasHierarchySnapshot[]> =>
     ipcRenderer.invoke('repos:readCanvasHierarchy', folders),
+  readCanvasContextTokens: (transcriptPaths: string[]): Promise<CanvasContextTokens> =>
+    ipcRenderer.invoke('repos:readCanvasContextTokens', transcriptPaths),
   decideCanvasHierarchyOrder: (
     decision: CanvasHierarchyDecision
   ): Promise<CanvasHierarchyDecisionResult> =>

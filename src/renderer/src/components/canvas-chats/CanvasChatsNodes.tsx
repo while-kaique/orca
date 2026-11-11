@@ -18,6 +18,7 @@ import { openPcDeskChatInRepo } from '../sidebar/pc-desk-switcher/launch-pc-desk
 import { closePcDeskChat } from '../sidebar/pc-desk-switcher/close-pc-desk-project'
 import type { CanvasAgent, CanvasBox, CanvasChat, CanvasProject } from './canvas-chats-layout'
 import { canvasChatModelLabel } from './canvas-chat-model-label'
+import { CanvasChatContextMeter } from './CanvasChatContextMeter'
 import { CanvasChatGate, CanvasChatRole } from './CanvasChatHierarchyBadges'
 import { CanvasProjectClose } from './CanvasProjectClose'
 
@@ -322,6 +323,7 @@ export function ChatNode({
             {modelLabel.label}
           </span>
         ) : null}
+        <CanvasChatContextMeter transcriptPath={chat.transcriptPath} />
         <span className="cc-status">
           {status === 'working' ? <span className="cc-spin" /> : null}
           {STATUS_LABEL[status]}

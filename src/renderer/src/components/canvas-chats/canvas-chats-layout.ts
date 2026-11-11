@@ -41,6 +41,8 @@ export type CanvasChat = {
   title: string
   /** The chat that created this one (orchestration), when it is a chat of the same project. */
   parentKey: string | null
+  /** The chat's Claude transcript, where its context size is read from. */
+  transcriptPath: string | null
   /** Provider model id the chat is running, as the sidebar reads it. */
   model: string | null
   /** Role and delivery state, when the project keeps a chat hierarchy. */

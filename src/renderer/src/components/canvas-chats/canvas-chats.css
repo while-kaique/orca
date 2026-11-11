@@ -368,6 +368,43 @@
   font: 500 calc(10.5px * var(--cc-inv)) system-ui;
   color: #b4b4bf;
 }
+/* context meter: how full the chat's context is, 0 to 1M tokens */
+.cc-context {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5px * var(--cc-inv));
+  margin-left: auto;
+  --cc-context-color: var(--cc-ok);
+}
+.cc-context[data-level='warn'] {
+  --cc-context-color: var(--cc-work);
+}
+.cc-context[data-level='full'] {
+  --cc-context-color: var(--cc-wait);
+}
+.cc-context-track {
+  width: calc(46px * var(--cc-inv));
+  height: calc(5px * var(--cc-inv));
+  border-radius: 999px;
+  background: #2b2b31;
+  overflow: hidden;
+}
+.cc-context-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--cc-context-color);
+}
+.cc-context-label {
+  font:
+    600 calc(10.5px * var(--cc-inv)) ui-monospace,
+    monospace;
+  color: #b4b4bf;
+}
+.cc-context + .cc-status {
+  margin-left: 0;
+}
 .cc-model[data-family='fable'],
 .cc-model[data-family='mythos'] {
   font-weight: 700;

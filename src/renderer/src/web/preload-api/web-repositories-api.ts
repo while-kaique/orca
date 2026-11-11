@@ -81,6 +81,7 @@ export function createReposApi(): NonNullable<Partial<PreloadApi>['repos']> {
     summarizeCanvasReply: () => Promise.resolve({ kind: 'error', error: 'unsupported' }),
     captureCanvasPagePreview: () => Promise.resolve({ kind: 'error', error: 'unsupported' }),
     readCanvasHierarchy: () => Promise.resolve([]),
+    readCanvasContextTokens: () => Promise.resolve({}),
     decideCanvasHierarchyOrder: () => Promise.resolve({ kind: 'error', error: 'unsupported' }),
     onCloneProgress: () => noopUnsubscribe,
     getBaseRefDefault: async ({ repoId }) =>

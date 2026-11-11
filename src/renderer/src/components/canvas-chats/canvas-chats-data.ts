@@ -147,7 +147,7 @@ function latestEntry(
 function sleepingRecord(
   state: CanvasInputs,
   tabId: string
-): { prompt: string; lastAssistantMessage?: string } | null {
+): CanvasInputs['sleepingAgentSessionsByPaneKey'][string] | null {
   let best: CanvasInputs['sleepingAgentSessionsByPaneKey'][string] | null = null
   for (const record of Object.values(state.sleepingAgentSessionsByPaneKey ?? {})) {
     if (record.tabId === tabId && (!best || record.updatedAt > best.updatedAt)) {
@@ -232,6 +232,7 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
             repo.displayName,
           parentKey: null,
           model: entry?.model?.trim() || null,
+          transcriptPath: (entry ?? asleep)?.providerSession?.transcriptPath ?? null,
           hierarchy: null,
           // Agents never ask the user directly: a stuck agent turns its chat red.
           status: agents.some((a) => a.blocked) ? 'waiting' : status,
