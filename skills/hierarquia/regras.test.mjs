@@ -1,0 +1,317 @@
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import {
+  decidirConferencia,
+  decidirEntrega,
+  decidirOrdem,
+  decidirPedidoDeOk,
+  destinoDaPergunta,
+  filaDoKaique,
+  montarEstado,
+  ordensLiberadasDaEspera,
+  temOkDoKaique
+} from './regras.mjs'
+
+const CAMPOS = {
+  objetivo: 'Botao de exportar na tela inicial',
+  porque: 'A equipe pede o arquivo todo dia',
+  criterios: ['Clicar no botao baixa um CSV com as 3 colunas'],
+  limites: 'Nao mexer no login',
+  territorio: 'src/tela-inicial/'
+}
+
+let relogio = 0
+function ev(tipo, dados) {
+  relogio += 1
+  return { t: relogio, tipo, ...dados }
+}
+
+/** PO + um planejador (P1) trabalhando. */
+function base() {
+  return [
+    ev('po_criado', { chatId: 'PO' }),
+    ev('ordem_criada', { ordemId: 'o-p1', de: 'PO', para: 'planejador', campos: CAMPOS }),
+    ev('chat_lancado', { ordemId: 'o-p1', chatId: 'P1', modelo: 'opus' })
+  ]
+}
+
+function comExecutores(eventos, pai, quantos, prefixo) {
+  const saida = [...eventos]
+  for (let i = 1; i <= quantos; i++) {
+    saida.push(
+      ev('ordem_criada', { ordemId: `o-${prefixo}${i}`, de: pai, para: 'executor', campos: CAMPOS })
+    )
+    saida.push(
+      ev('chat_lancado', {
+        ordemId: `o-${prefixo}${i}`,
+        chatId: `${prefixo}${i}`,
+        modelo: 'sonnet'
+      })
+    )
+  }
+  return saida
+}
+
+test('PO cria planejador com Opus e executor com Sonnet', () => {
+  const estado = montarEstado([ev('po_criado', { chatId: 'PO' })])
+  assert.deepEqual(decidirOrdem(estado, { de: 'PO', para: 'planejador', campos: CAMPOS }), {
+    acao: 'criar',
+    modelo: 'opus'
+  })
+  assert.deepEqual(decidirOrdem(estado, { de: 'PO', para: 'executor', campos: CAMPOS }), {
+    acao: 'criar',
+    modelo: 'sonnet'
+  })
+})
+
+test('planejador cria executor, mas nao cria outro planejador', () => {
+  const estado = montarEstado(base())
+  assert.equal(decidirOrdem(estado, { de: 'P1', para: 'executor', campos: CAMPOS }).acao, 'criar')
+  assert.deepEqual(decidirOrdem(estado, { de: 'P1', para: 'planejador', campos: CAMPOS }), {
+    acao: 'recusar',
+    motivo: 'Um planejador não pode criar um planejador.'
+  })
+})
+
+test('executor nao cria chat nenhum', () => {
+  const estado = montarEstado(comExecutores(base(), 'P1', 1, 'E'))
+  assert.deepEqual(decidirOrdem(estado, { de: 'E1', para: 'executor', campos: CAMPOS }), {
+    acao: 'recusar',
+    motivo: 'Um executor não pode criar um executor.'
+  })
+})
+
+test('chat que nao esta no registro e recusado', () => {
+  const estado = montarEstado(base())
+  assert.equal(
+    decidirOrdem(estado, { de: 'intruso', para: 'executor', campos: CAMPOS }).acao,
+    'recusar'
+  )
+})
+
+test('ordem sem um dos cinco campos e recusada dizendo qual falta', () => {
+  const estado = montarEstado(base())
+  const semDois = { ...CAMPOS, porque: '  ', criterios: [] }
+  assert.deepEqual(decidirOrdem(estado, { de: 'P1', para: 'executor', campos: semDois }), {
+    acao: 'recusar',
+    motivo: 'Faltam campos na ordem: porque, criterios.'
+  })
+})
+
+test('terceiro planejador entra em espera', () => {
+  const eventos = [
+    ...base(),
+    ev('ordem_criada', { ordemId: 'o-p2', de: 'PO', para: 'planejador', campos: CAMPOS }),
+    ev('chat_lancado', { ordemId: 'o-p2', chatId: 'P2', modelo: 'opus' })
+  ]
+  assert.equal(
+    decidirOrdem(montarEstado(eventos), { de: 'PO', para: 'planejador', campos: CAMPOS }).acao,
+    'esperar'
+  )
+})
+
+test('quinto executor do mesmo planejador espera; o de outro planejador nao', () => {
+  const eventos = comExecutores(
+    [
+      ...base(),
+      ev('ordem_criada', { ordemId: 'o-p2', de: 'PO', para: 'planejador', campos: CAMPOS }),
+      ev('chat_lancado', { ordemId: 'o-p2', chatId: 'P2', modelo: 'opus' })
+    ],
+    'P1',
+    4,
+    'E'
+  )
+  const estado = montarEstado(eventos)
+  assert.equal(decidirOrdem(estado, { de: 'P1', para: 'executor', campos: CAMPOS }).acao, 'esperar')
+  assert.equal(decidirOrdem(estado, { de: 'P2', para: 'executor', campos: CAMPOS }).acao, 'criar')
+})
+
+test('vaga que abre libera a ordem em espera mais antiga', () => {
+  const eventos = [
+    ...comExecutores(base(), 'P1', 4, 'E'),
+    ev('ordem_criada', {
+      ordemId: 'o-fila1',
+      de: 'P1',
+      para: 'executor',
+      campos: CAMPOS,
+      emEspera: true
+    }),
+    ev('ordem_criada', {
+      ordemId: 'o-fila2',
+      de: 'P1',
+      para: 'executor',
+      campos: CAMPOS,
+      emEspera: true
+    })
+  ]
+  assert.deepEqual(ordensLiberadasDaEspera(montarEstado(eventos)), [])
+  eventos.push(ev('entrega', { ordemId: 'o-E1', portao: 'plano', provas: ['prova.png'] }))
+  eventos.push(ev('conferencia', { ordemId: 'o-E1', por: 'P1', aprovada: true }))
+  assert.deepEqual(ordensLiberadasDaEspera(montarEstado(eventos)), ['o-fila1'])
+})
+
+test('entrega sem prova, ou com prova que nao existe, nao e entrega', () => {
+  const estado = montarEstado(comExecutores(base(), 'P1', 1, 'E'))
+  assert.equal(decidirEntrega(estado, { ordemId: 'o-E1', por: 'E1', provas: [] }).acao, 'recusar')
+  assert.deepEqual(
+    decidirEntrega(estado, {
+      ordemId: 'o-E1',
+      por: 'E1',
+      provas: [{ caminho: 'print.png', existe: false }]
+    }),
+    { acao: 'recusar', motivo: 'Prova não encontrada: print.png.', semProva: true }
+  )
+})
+
+test('entrega de executor vai para o portao do plano; de planejador, para o do produto', () => {
+  const estado = montarEstado(comExecutores(base(), 'P1', 1, 'E'))
+  const prova = [{ caminho: 'print.png', existe: true }]
+  assert.deepEqual(decidirEntrega(estado, { ordemId: 'o-E1', por: 'E1', provas: prova }), {
+    acao: 'aceitar',
+    portao: 'plano'
+  })
+  assert.deepEqual(decidirEntrega(estado, { ordemId: 'o-p1', por: 'P1', provas: prova }), {
+    acao: 'aceitar',
+    portao: 'produto'
+  })
+})
+
+test('executor do atalho entrega direto no portao do produto', () => {
+  const estado = montarEstado(comExecutores([ev('po_criado', { chatId: 'PO' })], 'PO', 1, 'A'))
+  assert.deepEqual(
+    decidirEntrega(estado, {
+      ordemId: 'o-A1',
+      por: 'A1',
+      provas: [{ caminho: 'saida.txt', existe: true }]
+    }),
+    { acao: 'aceitar', portao: 'produto' }
+  )
+})
+
+test('so quem deu a ordem confere, e reprovar exige motivo', () => {
+  const eventos = comExecutores(base(), 'P1', 1, 'E')
+  eventos.push(ev('entrega', { ordemId: 'o-E1', portao: 'plano', provas: ['print.png'] }))
+  const estado = montarEstado(eventos)
+  assert.equal(
+    decidirConferencia(estado, { ordemId: 'o-E1', por: 'PO', aprovar: true }).acao,
+    'recusar'
+  )
+  assert.equal(
+    decidirConferencia(estado, { ordemId: 'o-E1', por: 'P1', aprovar: false, motivo: '' }).acao,
+    'recusar'
+  )
+  assert.equal(
+    decidirConferencia(estado, { ordemId: 'o-E1', por: 'P1', aprovar: true }).acao,
+    'aprovar'
+  )
+})
+
+test('primeira reprovacao devolve; a segunda sobe para o PO', () => {
+  const eventos = comExecutores(base(), 'P1', 1, 'E')
+  eventos.push(ev('entrega', { ordemId: 'o-E1', portao: 'plano', provas: ['print.png'] }))
+  assert.deepEqual(
+    decidirConferencia(montarEstado(eventos), {
+      ordemId: 'o-E1',
+      por: 'P1',
+      aprovar: false,
+      motivo: 'faltou a coluna 3'
+    }),
+    { acao: 'devolver' }
+  )
+  eventos.push(
+    ev('conferencia', { ordemId: 'o-E1', por: 'P1', aprovada: false, motivo: 'faltou a coluna 3' })
+  )
+  eventos.push(ev('entrega', { ordemId: 'o-E1', portao: 'plano', provas: ['print2.png'] }))
+  assert.deepEqual(
+    decidirConferencia(montarEstado(eventos), {
+      ordemId: 'o-E1',
+      por: 'P1',
+      aprovar: false,
+      motivo: 'ainda falta'
+    }),
+    { acao: 'subir', para: 'PO' }
+  )
+})
+
+test('segunda reprovacao no portao do produto sobe para o Kaique e aparece na fila dele', () => {
+  const eventos = base()
+  eventos.push(ev('entrega', { ordemId: 'o-p1', portao: 'produto', provas: ['a.png'] }))
+  eventos.push(
+    ev('conferencia', {
+      ordemId: 'o-p1',
+      por: 'PO',
+      aprovada: false,
+      motivo: 'nao serve ao usuario novo'
+    })
+  )
+  eventos.push(ev('entrega', { ordemId: 'o-p1', portao: 'produto', provas: ['b.png'] }))
+  assert.deepEqual(
+    decidirConferencia(montarEstado(eventos), {
+      ordemId: 'o-p1',
+      por: 'PO',
+      aprovar: false,
+      motivo: 'continua'
+    }),
+    { acao: 'subir', para: 'kaique' }
+  )
+  eventos.push(
+    ev('conferencia', {
+      ordemId: 'o-p1',
+      por: 'PO',
+      aprovada: false,
+      motivo: 'continua',
+      subiuPara: 'kaique'
+    })
+  )
+  assert.deepEqual(filaDoKaique(montarEstado(eventos)), [
+    { tipo: 'reprovada_duas_vezes', ordemId: 'o-p1', chatId: 'PO' }
+  ])
+})
+
+test('so o PO pede OK, e so do que aprovou; sem OK nada esta liberado', () => {
+  const eventos = base()
+  eventos.push(ev('entrega', { ordemId: 'o-p1', portao: 'produto', provas: ['a.png'] }))
+  assert.equal(
+    decidirPedidoDeOk(montarEstado(eventos), { ordemId: 'o-p1', por: 'PO' }).acao,
+    'recusar'
+  )
+  eventos.push(ev('conferencia', { ordemId: 'o-p1', por: 'PO', aprovada: true }))
+  assert.equal(
+    decidirPedidoDeOk(montarEstado(eventos), { ordemId: 'o-p1', por: 'P1' }).acao,
+    'recusar'
+  )
+  assert.equal(
+    decidirPedidoDeOk(montarEstado(eventos), { ordemId: 'o-p1', por: 'PO' }).acao,
+    'pedir'
+  )
+  eventos.push(ev('pedido_ok', { ordemId: 'o-p1', resumo: 'Botao de exportar pronto' }))
+  assert.equal(temOkDoKaique(montarEstado(eventos), 'o-p1'), false)
+  assert.deepEqual(filaDoKaique(montarEstado(eventos)), [
+    {
+      tipo: 'ok',
+      ordemId: 'o-p1',
+      chatId: 'PO',
+      resumo: 'Botao de exportar pronto',
+      provas: ['a.png']
+    }
+  ])
+  eventos.push(ev('ok', { ordemId: 'o-p1' }))
+  assert.equal(temOkDoKaique(montarEstado(eventos), 'o-p1'), true)
+  assert.deepEqual(filaDoKaique(montarEstado(eventos)), [])
+})
+
+test('duvida sobe um nivel por vez ate o Kaique', () => {
+  const estado = montarEstado(comExecutores(base(), 'P1', 1, 'E'))
+  assert.equal(destinoDaPergunta(estado, 'E1'), 'P1')
+  assert.equal(destinoDaPergunta(estado, 'P1'), 'PO')
+  assert.equal(destinoDaPergunta(estado, 'PO'), 'kaique')
+})
+
+test('o registro marca o chat em que o Kaique mexeu e o que parou sem entregar', () => {
+  const eventos = comExecutores(base(), 'P1', 1, 'E')
+  eventos.push(ev('kaique_mexeu', { chatId: 'E1' }))
+  eventos.push(ev('parou_sem_entregar', { ordemId: 'o-E1' }))
+  const estado = montarEstado(eventos)
+  assert.equal(estado.chats.E1.mexidoPeloKaique, true)
+  assert.equal(estado.ordens['o-E1'].situacao, 'parou')
+})
