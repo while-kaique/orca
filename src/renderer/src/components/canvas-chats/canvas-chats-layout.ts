@@ -86,8 +86,8 @@ const AGENT_TOP_GAP = 26
 const AGENT_GAP = 12
 // One empty chat column between projects, so every chat of every row sits on the same column grid.
 const PROJECT_GAP = CANVAS_SIZES.chat.w + 2 * COLUMN_GAP
-// A project header is wider than one chat and overhangs a single-chat block on both sides.
-const HEADER_OVERHANG = (CANVAS_SIZES.project.w - CANVAS_SIZES.chat.w) / 2
+// The header starts at its first chat's left edge; wider than one chat, it overhangs a single-chat block on the right.
+const HEADER_OVERHANG = CANVAS_SIZES.project.w - CANVAS_SIZES.chat.w
 const ROW_GAP = 195
 const AGENT_INDENT = 32
 // A squarer grid may cost up to 15% of zoom.
@@ -194,8 +194,7 @@ export function layoutCanvas(
     const W =
       Math.max(
         ...rows.map((row) => row.reduce((sum, b) => sum + b.w, 0) + (row.length - 1) * PROJECT_GAP)
-      ) +
-      2 * HEADER_OVERHANG
+      ) + HEADER_OVERHANG
     const H =
       rows.reduce((sum, row) => sum + Math.max(...row.map((b) => b.h)), 0) +
       (rows.length - 1) * ROW_GAP
@@ -214,11 +213,11 @@ export function layoutCanvas(
     grids.filter(close).sort((a, b) => squareness(a) - squareness(b) || b.s - a.s)[0] ?? grids[0]
   let y = 0
   best.rows.forEach((row) => {
-    let nextX = HEADER_OVERHANG
+    let nextX = 0
     row.forEach((block) => {
       const x = nextX
       nextX += block.w + PROJECT_GAP
-      boxes[`project:${block.project.id}`] = { x: x + block.w / 2 - P.w / 2, y, w: P.w, h: P.h }
+      boxes[`project:${block.project.id}`] = { x, y, w: P.w, h: P.h }
       // Each chat sits centered over the chats it created, which form the row below it.
       const placeRow = (nodes: readonly ChatTree[], left: number, top: number): void => {
         let nodeX = left

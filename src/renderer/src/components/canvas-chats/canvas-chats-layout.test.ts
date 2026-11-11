@@ -55,6 +55,9 @@ it('lines every top chat up on one column grid, whatever the project', () => {
   }
   expect(boxes.d.x).toBe(boxes.a.x)
   expect(boxes.b.x - boxes.a.x).toBe(2 * (340 + 52))
+  expect(boxes['project:cs'].x).toBe(boxes.a.x)
+  expect(boxes['project:sh'].x).toBe(boxes['project:cs'].x)
+  expect(boxes['project:pr'].x).toBe(boxes['project:ad'].x)
 })
 const wide = { w: 4000, h: 3000 }
 it('puts the chats a chat created in a row below it, centered under it', () => {
@@ -66,7 +69,7 @@ it('puts the chats a chat created in a row below it, centered under it', () => {
   expect(boxes.plan2.y).toBe(boxes.plan1.y)
   expect(boxes.plan2.x - boxes.plan1.x).toBe(340 + 52)
   expect(boxes.po.x + 170).toBe((boxes.plan1.x + boxes.plan2.x + 340) / 2)
-  expect(boxes['project:p'].x + 205).toBe(boxes.po.x + 170)
+  expect(boxes['project:p'].x).toBe(boxes.plan1.x)
 })
 it('stacks three levels and keeps cousins from overlapping', () => {
   const { boxes } = layoutCanvas(
