@@ -242,20 +242,28 @@
 .cc-chat-head {
   flex: none;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: calc(4px * var(--cc-inv));
   padding: calc(7px * var(--cc-inv)) 11px;
   background: #1d1d22;
   border-bottom: 1px solid #2b2b31;
   border-radius: 9px 9px 0 0;
+}
+/* name on its own row so it is never cut; context, model and state below */
+.cc-head-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   white-space: nowrap;
-  overflow: hidden;
 }
 .cc-chat-head b {
+  flex: 1;
+  min-width: 0;
   font: 600 calc(13px * var(--cc-inv)) system-ui;
   color: #ececf3;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 /* hierarchy: role beside the name, delivery state under the head, the user's queue on the board */
 .cc-role {
