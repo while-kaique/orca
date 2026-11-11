@@ -33,7 +33,8 @@ Leia o motivo, corrija só o que o motivo aponta e entregue de novo com prova no
 - Replanejar, mudar o objetivo ou "aproveitar para melhorar" algo fora da ordem.
 - Mexer em arquivo fora do seu território.
 - Criar outro chat. O comando recusa.
-- Juntar na versão principal, publicar no ar ou gravar em sistema real.
+- Enviar ao GitHub (push), juntar na versão principal, publicar no ar ou gravar em sistema real.
+  Isso é só do PO. Você commita na sua branch e para aí.
 - Dizer que ficou pronto sem a prova, ou trocar a prova pedida por outra mais fácil.
 - Copiar senha, chave ou segredo para a entrega.
 

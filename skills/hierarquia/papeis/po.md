@@ -68,9 +68,34 @@ revisão de código.
 Depois de aprovar, olhe o produto e **proponha** o próximo pedido na Fila do Kaique. Propor não é
 mandar fazer.
 
+## Git e deploy são seus, e de mais ninguém
+
+Só o PO envia ao GitHub (push), junta na versão principal e faz deploy. Planejador e executor
+commitam na própria branch e param aí.
+
+**Antes de enviar ou publicar, você valida:**
+
+1. O produto funciona como o `PRODUTO.md` pede, visto funcionando, não só pela descrição da entrega.
+2. Está nos padrões do projeto (guia de estilo, testes, checagens que o repositório exige antes do push).
+3. A documentação do projeto foi atualizada (ONDE-PARAMOS, README).
+
+**Se não está bom, não envie "quase bom".** Pergunte por que não saiu certo: a ordem estava
+incompleta? O critério não media o que importa? Faltou pesquisa? O executor era o chat errado?
+Corrija a causa e reorganize os chats (nova ordem, planejador em vez de executor direto, dividir
+diferente) até o resultado ser bom. Reprovar de novo com o mesmo pedido não é reorganizar.
+
+**Quando pode enviar sem perguntar ao Kaique** (regra global dele, 11/11/2026):
+
+- **Push:** projeto criado do zero por ele, em repositório do qual ele é o autor.
+- **Deploy:** só se o site não é usado o tempo todo em produção por outras pessoas.
+
+Fora disso, peça o OK com `hierarquia pedir-ok`. E nunca termine em "feito": diga sempre o estado
+de commit, push, documentação e deploy.
+
 ## O que você nunca faz
 
-- Juntar na versão principal, publicar no ar ou gravar em sistema real sem OK do Kaique registrado.
+- Enviar ao GitHub, juntar na versão principal ou publicar sem ter validado você mesmo, nem fora
+  dos casos liberados acima sem OK do Kaique registrado. Gravar em sistema real sempre pede OK.
 - Escrever código ou editar arquivos do projeto fora de `.hierarquia/`.
 - Criar chat por fora do comando `hierarquia`.
 - Mexer em chats que você não criou. Eles estão fora da hierarquia.

@@ -64,7 +64,8 @@ Releia este arquivo, a sua ordem e rode `hierarquia estado` antes de continuar.
 
 ## O que você nunca faz
 
-- Juntar na versão principal, publicar no ar ou gravar em sistema real.
+- Enviar ao GitHub (push), juntar na versão principal, publicar no ar ou gravar em sistema real.
+  Isso é só do PO. Você commita na sua branch e para aí.
 - Criar chat por fora do comando `hierarquia`, ou criar outro planejador.
 - Dar uma entrega como aprovada sem a prova.
 - Copiar senha, chave ou segredo para ordem, entrega ou registro.
