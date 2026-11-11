@@ -36,6 +36,13 @@ O comando termina com erro por um recurso 404 da página, mas a imagem sai.
   executores, todos os anexos), `:exemploGaleria` (galeria de imagens aberta) e `:exemploEstados` (todas as
   cores de borda). Dados em `canvas-chats-fixture-scenario.ts`.
 
+**Limpeza das pastas (11/11 à noite):** as cópias de trabalho `orca-canvas`, `orca-voz`, `orca-enxuto` e
+`orca-atualiza` foram removidas (as branches continuam no repositório); os protótipos vieram para
+`orca\prototipos-canvas` (fora do git); o cadastro duplicado do projeto `orca` saiu com o comando novo
+`orca-dev repo rm --repo id:<id>` (só tira o cadastro). Tudo agora é feito na pasta `orca`.
+Para apagar uma cópia de trabalho neste PC: `git worktree remove` e depois `cmd /c rmdir /s /q` no que
+sobrar (não segue os atalhos do pnpm).
+
 **Causa do chat sem aba:** o Orca só lista a pasta principal do projeto `orca`; `orca-canvas`, `orca-voz`,
 `orca-enxuto` e `orca-atualiza` são cópias criadas por fora e não aparecem. Por isso `.hierarquia` veio
 para a pasta `orca`, o comando `hierarquia` aponta para `orca\skills\hierarquia`, e o trabalho passou
@@ -126,7 +133,7 @@ foi fechado nele (`activeView = 'canvas'`, salvo como as outras views).
 
 **Onde está o código:** `src/renderer/src/components/canvas-chats/` (branch `feat/canvas-chats`,
 worktree `Desktop\Projetos\orca-canvas`, juntada em `feat/pc-como-mesa`). Protótipo aprovado e spec
-visual: `Desktop\Projetos\orca-canvas-prototipos` (V1, README.md).
+visual: `Desktop\Projetos\orca\prototipos-canvas` (V1, README.md).
 
 | Peça                 | Arquivo                                                                                               | Como funciona                                                                                                                                                                                                                                    |
 | -------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
