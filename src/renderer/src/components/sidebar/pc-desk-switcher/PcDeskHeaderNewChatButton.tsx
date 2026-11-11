@@ -34,7 +34,7 @@ export function PcDeskHeaderNewChatButton({
           onClick={(event) => {
             event.preventDefault()
             event.stopPropagation()
-            openPcDeskChatInRepo(repo)
+            void openPcDeskChatInRepo(repo)
           }}
         >
           <Plus className="size-3.5" />

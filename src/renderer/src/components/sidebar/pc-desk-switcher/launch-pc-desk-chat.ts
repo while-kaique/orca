@@ -9,8 +9,26 @@ import { resolvePcDeskMainWorktreeId } from './pc-desk-main-worktree-id'
 import { ensurePcDeskRepo } from './open-pc-desk-folder'
 import type { PcDeskSwitcherRow } from './pc-desk-switcher-rows'
 
+// Fork: a project with `.hierarquia` and no live PO gets its PO (Fable) from the "+", per skills/hierarquia.
+const PO_LAUNCH = {
+  agentArgs: '--model fable',
+  prompt:
+    'Voce e o PO deste projeto na hierarquia de chats. Antes de qualquer coisa rode: hierarquia criar-po e siga o que ele mandar ler.'
+}
+
+async function projectNeedsPo(path: string): Promise<boolean> {
+  try {
+    const [snapshot] = await window.api.repos.readCanvasHierarchy([path])
+    return (
+      Boolean(snapshot) && !Object.values(snapshot.chats).some((c) => c.papel === 'po' && c.ativo)
+    )
+  } catch {
+    return false
+  }
+}
+
 /** Opens one more agent chat in the workspace — a new process, so it has its own memory and row. */
-export function launchPcDeskChat(worktreeId: string): boolean {
+export function launchPcDeskChat(worktreeId: string, asPo = false): boolean {
   const state = useAppStore.getState()
   const agent = resolveDefaultAgentForNewTab({
     defaultTuiAgent: state.settings?.defaultTuiAgent ?? 'claude',
@@ -21,9 +39,11 @@ export function launchPcDeskChat(worktreeId: string): boolean {
     toast.error('Nenhum agente instalado para abrir o chat.')
     return false
   }
+  const po = asPo && agent === 'claude' ? PO_LAUNCH : null
   const result = launchAgentInNewTab({
     requestId: newAgentLaunchRequestId(),
     agent,
+    ...(po ? { ...po, sessionOptionsYieldToAgentArgs: true as const } : {}),
     worktreeId,
     groupId:
       state.activeGroupIdByWorktree[worktreeId] ?? state.groupsByWorktree[worktreeId]?.[0]?.id,
@@ -37,7 +57,10 @@ export function launchPcDeskChat(worktreeId: string): boolean {
 }
 
 /** Activates the project folder and opens a new chat in it (header "+" and the bottom "+"). */
-export function openPcDeskChatInRepo(repo: Pick<Repo, 'id' | 'path' | 'displayName'>): void {
+export async function openPcDeskChatInRepo(
+  repo: Pick<Repo, 'id' | 'path' | 'displayName'>
+): Promise<void> {
+  const asPo = await projectNeedsPo(repo.path)
   const worktreeId = resolvePcDeskMainWorktreeId(repo)
   // Why: the chat is the first surface; without this an empty workspace also gets a bare shell.
   const activated = activateAndRevealWorktree(worktreeId, { providesInitialSurface: true })
@@ -45,7 +68,7 @@ export function openPcDeskChatInRepo(repo: Pick<Repo, 'id' | 'path' | 'displayNa
     toast.error('Não deu para abrir o projeto', { description: repo.displayName })
     return
   }
-  launchPcDeskChat(worktreeId)
+  launchPcDeskChat(worktreeId, asPo)
 }
 
 /** "+" pick: adds the folder as a project if needed, then opens a new chat in it. */
@@ -55,5 +78,5 @@ export async function openPcDeskChatInFolder(row: PcDeskSwitcherRow): Promise<vo
     toast.error('Não deu para abrir o projeto', { description: row.path })
     return
   }
-  openPcDeskChatInRepo(repo)
+  await openPcDeskChatInRepo(repo)
 }

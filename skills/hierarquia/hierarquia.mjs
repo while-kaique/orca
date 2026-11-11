@@ -298,7 +298,9 @@ const comandos = {
       writeFileSync(registro, '', 'utf8')
     }
     anotar(projeto, 'po_criado', { chatId: eu, handle: meuTerminal() })
-    console.log(`PO registrado em ${base}. Leia PRODUTO.md e DECISOES.md antes de responder.`)
+    console.log(
+      `PO registrado em ${base}. Leia o seu papel em ${join(AQUI, 'papeis', 'po.md')}, depois PRODUTO.md e DECISOES.md, antes de responder.`
+    )
   },
 
   ordem(op) {
@@ -549,6 +551,7 @@ ${op.motivo}
   estado(op) {
     const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
     const estado = montarEstado(lerEventos(projeto))
+    gravarFoto(projeto)
     if (op.json) {
       console.log(JSON.stringify({ estado, fila: filaDoKaique(estado) }, null, 2))
       return
