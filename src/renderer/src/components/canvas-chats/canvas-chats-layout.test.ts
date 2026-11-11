@@ -48,6 +48,14 @@ it('puts 4 projects in a 2x2 grid on a wide screen', () => {
   expect(boxes['project:sh'].y).toBeGreaterThan(boxes['project:cs'].y)
   expect(boxes['project:sh'].y).toBe(boxes['project:pr'].y)
 })
+it('lines every top chat up on one column grid, whatever the project', () => {
+  const { boxes } = layoutCanvas(four, { w: 2065, h: 1350 })
+  for (const key of ['a', 'b', 'c', 'd', 'e', 'f', 'g']) {
+    expect((boxes[key].x - boxes.a.x) % (340 + 52)).toBe(0)
+  }
+  expect(boxes.d.x).toBe(boxes.a.x)
+  expect(boxes.b.x - boxes.a.x).toBe(2 * (340 + 52))
+})
 const wide = { w: 4000, h: 3000 }
 it('puts the chats a chat created in a row below it, centered under it', () => {
   const { boxes } = layoutCanvas(

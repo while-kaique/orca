@@ -84,7 +84,10 @@ const COLUMN_GAP = 52
 const PROJECT_TO_CHATS = 80
 const AGENT_TOP_GAP = 26
 const AGENT_GAP = 12
-const PROJECT_GAP = 208
+// One empty chat column between projects, so every chat of every row sits on the same column grid.
+const PROJECT_GAP = CANVAS_SIZES.chat.w + 2 * COLUMN_GAP
+// A project header is wider than one chat and overhangs a single-chat block on both sides.
+const HEADER_OVERHANG = (CANVAS_SIZES.project.w - CANVAS_SIZES.chat.w) / 2
 const ROW_GAP = 195
 const AGENT_INDENT = 32
 // A squarer grid may cost up to 15% of zoom.
@@ -172,7 +175,7 @@ export function layoutCanvas(
     return {
       project,
       roots,
-      w: Math.max(P.w, rowWidth(roots)),
+      w: Math.max(C.w, rowWidth(roots)),
       h: P.h + (roots.length ? PROJECT_TO_CHATS + Math.max(...roots.map(treeHeight)) : 0)
     }
   })
@@ -180,7 +183,7 @@ export function layoutCanvas(
   if (blocks.length === 0) {
     return { boxes, bounds: { x: 0, y: 0, w: 0, h: 0 } }
   }
-  type Grid = { s: number; rows: Block[][]; colWidths: number[]; W: number; H: number }
+  type Grid = { s: number; rows: Block[][]; W: number; H: number }
   const grids: Grid[] = []
   for (let r = 1; r <= blocks.length; r++) {
     const per = Math.ceil(blocks.length / r)
@@ -188,17 +191,17 @@ export function layoutCanvas(
     for (let i = 0; i < blocks.length; i += per) {
       rows.push(blocks.slice(i, i + per))
     }
-    // A grid: each column is as wide as its widest project, so projects line up across rows.
-    const colWidths = Array.from({ length: per }, (_, c) =>
-      Math.max(0, ...rows.map((row) => row[c]?.w ?? 0))
-    )
-    const W = colWidths.reduce((sum, w) => sum + w, 0) + (per - 1) * PROJECT_GAP
+    const W =
+      Math.max(
+        ...rows.map((row) => row.reduce((sum, b) => sum + b.w, 0) + (row.length - 1) * PROJECT_GAP)
+      ) +
+      2 * HEADER_OVERHANG
     const H =
       rows.reduce((sum, row) => sum + Math.max(...row.map((b) => b.h)), 0) +
       (rows.length - 1) * ROW_GAP
     const s = Math.min((viewport.w - 120) / W, (viewport.h - 120) / H)
     if (!grids.some((g) => g.rows.length === rows.length)) {
-      grids.push({ s, rows, colWidths, W, H })
+      grids.push({ s, rows, W, H })
     }
   }
   // Near-equal zoom: the squarer grid wins (4 projects = 2x2, not one long row).
@@ -211,11 +214,10 @@ export function layoutCanvas(
     grids.filter(close).sort((a, b) => squareness(a) - squareness(b) || b.s - a.s)[0] ?? grids[0]
   let y = 0
   best.rows.forEach((row) => {
-    let cellX = 0
-    row.forEach((block, c) => {
-      const cellW = best.colWidths[c]
-      const x = cellX + (cellW - block.w) / 2
-      cellX += cellW + PROJECT_GAP
+    let nextX = HEADER_OVERHANG
+    row.forEach((block) => {
+      const x = nextX
+      nextX += block.w + PROJECT_GAP
       boxes[`project:${block.project.id}`] = { x: x + block.w / 2 - P.w / 2, y, w: P.w, h: P.h }
       // Each chat sits centered over the chats it created, which form the row below it.
       const placeRow = (nodes: readonly ChatTree[], left: number, top: number): void => {
