@@ -24,14 +24,14 @@ em 10/11/2026 (commit `cb4d122c2b`). A branch antiga `feat/canvas-chats` ficou i
 | T-002 | Checagem de tipos limpa na branch nova                         | Saída de `pnpm tc --compiler=native` com código 0                                                | [x] 10/11/2026: código 0. A 1ª tentativa caiu por lentidão da máquina (o teste de versão do `bun` estourou 2 s), não por erro de tipo                                                                      |
 | T-003 | Conferir que a versão enxuta manteve orquestração e fluxograma | `REMOVIDOS.md`: orquestração não está na lista de desligados; "Fluxograma" está em "Não cortado" | [x] 10/11/2026                                                                                                                                                                                             |
 | T-004 | Achar o comando do Orca que fala com o fork                    | `orca-dev.cmd status --json` responde `reachable: true`, versão do app 1.4.249                   | [x] 10/11/2026 (ver achado A-1)                                                                                                                                                                            |
-| T-005 | Subir o limite de níveis de 1 para 2                           | Configurações → Orchestration → "Nested worker depth" = 2                                        | [ ] **depende do Kaique** (ver achado A-2)                                                                                                                                                                 |
+| T-005 | Subir o limite de níveis de 1 para 2                           | Configurações → Orchestration → "Nested worker depth" = 2                                        | [x] 10/11/2026: o Kaique mudou na tela. Prova indireta: T-008 passou, o que só acontece com o limite em 2                                                                                                  |
 | T-006 | Registrar as pastas dos chats de prova como confiáveis         | Os chats de prova chegam a trabalhar, sem parar na pergunta de confiança                         | [x] 10/11/2026 para pasta já usada (`orca-canvas`): os dois chats trabalharam. Pasta nova, criada na hora, ainda precisa do registro (fica para T-008)                                                     |
 | T-007 | Prova de 1 nível: lançar 1 chat com modelo escolhido           | Saída do lançamento + status do chat com pai e modelo certos                                     | [x] 10/11/2026: execução `run_a4a55de06fcb`, tarefa `task_48cabdce296f`. O chat respondeu "claude-sonnet-5-5" e o Orca registrou nível 1 (`dispatch.depth = 1`). A 1ª tentativa falhou (achados A-5 e A-6) |
-| T-008 | Prova de 2 níveis: um Opus que cria um Sonnet                  | Saída com os dois chats, pai e modelo certos                                                     | [ ] depende de T-005                                                                                                                                                                                       |
+| T-008 | Prova de 2 níveis: um Opus que cria um Sonnet                  | Saída com os dois chats, pai e modelo certos                                                     | [x] 10/11/2026: tarefa `task_8f3196f2a893`. O pai respondeu "claude-opus-5-5", criou o filho `ctx_de72a9fb2b7a`, que respondeu "claude-sonnet-5-5"                                                         |
 | T-009 | Conferir se "fable" é aceito como nome de modelo               | Chat lançado com Fable mostra o modelo no status                                                 | [x] 10/11/2026: tarefa `task_2a896750e9ab`, o chat respondeu "claude-fable-5-2"                                                                                                                            |
 | T-010 | Conferir se a tela enxerga o pai nos dois níveis               | Print do painel de agentes com a árvore                                                          | [ ] depende de T-008                                                                                                                                                                                       |
 | T-011 | Conferir se dá para distinguir mensagem digitada pelo Kaique   | Resultado anotado; se não der, vale o botão "vou mexer aqui" (risco P-3 do plano)                | [ ]                                                                                                                                                                                                        |
-| T-012 | Decidir: plano normal ou plano B                               | Resultado de T-008 escrito aqui; se for plano B, OK do Kaique para o novo texto do FR-4          | [ ]                                                                                                                                                                                                        |
+| T-012 | Decidir: plano normal ou plano B                               | Resultado de T-008 escrito aqui; se for plano B, OK do Kaique para o novo texto do FR-4          | [x] 10/11/2026: **plano normal**. O motor aguenta chat criando chat; o plano B não é necessário e o FR-4 fica como está                                                                                    |
 
 ### Achados da Fase 0
 
@@ -67,6 +67,17 @@ em 10/11/2026 (commit `cb4d122c2b`). A branch antiga `feat/canvas-chats` ficou i
   (`projection.parent` e `projection.provider.model` vazios em 1 nível). O modelo aparece no
   pedido de lançamento e na tela do chat. Se continuar assim em 2 níveis, a tela tira papel,
   modelo e pai do registro do projeto, que o comando `hierarquia` escreve, e não do status.
+
+- **A-8 (10/11/2026). Corrige o A-6.** O alarme falso "o chat parou sem entregar" voltou na prova
+  de 2 níveis, com o chat numa pasta separada. Então a causa não é a pasta. O Diário de Bordo é
+  disparado por um hook do próprio chat que abre e roda um Claude sem tela que **herda a
+  identidade desse chat** no Orca; quando o Diário termina, o Orca entende que o chat terminou o
+  turno. O chat de verdade continuou trabalhando e entregou certo. Consequência: (1) o comando
+  `hierarquia` e o FR-22 nunca acreditam nesse aviso sem ler a tela do chat; (2) correção de raiz
+  a propor ao Kaique: o hook do Diário limpar as variáveis `ORCA_*` antes de abrir o Claude dele.
+- **A-9 (10/11/2026).** Dentro de um chat lançado pelo Orca do fork, o comando `orca-dev` já vem
+  no caminho e a própria ordem do Orca ensina o chat a criar ajudantes com ele. O comando
+  `hierarquia` pode chamar `orca-dev` direto quando roda dentro de um chat.
 
 ## Fase 1 — Comando e papéis, sem tela
 
