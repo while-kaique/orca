@@ -256,8 +256,11 @@ Cada um responde o que sabe e só repassa o que não sabe.
   número de planejadores combinado (P-2), pondo em espera o que passar disso.
 - **FR-20a** O SISTEMA DEVE tratar o PO como o caminho padrão: o Kaique fala com o PO, e o PO
   orquestra tudo. Falar direto com planejador ou executor é exceção permitida (FR-17).
-- **FR-21** QUANDO uma entrega é aceita, O SISTEMA DEVE encerrar o executor que a fez. Planejador
-  encerra quando a frente termina. PO não encerra.
+- **FR-21** O SISTEMA NÃO DEVE fechar um chat porque o trabalho dele terminou ou porque o PO deu
+  o objetivo como feito. Chat aberto fica aberto até o Kaique fechar à mão. A única exceção: quando
+  os chats abertos enchem o teto e é preciso abrir outro, O SISTEMA PODE fechar o chat mais antigo
+  que já terminou, para dar lugar (Kaique, 10/11/2026, corrigindo a versão anterior, que encerrava
+  o executor a cada entrega aceita).
 - **FR-22** SE um chat da hierarquia parar sem entregar, ENTÃO O SISTEMA DEVE avisar quem o criou
   e preservar o que foi feito.
 

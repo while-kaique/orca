@@ -315,3 +315,29 @@ test('o registro marca o chat em que o Kaique mexeu e o que parou sem entregar',
   assert.equal(estado.chats.E1.mexidoPeloKaique, true)
   assert.equal(estado.ordens['o-E1'].situacao, 'parou')
 })
+
+test('chat que terminou continua aberto; so fecha para dar lugar a outro', () => {
+  const eventos = comExecutores(base(), 'P1', 4, 'E')
+  eventos.push(ev('entrega', { ordemId: 'o-E2', portao: 'plano', provas: ['prova.png'] }))
+  eventos.push(ev('conferencia', { ordemId: 'o-E2', por: 'P1', aprovada: true }))
+  const estado = montarEstado(eventos)
+  assert.equal(estado.chats.E2.ativo, true)
+  assert.deepEqual(decidirOrdem(estado, { de: 'P1', para: 'executor', campos: CAMPOS }), {
+    acao: 'criar',
+    modelo: 'sonnet',
+    fechar: 'E2'
+  })
+})
+
+test('com vaga sobrando nada e fechado, mesmo havendo chat terminado', () => {
+  const eventos = comExecutores(base(), 'P1', 2, 'E')
+  eventos.push(ev('entrega', { ordemId: 'o-E1', portao: 'plano', provas: ['prova.png'] }))
+  eventos.push(ev('conferencia', { ordemId: 'o-E1', por: 'P1', aprovada: true }))
+  assert.deepEqual(
+    decidirOrdem(montarEstado(eventos), { de: 'P1', para: 'executor', campos: CAMPOS }),
+    {
+      acao: 'criar',
+      modelo: 'sonnet'
+    }
+  )
+})

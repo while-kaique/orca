@@ -170,7 +170,26 @@ export function decidirOrdem(estado, { de, para, campos }) {
   if (!vagaLivre(estado, de, para)) {
     return { acao: 'esperar', modelo: PAPEIS[para].modelo }
   }
-  return { acao: 'criar', modelo: PAPEIS[para].modelo }
+  const fechar = chatParaFecharAoAbrir(estado, de, para)
+  return { acao: 'criar', modelo: PAPEIS[para].modelo, ...(fechar ? { fechar } : {}) }
+}
+
+/**
+ * FR-21: chat que terminou fica aberto até o Kaique fechar. O sistema só fecha um chat para dar
+ * lugar a outro: o mais antigo que já terminou, quando os chats abertos enchem o teto.
+ */
+function chatParaFecharAoAbrir(estado, de, para) {
+  const teto = para === 'planejador' ? TETO.planejadoresPorProjeto : TETO.executoresPorPai
+  const abertos = Object.values(estado.chats).filter(
+    (chat) => chat.ativo && chat.papel === para && (para === 'planejador' || chat.pai === de)
+  )
+  if (abertos.length < teto) {
+    return null
+  }
+  const terminado = abertos.find(
+    (chat) => !SITUACOES_ATIVAS.has(estado.ordens[chat.ordemId]?.situacao)
+  )
+  return terminado?.id ?? null
 }
 
 /** FR-20: ordens em espera que já cabem no teto, da mais antiga para a mais nova. */

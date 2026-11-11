@@ -206,18 +206,18 @@ dias de uso do piloto. Estimativa minha, sem base medida.
 
 ## 4. Requisito por requisito: onde cada um é atendido
 
-| Requisitos                               | Peça                                                            | Fase  |
-| ---------------------------------------- | --------------------------------------------------------------- | ----- |
-| FR-1, FR-2                               | `criar-po`                                                      | 1     |
-| FR-3 a FR-6, FR-10, FR-19, FR-20, FR-20a | `ordem` + registro                                              | 1     |
-| FR-7 a FR-9                              | Pasta do projeto + hook de abertura do PO                       | 1     |
-| FR-11 a FR-13, FR-15                     | `entregar`, `conferir` + registro                               | 2     |
-| FR-14, FR-14a                            | Travas                                                          | 2     |
-| FR-14b                                   | Texto do papel do PO + `pedir-ok` em modo proposta              | 2     |
-| FR-16, FR-18                             | `perguntar`, `pedir-ok` + Fila do Kaique                        | 2 e 3 |
-| FR-17                                    | Trava "Kaique no meio"                                          | 2     |
-| FR-21, FR-22                             | `conferir` encerra o executor; vigia de chat parado no `estado` | 2     |
-| FR-23 a FR-28                            | Tela                                                            | 3     |
+| Requisitos                               | Peça                                                                                                                                   | Fase  |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| FR-1, FR-2                               | `criar-po`                                                                                                                             | 1     |
+| FR-3 a FR-6, FR-10, FR-19, FR-20, FR-20a | `ordem` + registro                                                                                                                     | 1     |
+| FR-7 a FR-9                              | Pasta do projeto + hook de abertura do PO                                                                                              | 1     |
+| FR-11 a FR-13, FR-15                     | `entregar`, `conferir` + registro                                                                                                      | 2     |
+| FR-14, FR-14a                            | Travas                                                                                                                                 | 2     |
+| FR-14b                                   | Texto do papel do PO + `pedir-ok` em modo proposta                                                                                     | 2     |
+| FR-16, FR-18                             | `perguntar`, `pedir-ok` + Fila do Kaique                                                                                               | 2 e 3 |
+| FR-17                                    | Trava "Kaique no meio"                                                                                                                 | 2     |
+| FR-21, FR-22                             | `ordem` só fecha o chat terminado mais antigo quando o teto está cheio; nada fecha por ter terminado. Vigia de chat parado no `estado` | 1 e 2 |
+| FR-23 a FR-28                            | Tela                                                                                                                                   | 3     |
 
 ## 5. O que este plano não muda
 
@@ -261,6 +261,7 @@ Os prazos são por fase porque a data de início depende de a versão enxuta ter
 | Teto: 2 planejadores, até 4 executores cada                                                      | Kaique                                               | 10/11/2026 |
 | Testar só depois e subir só na versão enxuta                                                     | Kaique                                               | 10/11/2026 |
 | Piloto no Creative Astra, no lugar da Automação de Cadastros                                     | Kaique                                               | 10/11/2026 |
+| Chat que termina fica aberto; só fecha à mão ou para dar lugar a outro (muda o FR-21)            | Kaique                                               | 10/11/2026 |
 | Cordas manuais continuam só desenho; piloto só em projeto com git                                | Sugestão do Claude, **sem resposta do Kaique ainda** | —          |
 
 ## 9. O que dá para fazer antes de a versão enxuta terminar
