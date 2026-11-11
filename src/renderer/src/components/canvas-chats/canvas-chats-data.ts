@@ -16,6 +16,7 @@ import type {
   CanvasProject
 } from './canvas-chats-layout'
 import { runningChildWork } from './canvas-chat-child-work'
+import { linkCreatedChats, type CanvasChatLatestEntry } from './canvas-chat-lineage'
 import { DEFAULT_REPO_BADGE_COLOR, REPO_COLORS } from '../../../../shared/repo-badge-color'
 import { getWorkspacePortsByWorktreeId } from '@/lib/workspace-ports/workspace-port-groups'
 import { browserUrlForPort } from '@/lib/workspace-ports/workspace-port-urls'
@@ -190,6 +191,7 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
   const portsByWorktree = getWorkspacePortsByWorktreeId(state.workspacePortScan?.result)
   for (const repo of state.repos) {
     const chats: CanvasChat[] = []
+    const latestByChat = new Map<string, CanvasChatLatestEntry>()
     for (const worktree of state.worktreesByRepo[repo.id] ?? []) {
       if (worktree.isArchived) {
         continue
@@ -197,6 +199,9 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
       for (const tab of state.tabsByWorktree[worktree.id] ?? []) {
         const latest = latestEntry(state, tab.id)
         const entry = latest?.entry
+        if (latest) {
+          latestByChat.set(tab.id, latest)
+        }
         const status = chatStatus(state, worktree.id, tab.id)
         // Same records as the sidebar, plus background commands (e.g. a training left running).
         const agents: CanvasAgent[] = entry
@@ -240,6 +245,8 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
             tab.title ||
             worktree.displayName ||
             repo.displayName,
+          parentKey: null,
+          model: entry?.model?.trim() || null,
           // Agents never ask the user directly: a stuck agent turns its chat red.
           status: agents.some((a) => a.blocked) ? 'waiting' : status,
           lines,
@@ -256,6 +263,7 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
         })
       }
     }
+    linkCreatedChats(chats, latestByChat)
     if (chats.length > 0) {
       projects.push({
         id: repo.id,

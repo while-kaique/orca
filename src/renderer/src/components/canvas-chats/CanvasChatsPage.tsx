@@ -10,13 +10,13 @@ import {
 import { parseAgentStatusPaneIdentity } from '../../../../shared/agent-status/identity/agent-status-worktree-attribution'
 import { useCanvasProjects } from './canvas-chats-data'
 import {
-  busPath,
-  elbowPath,
+  chatDescendants,
   layoutCanvas,
   type CanvasBox,
   type CanvasChat,
   type CanvasExtra
 } from './canvas-chats-layout'
+import { canvasChatTreeLines } from './CanvasChatTreeLines'
 import { AgentNode, ChatNode, ProjectNode, STATUS_LABEL } from './CanvasChatsNodes'
 import { finishActiveCanvasVoice, useCanvasListenMode } from './canvas-voice-preference'
 import {
@@ -279,24 +279,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
 
   const cordLayer = useCanvasCordLayer({ boxes, view, rootRef })
 
-  const lines: React.JSX.Element[] = []
-  for (const project of projects) {
-    const pbox = boxes[`project:${project.id}`]
-    for (const chat of project.chats) {
-      const cbox = boxes[chat.key]
-      if (pbox && cbox) {
-        lines.push(<path key={`b-${chat.key}`} className="cc-line-tree" d={busPath(pbox, cbox)} />)
-      }
-      for (const agent of [...chat.agents, ...chat.extras]) {
-        const abox = boxes[agent.id]
-        if (cbox && abox) {
-          lines.push(
-            <path key={`e-${agent.id}`} className="cc-line-tree" d={elbowPath(cbox, abox)} />
-          )
-        }
-      }
-    }
-  }
+  const lines = canvasChatTreeLines(projects, boxes)
 
   return (
     <div
@@ -353,7 +336,13 @@ export default function CanvasChatsPage(): React.JSX.Element {
                         }
                       }}
                       onDragStart={(e) =>
-                        startCardDrag([chat.key, ...chat.agents.map((a) => a.id)], e)
+                        startCardDrag(
+                          [chat, ...chatDescendants(project.chats, chat.key)].flatMap((c) => [
+                            c.key,
+                            ...c.agents.map((a) => a.id)
+                          ]),
+                          e
+                        )
                       }
                       openSize={openSize}
                       terminalReady={terminalReady}

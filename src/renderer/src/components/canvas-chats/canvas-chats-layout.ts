@@ -37,6 +37,10 @@ export type CanvasChat = {
   ptyId: string | null
   startedAt: number
   title: string
+  /** The chat that created this one (orchestration), when it is a chat of the same project. */
+  parentKey: string | null
+  /** Provider model id the chat is running, as the sidebar reads it. */
+  model: string | null
   status: CanvasChatStatus
   lines: { role: 'user' | 'agent' | 'ask'; text: string }[]
   agents: CanvasAgent[]
@@ -80,9 +84,63 @@ const AGENT_INDENT = 32
 // A squarer grid may cost up to 15% of zoom.
 const SQUARE_GRID_TOLERANCE = 0.85
 
-type Block = { project: CanvasProject; w: number; h: number }
+const CHILD_BUS_RISE = PROJECT_TO_CHATS / 2
 
-/** Project on top, its chats side by side below, agents stacked under each chat; blocks wrap into rows that best fit the viewport. */
+export type ChatTree = { chat: CanvasChat; children: ChatTree[] }
+type Block = { project: CanvasProject; roots: ChatTree[]; w: number; h: number }
+
+/** Chats created by another chat of the same project hang under it; every other chat is a root. */
+export function chatForest(chats: readonly CanvasChat[]): ChatTree[] {
+  const nodes = new Map<string, ChatTree>(chats.map((chat) => [chat.key, { chat, children: [] }]))
+  const reachesItself = (start: CanvasChat): boolean => {
+    let key = start.parentKey
+    for (let step = 0; key && step < chats.length; step++) {
+      if (key === start.key) {
+        return true
+      }
+      key = nodes.get(key)?.chat.parentKey ?? null
+    }
+    return false
+  }
+  const roots: ChatTree[] = []
+  for (const node of nodes.values()) {
+    const parent = node.chat.parentKey ? nodes.get(node.chat.parentKey) : undefined
+    // A creation loop has no top: its chats stay visible as roots instead of vanishing.
+    if (parent && !reachesItself(node.chat)) {
+      parent.children.push(node)
+    } else {
+      roots.push(node)
+    }
+  }
+  return roots
+}
+
+/** Every chat below this one, for dragging a chat together with what it created. */
+export function chatDescendants(chats: readonly CanvasChat[], key: string): CanvasChat[] {
+  const out: CanvasChat[] = []
+  const collect = (node: ChatTree): void => {
+    for (const child of node.children) {
+      out.push(child.chat)
+      collect(child)
+    }
+  }
+  const find = (nodes: readonly ChatTree[]): ChatTree | undefined => {
+    for (const node of nodes) {
+      const hit = node.chat.key === key ? node : find(node.children)
+      if (hit) {
+        return hit
+      }
+    }
+    return undefined
+  }
+  const start = find(chatForest(chats))
+  if (start) {
+    collect(start)
+  }
+  return out
+}
+
+/** Project on top, its chats side by side below, each chat's own chats under it, agents stacked under each chat; blocks wrap into rows that best fit the viewport. */
 export function layoutCanvas(
   projects: readonly CanvasProject[],
   viewport: { w: number; h: number }
@@ -95,12 +153,21 @@ export function layoutCanvas(
       ? AGENT_TOP_GAP + chat.agents.length * A.h + chat.extras.length * X.h + count * AGENT_GAP
       : 0
   }
+  const rowWidth = (nodes: readonly ChatTree[]): number =>
+    nodes.reduce((sum, node) => sum + treeWidth(node), 0) +
+    Math.max(0, nodes.length - 1) * COLUMN_GAP
+  const treeWidth = (node: ChatTree): number => Math.max(C.w, rowWidth(node.children))
+  const treeHeight = (node: ChatTree): number =>
+    C.h +
+    hangingHeight(node.chat) +
+    (node.children.length ? PROJECT_TO_CHATS + Math.max(...node.children.map(treeHeight)) : 0)
   const blocks: Block[] = projects.map((project) => {
-    const n = project.chats.length
+    const roots = chatForest(project.chats)
     return {
       project,
-      w: Math.max(P.w, n * C.w + Math.max(0, n - 1) * COLUMN_GAP),
-      h: P.h + (n ? PROJECT_TO_CHATS + C.h : 0) + Math.max(0, ...project.chats.map(hangingHeight))
+      roots,
+      w: Math.max(P.w, rowWidth(roots)),
+      h: P.h + (roots.length ? PROJECT_TO_CHATS + Math.max(...roots.map(treeHeight)) : 0)
     }
   })
   const boxes: Record<string, CanvasBox> = {}
@@ -143,22 +210,31 @@ export function layoutCanvas(
       const cellW = best.colWidths[c]
       const x = cellX + (cellW - block.w) / 2
       cellX += cellW + PROJECT_GAP
-      const chatsWidth =
-        block.project.chats.length * C.w + Math.max(0, block.project.chats.length - 1) * COLUMN_GAP
-      const chatsX = x + (block.w - chatsWidth) / 2
       boxes[`project:${block.project.id}`] = { x: x + block.w / 2 - P.w / 2, y, w: P.w, h: P.h }
-      block.project.chats.forEach((chat, i) => {
-        const cx = chatsX + i * (C.w + COLUMN_GAP)
-        const cy = y + P.h + PROJECT_TO_CHATS
-        boxes[chat.key] = { x: cx, y: cy, w: C.w, h: C.h }
-        let stackY = cy + C.h + AGENT_TOP_GAP
-        const stack = (id: string, size: { w: number; h: number }): void => {
-          boxes[id] = { x: cx + AGENT_INDENT, y: stackY, w: size.w, h: size.h }
-          stackY += size.h + AGENT_GAP
+      // Each chat sits centered over the chats it created, which form the row below it.
+      const placeRow = (nodes: readonly ChatTree[], left: number, top: number): void => {
+        let nodeX = left
+        for (const node of nodes) {
+          const width = treeWidth(node)
+          const { chat } = node
+          const cx = nodeX + (width - C.w) / 2
+          boxes[chat.key] = { x: cx, y: top, w: C.w, h: C.h }
+          let stackY = top + C.h + AGENT_TOP_GAP
+          const stack = (id: string, size: { w: number; h: number }): void => {
+            boxes[id] = { x: cx + AGENT_INDENT, y: stackY, w: size.w, h: size.h }
+            stackY += size.h + AGENT_GAP
+          }
+          chat.agents.forEach((agent) => stack(agent.id, A))
+          chat.extras.forEach((extra) => stack(extra.id, X))
+          placeRow(
+            node.children,
+            nodeX + (width - rowWidth(node.children)) / 2,
+            top + C.h + hangingHeight(chat) + PROJECT_TO_CHATS
+          )
+          nodeX += width + COLUMN_GAP
         }
-        chat.agents.forEach((agent) => stack(agent.id, A))
-        chat.extras.forEach((extra) => stack(extra.id, X))
-      })
+      }
+      placeRow(block.roots, x + (block.w - rowWidth(block.roots)) / 2, y + P.h + PROJECT_TO_CHATS)
     })
     y += Math.max(...row.map((b) => b.h)) + ROW_GAP
   })
@@ -178,6 +254,21 @@ export function busPath(from: CanvasBox, to: CanvasBox): string {
     return `M${px} ${py} V${cy}`
   }
   return `M${px} ${py} V${m - r} Q${px} ${m} ${px + dir * r} ${m} H${cx - dir * r} Q${cx} ${m} ${cx} ${m + r} V${cy}`
+}
+
+/** Chat → a chat it created: down the same left spine as its agents, across above the child, then down into it. */
+export function childChatPath(from: CanvasBox, to: CanvasBox): string {
+  const sx = from.x + 20
+  const sy = from.y + from.h
+  const cx = to.x + to.w / 2
+  const cy = to.y
+  const m = cy - CHILD_BUS_RISE
+  if (Math.abs(cx - sx) < 1) {
+    return `M${sx} ${sy} V${cy}`
+  }
+  const dir = Math.sign(cx - sx)
+  const r = Math.max(0, Math.min(12, Math.abs(cx - sx) / 2, (m - sy) / 2, CHILD_BUS_RISE / 2))
+  return `M${sx} ${sy} V${m - r} Q${sx} ${m} ${sx + dir * r} ${m} H${cx - dir * r} Q${cx} ${m} ${cx} ${m + r} V${cy}`
 }
 
 /** Chat → agent like a folder tree: down the left spine, then into the agent's side. */

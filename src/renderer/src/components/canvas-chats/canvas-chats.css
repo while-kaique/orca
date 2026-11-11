@@ -255,6 +255,29 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* model the chat runs on: neutral pill, the family only changes the weight */
+.cc-model {
+  flex: none;
+  padding: calc(1px * var(--cc-inv)) calc(6px * var(--cc-inv));
+  border: 1px solid #3b3b44;
+  border-radius: 999px;
+  font: 500 calc(10.5px * var(--cc-inv)) system-ui;
+  color: #b4b4bf;
+}
+.cc-model[data-family='fable'],
+.cc-model[data-family='mythos'] {
+  font-weight: 700;
+  color: #ececf3;
+  border-color: #6b6b78;
+}
+.cc-model[data-family='sonnet'],
+.cc-model[data-family='haiku'] {
+  color: #8d8d99;
+}
+/* a chat created by another chat: the line takes the project color */
+.cc-line-created {
+  stroke-opacity: 0.75;
+}
 .cc-dot {
   flex: none;
   width: 8px;

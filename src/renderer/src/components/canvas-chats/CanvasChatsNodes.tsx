@@ -20,6 +20,7 @@ import { useCanvasChatStatus } from './canvas-chats-data'
 import { openPcDeskChatInRepo } from '../sidebar/pc-desk-switcher/launch-pc-desk-chat'
 import { closePcDeskChat } from '../sidebar/pc-desk-switcher/close-pc-desk-project'
 import type { CanvasAgent, CanvasBox, CanvasChat, CanvasProject } from './canvas-chats-layout'
+import { canvasChatModelLabel } from './canvas-chat-model-label'
 
 export const STATUS_LABEL: Record<CanvasChat['status'], string> = {
   idle: translate('fork.canvas.statusIdle', 'parado'),
@@ -201,6 +202,7 @@ export function ChatNode({
     chat.startedAt ? String(chat.startedAt) : ''
   )
   const lastPrompt = chat.lines.find((line) => line.role === 'user')
+  const modelLabel = canvasChatModelLabel(chat.model)
   // Wrapped terminal lines read as one paragraph; bullets and tool markers are noise on a card.
   const preview = replyText
     .split('\n')
@@ -313,6 +315,11 @@ export function ChatNode({
       <div className="cc-chat-head">
         <span className="cc-dot" />
         <b>{chat.title}</b>
+        {modelLabel ? (
+          <span className="cc-model" data-family={modelLabel.family}>
+            {modelLabel.label}
+          </span>
+        ) : null}
         <span className="cc-status">
           {status === 'working' ? <span className="cc-spin" /> : null}
           {STATUS_LABEL[status]}
