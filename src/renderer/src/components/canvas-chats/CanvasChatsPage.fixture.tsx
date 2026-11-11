@@ -115,6 +115,57 @@ export const exemploEstados = defineFixture({
   render: board
 })
 
+/** The PO opened: the head carries the open-in-normal-view button and the X. */
+export const exemploAberto = defineFixture({
+  width: 1280,
+  store: SCENARIO_STORE,
+  setup: scenarioSetup,
+  interact: async (frame) => {
+    await wait(400)
+    frame.querySelector<HTMLButtonElement>('.cc-tidy')?.click()
+    await wait(700)
+    frame.querySelector<HTMLElement>('[data-chat-key="po"]')?.click()
+    await wait(1200)
+  },
+  render: board
+})
+
+/** The open PO after its X was clicked: the close confirmation covers the card. */
+export const exemploFechar = defineFixture({
+  width: 1280,
+  store: SCENARIO_STORE,
+  setup: scenarioSetup,
+  interact: async (frame) => {
+    await wait(400)
+    frame.querySelector<HTMLButtonElement>('.cc-tidy')?.click()
+    await wait(700)
+    frame.querySelector<HTMLElement>('[data-chat-key="po"]')?.click()
+    await wait(1200)
+    frame.querySelector<HTMLButtonElement>('.cc-head-close')?.click()
+    await wait(300)
+  },
+  render: board
+})
+
+/** The mouse resting on the PO: the peek grows and its X sits at the card's corner. */
+export const exemploEspiar = defineFixture({
+  width: 1280,
+  store: SCENARIO_STORE,
+  setup: scenarioSetup,
+  interact: async (frame) => {
+    await wait(400)
+    frame.querySelector<HTMLButtonElement>('.cc-tidy')?.click()
+    await wait(700)
+    const card = frame.querySelector<HTMLElement>('[data-chat-key="po"]')
+    card?.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }))
+    card?.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }))
+    await wait(900)
+    card?.querySelector<HTMLElement>('.cc-xbtn')?.setAttribute('style', 'opacity:1;transform:none')
+    await wait(100)
+  },
+  render: board
+})
+
 export const real = defineFixture({
   width: 1280,
   store: capture.store,

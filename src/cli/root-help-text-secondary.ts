@@ -79,6 +79,7 @@ export const ROOT_HELP_TEXT_SECONDARY = [
   '  orca project setup-delete --setup <setup-id> [--host <host>] [--force] [--json]',
   '  orca repo list [--json]',
   '  orca repo add --path <path> [--kind git|folder] [--json]',
+  '  orca repo rm --repo <selector> [--json]',
   '  orca repo show --repo <selector> [--json]',
   '  orca repo set --repo <selector> --external-worktree-visibility show|hide|inherit [--json]',
   '  orca repo set-base-ref --repo <selector> --ref <ref> [--json]',

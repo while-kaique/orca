@@ -234,12 +234,7 @@ export function ChatNode({
               onPointerDown={onStartLink}
             />
           ))}
-      <span
-        className="cc-xwrap"
-        // The X stays where the small card's corner was, so it can be clicked before the peek grows.
-        style={peek ? { right: (PEEK_W - box.w) / 2 - 30 } : undefined}
-        onPointerDown={(e) => e.stopPropagation()}
-      >
+      <span className="cc-xwrap" onPointerDown={(e) => e.stopPropagation()}>
         <button
           type="button"
           className="cc-xbtn"
@@ -297,13 +292,22 @@ export function ChatNode({
           <CanvasChatRole chat={chat} />
           <b>{chat.title}</b>
           {open ? (
-            <button
-              className="cc-head-button"
-              title={translate('fork.canvas.openNormal', 'Abrir na visão normal')}
-              onClick={showInNormalView}
-            >
-              <ExternalLink size={13} />
-            </button>
+            <>
+              <button
+                className="cc-head-button"
+                title={translate('fork.canvas.openNormal', 'Abrir na visão normal')}
+                onClick={showInNormalView}
+              >
+                <ExternalLink size={13} />
+              </button>
+              <button
+                className="cc-head-button cc-head-close"
+                title={translate('fork.canvas.closeChat', 'Fechar este chat')}
+                onClick={() => setConfirmingClose(true)}
+              >
+                <X size={13} />
+              </button>
+            </>
           ) : null}
         </div>
         <div className="cc-head-row">

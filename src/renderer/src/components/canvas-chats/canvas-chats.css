@@ -1564,3 +1564,10 @@
   object-fit: contain;
   border-radius: 6px;
 }
+
+/* the open chat's own X: asks before closing the chat, like the floating X of a closed card */
+.cc-head-close:hover {
+  background: #ef4b4b;
+  border-color: #ef4b4b;
+  color: #fff;
+}
