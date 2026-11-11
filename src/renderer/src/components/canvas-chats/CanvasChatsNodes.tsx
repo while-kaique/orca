@@ -21,6 +21,7 @@ import { openPcDeskChatInRepo } from '../sidebar/pc-desk-switcher/launch-pc-desk
 import { closePcDeskChat } from '../sidebar/pc-desk-switcher/close-pc-desk-project'
 import type { CanvasAgent, CanvasBox, CanvasChat, CanvasProject } from './canvas-chats-layout'
 import { canvasChatModelLabel } from './canvas-chat-model-label'
+import { CanvasChatGate, CanvasChatRole } from './CanvasChatHierarchyBadges'
 
 export const STATUS_LABEL: Record<CanvasChat['status'], string> = {
   idle: translate('fork.canvas.statusIdle', 'parado'),
@@ -314,6 +315,7 @@ export function ChatNode({
       ) : null}
       <div className="cc-chat-head">
         <span className="cc-dot" />
+        <CanvasChatRole chat={chat} />
         <b>{chat.title}</b>
         {modelLabel ? (
           <span className="cc-model" data-family={modelLabel.family}>
@@ -334,6 +336,7 @@ export function ChatNode({
           </button>
         ) : null}
       </div>
+      {open ? null : <CanvasChatGate chat={chat} />}
       {open ? (
         <>
           <div className="cc-terminal-wrap">

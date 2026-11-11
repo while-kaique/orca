@@ -1,3 +1,5 @@
+import type { CanvasChatHierarchy, CanvasQueueItem } from './canvas-chat-hierarchy'
+
 /** Border states drawn on the flowchart (fork spec: idle gray, working yellow, unseen green, seen dashed green, waiting red). */
 /** 'monitoring' = the turn ended but background agents/tasks are still running. */
 export type CanvasChatStatus = 'idle' | 'working' | 'monitoring' | 'unseen' | 'seen' | 'waiting'
@@ -41,6 +43,8 @@ export type CanvasChat = {
   parentKey: string | null
   /** Provider model id the chat is running, as the sidebar reads it. */
   model: string | null
+  /** Role and delivery state, when the project keeps a chat hierarchy. */
+  hierarchy: CanvasChatHierarchy | null
   status: CanvasChatStatus
   lines: { role: 'user' | 'agent' | 'ask'; text: string }[]
   agents: CanvasAgent[]
@@ -56,6 +60,8 @@ export type CanvasProject = {
   initials: string
   detail: string
   chats: CanvasChat[]
+  /** What waits for the user in this project's chat hierarchy. */
+  queue: CanvasQueueItem[]
 }
 
 export type CanvasBox = { x: number; y: number; w: number; h: number }

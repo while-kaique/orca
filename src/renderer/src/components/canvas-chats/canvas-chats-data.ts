@@ -16,8 +16,9 @@ import type {
   CanvasProject
 } from './canvas-chats-layout'
 import { runningChildWork } from './canvas-chat-child-work'
-import { linkCreatedChats, type CanvasChatLatestEntry } from './canvas-chat-lineage'
-import { DEFAULT_REPO_BADGE_COLOR, REPO_COLORS } from '../../../../shared/repo-badge-color'
+import type { CanvasChatLatestEntry } from './canvas-chat-lineage'
+import { linkProjectChats, useCanvasHierarchy } from './canvas-chat-hierarchy'
+import { projectColor, projectInitials } from './canvas-project-badge'
 import { getWorkspacePortsByWorktreeId } from '@/lib/workspace-ports/workspace-port-groups'
 import { browserUrlForPort } from '@/lib/workspace-ports/workspace-port-urls'
 import type { WorkspacePort } from '../../../../shared/workspace-ports'
@@ -84,26 +85,6 @@ function chatExtras(
   return extras
 }
 
-const AUTO_COLORS = REPO_COLORS.filter((color) => color !== DEFAULT_REPO_BADGE_COLOR)
-
-/** The sidebar badge color, or an automatic one per project while that is still the default gray. */
-function projectColor(repoId: string, badgeColor: string | undefined): string {
-  if (badgeColor && badgeColor.toLowerCase() !== DEFAULT_REPO_BADGE_COLOR) {
-    return badgeColor
-  }
-  let h = 0
-  for (let i = 0; i < repoId.length; i++) {
-    h = (h * 31 + repoId.charCodeAt(i)) | 0
-  }
-  return AUTO_COLORS[Math.abs(h) % AUTO_COLORS.length]
-}
-
-function projectInitials(name: string): string {
-  const words = name.split(/[\s_-]+/u).filter(Boolean)
-  const letters = words.length > 1 ? `${words[0][0]}${words[1][0]}` : name.slice(0, 2)
-  return letters.toUpperCase()
-}
-
 type CanvasInputs = Pick<
   AppState,
   | 'repos'
@@ -116,7 +97,11 @@ type CanvasInputs = Pick<
   | 'migrationUnsupportedByPtyId'
   | 'workspacePortScan'
   | 'sleepingAgentSessionsByPaneKey'
-> & { worktreesByRepo: AppState['worktreesByRepo']; artifactLinks: CanvasArtifactLinks }
+> & {
+  worktreesByRepo: AppState['worktreesByRepo']
+  artifactLinks: CanvasArtifactLinks
+  hierarchy: ReturnType<typeof useCanvasHierarchy>
+}
 
 function chatStatus(state: CanvasInputs, worktreeId: string, tabId: string): CanvasChatStatus {
   const flags = selectPcDeskChatAgentActivityFlags(state as never, worktreeId, tabId)
@@ -247,6 +232,7 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
             repo.displayName,
           parentKey: null,
           model: entry?.model?.trim() || null,
+          hierarchy: null,
           // Agents never ask the user directly: a stuck agent turns its chat red.
           status: agents.some((a) => a.blocked) ? 'waiting' : status,
           lines,
@@ -263,7 +249,8 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
         })
       }
     }
-    linkCreatedChats(chats, latestByChat)
+    const folders = (state.worktreesByRepo[repo.id] ?? []).map((w) => w.path)
+    const queue = linkProjectChats(chats, latestByChat, state.hierarchy, folders)
     if (chats.length > 0) {
       projects.push({
         id: repo.id,
@@ -271,7 +258,8 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
         color: projectColor(repo.id, repo.badgeColor),
         initials: projectInitials(repo.displayName),
         detail: '',
-        chats
+        chats,
+        queue
       })
     }
   }
@@ -295,7 +283,19 @@ export function useCanvasProjects(): CanvasProject[] {
     }))
   )
   const artifactLinks = useCanvasArtifactLinks()
-  return useMemo(() => buildCanvasProjects({ ...inputs, artifactLinks }), [inputs, artifactLinks])
+  const folders = useMemo(
+    () =>
+      Object.values(inputs.worktreesByRepo)
+        .flat()
+        .filter((worktree) => !worktree.isArchived)
+        .map((worktree) => worktree.path),
+    [inputs.worktreesByRepo]
+  )
+  const hierarchy = useCanvasHierarchy(folders)
+  return useMemo(
+    () => buildCanvasProjects({ ...inputs, artifactLinks, hierarchy }),
+    [inputs, artifactLinks, hierarchy]
+  )
 }
 
 /** The card's border follows the exact same rule as the chat's dot in the sidebar. */

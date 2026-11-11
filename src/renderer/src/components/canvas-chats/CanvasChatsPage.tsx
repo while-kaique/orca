@@ -17,6 +17,7 @@ import {
   type CanvasExtra
 } from './canvas-chats-layout'
 import { canvasChatTreeLines } from './CanvasChatTreeLines'
+import { CanvasUserQueue } from './CanvasUserQueue'
 import { AgentNode, ChatNode, ProjectNode, STATUS_LABEL } from './CanvasChatsNodes'
 import { finishActiveCanvasVoice, useCanvasListenMode } from './canvas-voice-preference'
 import {
@@ -71,7 +72,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
   const structureKey = projects
     .map(
       (p) =>
-        `${p.id}:${p.chats.map((c) => `${c.key}/${c.agents.length}/${c.extras.length}`).join(',')}`
+        `${p.id}:${p.chats.map((c) => `${c.key}/${c.parentKey ?? ''}/${c.agents.length}/${c.extras.length}`).join(',')}`
     )
     .join('|')
   const layout = useMemo(
@@ -386,6 +387,15 @@ export default function CanvasChatsPage(): React.JSX.Element {
           {translate('fork.canvas.empty', 'Nenhum chat aberto ainda.')}
         </div>
       ) : null}
+      <CanvasUserQueue
+        projects={projects}
+        onOpenChat={(key) => {
+          const chat = projects.flatMap((project) => project.chats).find((c) => c.key === key)
+          if (chat) {
+            openCard(chat)
+          }
+        }}
+      />
       <div className="cc-legend" onPointerDown={(e) => e.stopPropagation()}>
         {(['idle', 'working', 'monitoring', 'unseen', 'seen', 'waiting'] as const).map((s) => (
           <span key={s} data-status={s}>

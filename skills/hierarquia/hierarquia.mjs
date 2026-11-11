@@ -14,6 +14,15 @@ import {
   montarEstado,
   ordensLiberadasDaEspera
 } from './regras.mjs'
+import {
+  avisarPo,
+  citar,
+  dormir,
+  garantirExecucao,
+  manterAberto,
+  orca,
+  semAcento
+} from './orca-lancador.mjs'
 
 const AQUI = import.meta.dirname
 const ESPERA_DO_LANCAMENTO_MS = '180000'
@@ -141,61 +150,6 @@ function quemSou() {
   return chat
 }
 
-/** O texto que vai para o Orca precisa ser ASCII puro: acento vira lixo na ordem. */
-function semAcento(texto) {
-  return String(texto)
-    .normalize('NFD')
-    .replace(/\p{Mn}/gu, '')
-    .replace(/[^\x20-\x7e]/gu, ' ')
-    .replace(/"/gu, "'")
-}
-
-function orca(args) {
-  const comando = process.env.HIERARQUIA_ORCA ?? 'orca-dev'
-  // No Windows o comando é um .cmd, que só abre pelo shell.
-  let saida
-  try {
-    saida = execFileSync(comando, [...args, '--json'], {
-      encoding: 'utf8',
-      shell: process.platform === 'win32',
-      maxBuffer: 64 * 1024 * 1024
-    })
-  } catch (erro) {
-    // O Orca sai com código 1 também quando só não confirmou o início do turno: a resposta vem igual.
-    if (!String(erro.stdout ?? '').includes('{')) {
-      throw erro
-    }
-    saida = String(erro.stdout)
-  }
-  const util = saida
-    .split('\n')
-    .filter((linha) => !linha.includes('_keepalive'))
-    .join('\n')
-  return JSON.parse(util.slice(util.indexOf('{')))
-}
-
-function dormir(ms) {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
-}
-
-function citar(texto) {
-  return process.platform === 'win32' ? `"${texto}"` : texto
-}
-
-function garantirExecucao() {
-  const atual = orca(['orchestration', 'run-current']).result?.run
-  if (atual) {
-    return atual.id
-  }
-  const nova = orca([
-    'orchestration',
-    'run-create',
-    '--objective',
-    citar('Hierarquia de chats do projeto')
-  ])
-  return nova.result.run.id
-}
-
 function textoDaOrdem(ordemId, papel, campos) {
   const criterios = campos.criterios.map((item, i) => `${i + 1}. ${item}`).join('\n')
   return [
@@ -286,16 +240,6 @@ function lancar(projeto, estado, ordem, modelo, fechar) {
     )
   }
   return { chatId: terminal.id, dispatchId: dados.dispatchId }
-}
-
-/** FR-21: o Orca fecha o terminal de quem já entregou; a retenção é o que o mantém aberto. */
-function manterAberto(dispatchId) {
-  try {
-    orca(['orchestration', 'worker-retain', '--dispatch', dispatchId])
-    return true
-  } catch {
-    return false
-  }
 }
 
 const comandos = {
@@ -617,6 +561,12 @@ function decisaoDoKaique(op, tipo) {
     sair('Devolver exige o motivo: --motivo "..."')
   }
   anotar(projeto, tipo, { ordemId: op.ordem, ...(op.motivo ? { motivo: op.motivo } : {}) })
+  avisarPo(
+    estado.po,
+    tipo === 'ok'
+      ? `O Kaique deu OK na ordem ${op.ordem}. Rode hierarquia estado e siga: agora pode juntar ou publicar essa entrega.`
+      : `O Kaique DEVOLVEU a ordem ${op.ordem}. Motivo: ${op.motivo}. Rode hierarquia estado e decida o proximo passo.`
+  )
   console.log(
     tipo === 'ok'
       ? `OK do Kaique registrado para ${op.ordem}.`

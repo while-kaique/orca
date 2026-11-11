@@ -13,6 +13,7 @@ const chat = (key: string, extras = 0, parentKey: string | null = null) => ({
   title: key,
   parentKey,
   model: null,
+  hierarchy: null,
   status: 'idle' as const,
   lines: [],
   agents: [],
@@ -29,7 +30,8 @@ const project = (id: string, chats: ReturnType<typeof chat>[]): CanvasProject =>
   color: '',
   initials: '',
   detail: '',
-  chats
+  chats,
+  queue: []
 })
 const four = [
   project('cs', [chat('a')]),

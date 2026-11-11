@@ -257,6 +257,108 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* hierarchy: role beside the name, delivery state under the head, the user's queue on the board */
+.cc-role {
+  flex: none;
+  padding: calc(1px * var(--cc-inv)) calc(6px * var(--cc-inv));
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--cc-pc, #5d5d66) 30%, #1d1d22);
+  font: 700 calc(10px * var(--cc-inv)) system-ui;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ececf3;
+}
+.cc-gate {
+  flex: none;
+  padding: calc(4px * var(--cc-inv)) 11px;
+  border-bottom: 1px solid #2b2b31;
+  font: 600 calc(11px * var(--cc-inv)) system-ui;
+  color: #b4b4bf;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-gate[data-gate='esperando_kaique'],
+.cc-gate[data-gate='subiu'],
+.cc-gate[data-gate='parou'] {
+  color: var(--cc-wait);
+}
+.cc-gate[data-gate='devolvido'],
+.cc-gate[data-gate='em_prova'] {
+  color: var(--cc-work);
+}
+.cc-gate[data-gate='aprovado'],
+.cc-gate[data-gate='liberado'] {
+  color: var(--cc-ok);
+}
+.cc-queue {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 320px;
+  max-height: 60%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1.5px solid var(--cc-wait);
+  border-radius: 12px;
+  background: #141417f2;
+  box-shadow: 0 12px 30px #0009;
+  font: 500 12px system-ui;
+  color: #ececf3;
+}
+.cc-queue > b {
+  font: 700 12px system-ui;
+  color: var(--cc-wait);
+}
+.cc-queue-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border-left: 3px solid #5d5d66;
+  background: #1d1d22;
+  border-radius: 6px;
+}
+.cc-queue-item small {
+  color: #8d8d99;
+}
+.cc-queue-item > div {
+  display: flex;
+  gap: 6px;
+}
+.cc-queue button {
+  padding: 3px 9px;
+  border: 1px solid #3b3b44;
+  border-radius: 6px;
+  background: #24242a;
+  font: 600 11px system-ui;
+  color: #ececf3;
+  cursor: pointer;
+}
+.cc-queue button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.cc-queue .cc-queue-ok {
+  border-color: var(--cc-ok);
+  color: var(--cc-ok);
+}
+.cc-queue-reason input {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 7px;
+  border: 1px solid #3b3b44;
+  border-radius: 6px;
+  background: #101013;
+  font: 500 11px system-ui;
+  color: #ececf3;
+}
+.cc-queue-error {
+  color: var(--cc-wait);
+}
 /* model the chat runs on: neutral pill, the family only changes the weight */
 .cc-model {
   flex: none;

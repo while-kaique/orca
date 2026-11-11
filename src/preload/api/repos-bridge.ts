@@ -1,3 +1,8 @@
+import type {
+  CanvasHierarchyDecision,
+  CanvasHierarchyDecisionResult,
+  CanvasHierarchySnapshot
+} from '../../shared/canvas-hierarchy'
 import { ipcRenderer } from 'electron'
 import type { BaseRefDefaultResult, BaseRefSearchResult } from '../../shared/repo-types'
 import type { ExecutionHostId } from '../../shared/execution-host'
@@ -40,6 +45,12 @@ export const reposApi = {
     url: string
   ): Promise<{ kind: 'ok'; dataUrl: string } | { kind: 'error'; error: string }> =>
     ipcRenderer.invoke('repos:captureCanvasPagePreview', url),
+  readCanvasHierarchy: (folders: string[]): Promise<CanvasHierarchySnapshot[]> =>
+    ipcRenderer.invoke('repos:readCanvasHierarchy', folders),
+  decideCanvasHierarchyOrder: (
+    decision: CanvasHierarchyDecision
+  ): Promise<CanvasHierarchyDecisionResult> =>
+    ipcRenderer.invoke('repos:decideCanvasHierarchyOrder', decision),
   setPcDeskSmartTitles: (enabled: boolean): Promise<void> =>
     ipcRenderer.invoke('repos:setPcDeskSmartTitles', enabled),
 
