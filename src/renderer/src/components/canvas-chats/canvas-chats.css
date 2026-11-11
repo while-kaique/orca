@@ -374,7 +374,6 @@
   display: inline-flex;
   align-items: center;
   gap: calc(5px * var(--cc-inv));
-  margin-left: auto;
   --cc-context-color: var(--cc-ok);
 }
 .cc-context[data-level='warn'] {
@@ -384,7 +383,7 @@
   --cc-context-color: var(--cc-wait);
 }
 .cc-context-track {
-  width: calc(46px * var(--cc-inv));
+  width: calc(64px * var(--cc-inv));
   height: calc(5px * var(--cc-inv));
   border-radius: 999px;
   background: #2b2b31;
@@ -401,9 +400,6 @@
     600 calc(10.5px * var(--cc-inv)) ui-monospace,
     monospace;
   color: #b4b4bf;
-}
-.cc-context + .cc-status {
-  margin-left: 0;
 }
 .cc-model[data-family='fable'],
 .cc-model[data-family='mythos'] {

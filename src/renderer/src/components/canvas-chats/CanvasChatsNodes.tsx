@@ -318,12 +318,12 @@ export function ChatNode({
         <span className="cc-dot" />
         <CanvasChatRole chat={chat} />
         <b>{chat.title}</b>
+        <CanvasChatContextMeter transcriptPath={chat.transcriptPath} />
         {modelLabel ? (
           <span className="cc-model" data-family={modelLabel.family}>
             {modelLabel.label}
           </span>
         ) : null}
-        <CanvasChatContextMeter transcriptPath={chat.transcriptPath} />
         <span className="cc-status">
           {status === 'working' ? <span className="cc-spin" /> : null}
           {STATUS_LABEL[status]}
