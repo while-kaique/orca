@@ -57,7 +57,10 @@ export function AgentTerminalPreview({
   onRequestClose,
   linkSource,
   onBrowserForeground,
-  linkHandlers: forkLinkHandlers
+  linkHandlers: forkLinkHandlers,
+  historyRows = PREVIEW_SCROLLBACK_ROWS,
+  gridClaimsPerSize,
+  onAvailability
 }: {
   ptyId: string
   /** Host-input facts relayed with the card; null routes bytes by client OS. */
@@ -68,9 +71,17 @@ export function AgentTerminalPreview({
   onBrowserForeground?: () => void
   /** Fork: link clicks for a preview without a linkSource (the flowchart opens them in the system browser). */
   linkHandlers?: PreviewTerminalLinkHandlers
+  /** Fork: history lines asked of the PTY on connect (the flowchart reads 300; the dashboard keeps 24). */
+  historyRows?: number
+  /** Fork: re-ask for the card's grid this many times when a waking chat's pane re-sizes the PTY back. */
+  gridClaimsPerSize?: number
+  /** Fork: the caller owns the "unavailable" screen (the flowchart shows "Restaurando o chat…" and retries). */
+  onAvailability?: (available: boolean) => void
 }): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const forkLinkHandlersRef = useRef(forkLinkHandlers)
+  const onAvailabilityRef = useRef(onAvailability)
+  onAvailabilityRef.current = onAvailability
   const terminalRef = useRef<Terminal | null>(null)
   const [linkRequest, setLinkRequest] = useState<LinkActionRequest | null>(null)
   const linkSourceRef = useRef(linkSource)
@@ -160,7 +171,9 @@ export function AgentTerminalPreview({
     const gridClaim = createPreviewGridClaim({
       ptyId,
       container,
-      getTerminal: () => terminal
+      getTerminal: () => terminal,
+      maxClaimsPerSize: gridClaimsPerSize,
+      onGridOutOfSync: gridClaimsPerSize ? () => void setup(true) : undefined
     })
     // Box growth/shrink (window resize) changes the reachable grid.
     const boxResizeObserver =
@@ -303,7 +316,7 @@ export function AgentTerminalPreview({
       refreshInFlight = true
       // Why: a failed or absent transport must show the unavailable message, not a blank dialog.
       const connection = await previewApi
-        .connect(ptyId, { scrollbackRows: PREVIEW_SCROLLBACK_ROWS })
+        .connect(ptyId, { scrollbackRows: historyRows })
         .catch(() => null)
       if (disposed) {
         return
@@ -311,10 +324,12 @@ export function AgentTerminalPreview({
       if (!connection?.snapshot) {
         refreshInFlight = false
         setPtyGone(true)
+        onAvailabilityRef.current?.(false)
         releaseTerminal()
         return
       }
       refreshInFlight = false
+      onAvailabilityRef.current?.(true)
       if (!connection.resyncRequired && retryTimer) {
         clearTimeout(retryTimer)
         retryTimer = null
@@ -347,6 +362,8 @@ export function AgentTerminalPreview({
     }
   }, [
     ptyId,
+    historyRows,
+    gridClaimsPerSize,
     terminalTheme,
     terminalMode,
     terminalMinimumContrastRatio,
@@ -390,7 +407,7 @@ export function AgentTerminalPreview({
           onOpenSettings={onBrowserForeground ?? null}
         />
       ) : null}
-      {ptyGone ? (
+      {ptyGone && !onAvailability ? (
         <div className="absolute inset-0 flex items-center justify-center px-2.5 py-8 text-center text-[11px] text-muted-foreground">
           {terminalPreviewUnavailableMessage({ ptyId })}
         </div>

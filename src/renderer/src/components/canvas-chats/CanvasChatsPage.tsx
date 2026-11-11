@@ -151,9 +151,10 @@ export default function CanvasChatsPage(): React.JSX.Element {
    * After a restart Orca keeps a chat asleep until its pane is shown. Opening a card wakes just that chat in
    * the background; the card shows "Restaurando o chat…" until its terminal is live and drawn.
    */
-  const wakeChat = (chat: CanvasChat): void => {
+  const wakeChat = (chat: CanvasChat, terminalIsGone = false): void => {
     const state = useAppStore.getState()
-    if ((state.ptyIdsByTabId[chat.tabId]?.length ?? 0) > 0) {
+    // A saved terminal id after a restart is only a hint; the card says when it found no terminal behind it.
+    if (!terminalIsGone && (state.ptyIdsByTabId[chat.tabId]?.length ?? 0) > 0) {
       return
     }
     // Orca's own background wake, aimed at this one chat: mount its pane hidden, then wake it if it was held asleep.
@@ -337,6 +338,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
                           openCard(chat)
                         }
                       }}
+                      onWake={() => wakeChat(chat, true)}
                       onDragStart={(e) =>
                         startCardDrag(
                           [chat, ...chatDescendants(project.chats, chat.key)].flatMap((c) => [

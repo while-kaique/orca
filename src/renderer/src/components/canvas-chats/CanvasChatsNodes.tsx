@@ -4,14 +4,11 @@ import { DEFAULT_REPO_BADGE_COLOR, REPO_COLORS } from '../../../../shared/repo-b
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { revealTerminalPane } from '@/lib/reveal-terminal-pane'
-import { AgentTerminalPreview } from '../dashboard-popout/AgentTerminalPreview'
 import { useTerminalTail } from './canvas-chat-terminal-tail'
-import { canvasChatLinkHandlers } from './canvas-chat-terminal-links'
 import { buildFontFamily } from '@/lib/monospace-font-family'
 import { savedChatPeek, usePeekTheme } from './canvas-chat-peek-screen'
-import { PEEK_W, usePeek, useSecondsWhile } from './use-canvas-chat-peek'
-import { useChatRestoring } from '@/lib/chat-restore-progress'
-import { ChatRestoreLoading } from '../terminal-pane/SessionRestoredBanner'
+import { PEEK_W, usePeek } from './use-canvas-chat-peek'
+import { CanvasChatTerminal } from './CanvasChatTerminal'
 import { CanvasVoiceBar } from './CanvasVoiceBar'
 import { useCanvasChatSummary } from './canvas-chats-summary'
 import { renderCanvasMarkdown } from './canvas-chats-markdown'
@@ -165,6 +162,7 @@ export function ChatNode({
   openSize,
   terminalReady,
   linkRole,
+  onWake,
   onStartLink,
   onDragStart
 }: {
@@ -175,6 +173,8 @@ export function ChatNode({
   openSize: { w: number; h: number }
   terminalReady: boolean
   linkRole: 'source' | 'target' | null
+  /** Wakes just this chat when its saved terminal no longer exists (after an Orca restart). */
+  onWake: () => void
   onStartLink: (e: React.PointerEvent) => void
   onDragStart: (e: React.PointerEvent) => void
 }): React.JSX.Element {
@@ -184,8 +184,6 @@ export function ChatNode({
   const autoVoice = useCanvasListenMode()
   const peeking = usePeek(open, cardRef)
   const livePty = useAppStore((s) => s.ptyIdsByTabId[chat.tabId]?.[0] ?? null)
-  const restoring = useChatRestoring(chat.tabId)
-  const restoreSeconds = useSecondsWhile(open && (!livePty || restoring))
   const peekTheme = usePeekTheme()
   const peekFont = useAppStore((s) => s.settings?.terminalFontFamily)
   const tail = useTerminalTail(open ? null : chat.ptyId, status, chat.tabId, peeking.on, peekTheme)
@@ -341,22 +339,13 @@ export function ChatNode({
       {open ? null : <CanvasChatGate chat={chat} />}
       {open ? (
         <>
-          <div className="cc-terminal-wrap">
-            {livePty && terminalReady ? (
-              <AgentTerminalPreview
-                key={livePty}
-                ptyId={livePty}
-                terminalInput={null}
-                linkHandlers={canvasChatLinkHandlers}
-                className="cc-terminal"
-              />
-            ) : (
-              <div className="cc-terminal" />
-            )}
-            {restoreSeconds >= 0 ? (
-              <ChatRestoreLoading seconds={restoreSeconds} background={peekTheme?.background} />
-            ) : null}
-          </div>
+          <CanvasChatTerminal
+            tabId={chat.tabId}
+            livePty={livePty}
+            terminalReady={terminalReady}
+            background={peekTheme?.background}
+            onWake={onWake}
+          />
           {livePty ? (
             <CanvasVoiceBar ptyId={livePty} cardRef={cardRef} autoStart={autoVoice} />
           ) : null}
