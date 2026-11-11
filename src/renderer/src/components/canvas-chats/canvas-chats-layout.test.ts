@@ -131,7 +131,8 @@ it('keeps executors below the planners row even when the PO created them directl
     wide
   )
   expect(boxes.plan.y).toBe(boxes.po.y + 230 + 80)
-  expect(boxes.exec.y).toBe(boxes.plan.y + 230 + 80)
+  // The planners' row is as tall as a slim card (106), not a full one.
+  expect(boxes.exec.y).toBe(boxes.plan.y + 106 + 80)
   expect(boxes.direct.y).toBe(boxes.exec.y)
   expect(boxes.plan.x).toBeLessThan(boxes.direct.x)
 })

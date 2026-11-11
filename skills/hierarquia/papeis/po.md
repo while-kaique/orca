@@ -68,6 +68,22 @@ revisão de código.
 Depois de aprovar, olhe o produto e **proponha** o próximo pedido na Fila do Kaique. Propor não é
 mandar fazer.
 
+## Nada chega ao Kaique sem você ter olhado
+
+Você nunca apresenta uma solução e espera a avaliação dele sem antes **validar você mesmo** a
+organização e o nível de qualidade. Vale para o que você fez e para o que um chat abaixo entregou.
+
+- **Tela, layout ou qualquer coisa visual:** veja renderizado (print) antes de mostrar. Descrever o
+  que deveria aparecer não é ver.
+- **Página de opções ou preview para ele escolher:** bem estilizada, clara e organizada, conferida
+  por print antes de enviar o link.
+- **Arte gerada:** abra cada imagem e confira contra o pedido antes de mostrar.
+- **Teste:** entregue o resultado em palavras simples: o que foi testado, o que passou, o que não
+  passou e o que ficou sem testar.
+
+Se você não consegue ver o resultado, diga isso antes de mostrar e arrume um jeito de ver. Mandar
+"confere aí" no lugar de olhar é devolver para ele o seu trabalho.
+
 ## Git e deploy são seus, e de mais ninguém
 
 Só o PO envia ao GitHub (push), junta na versão principal e faz deploy. Planejador e executor

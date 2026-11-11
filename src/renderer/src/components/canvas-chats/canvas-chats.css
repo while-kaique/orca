@@ -216,32 +216,91 @@
 .cc-chat:not(.cc-open):hover {
   z-index: 35;
 }
-/* roles keep their slot but draw differently: planner = slim card, executor = circle with its job title */
-.cc-shape-slim .cc-prompt {
+/* roles keep their slot but draw differently: planner = slim card, executor = hexagon with its job title */
+.cc-shape-slim .cc-prompt,
+.cc-shape-slim .cc-gate {
   display: none;
+}
+/* one quiet sentence under the head: where the planner's work stands */
+.cc-shape-slim .cc-feed {
+  padding: calc(6px * var(--cc-inv)) 11px;
 }
 .cc-shape-slim .cc-feed-clean .cc-summary,
-.cc-shape-slim .cc-feed-clean .cc-preview {
-  -webkit-line-clamp: 1;
+.cc-shape-slim .cc-feed-clean .cc-preview,
+.cc-shape-slim .cc-line-empty {
+  display: block;
+  font: 500 calc(12px * var(--cc-inv)) / 1.4 system-ui;
+  color: #b4b4bf;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.cc-shape-slim .cc-feed {
-  padding-top: calc(5px * var(--cc-inv));
-  padding-bottom: calc(5px * var(--cc-inv));
+.cc-chat.cc-shape-crest {
+  border: none;
+  background: none;
+  box-shadow: none;
 }
-.cc-chat.cc-shape-round {
-  border-radius: 50%;
-  align-items: center;
-  justify-content: center;
-}
-.cc-shape-round > :not(.cc-round-name, .cc-xwrap, .cc-edge, .cc-confirm) {
+.cc-chat.cc-shape-crest::before {
   display: none;
 }
-.cc-round-name {
-  padding: 0 calc(18px * var(--cc-inv));
-  font: 700 calc(17px * var(--cc-inv)) / 1.2 system-ui;
-  color: #ececf3;
+.cc-shape-crest > :not(.cc-crest-body, .cc-xwrap, .cc-edge, .cc-confirm) {
+  display: none;
+}
+.cc-crest-body {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(7px * var(--cc-inv));
+  padding: 0 calc(20px * var(--cc-inv));
   text-align: center;
-  overflow-wrap: anywhere;
+}
+.cc-crest-outline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 6px 10px #0009);
+}
+.cc-crest-outline polygon {
+  fill: #121215;
+  stroke: var(--k);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+/* hovering an executor only lifts it a little: it opens on click, never as a peek */
+.cc-crest-outline polygon {
+  transition: stroke-width 0.15s;
+}
+.cc-chat.cc-shape-crest {
+  transition: transform 0.18s ease;
+}
+.cc-chat.cc-shape-crest:hover {
+  transform: scale(1.04);
+}
+.cc-chat.cc-shape-crest:hover .cc-crest-outline polygon {
+  fill: #18181d;
+  stroke-width: 3.2;
+}
+.cc-chat[data-status='seen'] .cc-crest-outline polygon {
+  stroke-dasharray: 7 6;
+}
+.cc-chat[data-status='unseen'] .cc-crest-outline,
+.cc-chat[data-status='working'] .cc-crest-outline,
+.cc-chat[data-status='waiting'] .cc-crest-outline {
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--k) 55%, transparent));
+}
+.cc-crest-body b,
+.cc-crest-body .cc-context {
+  position: relative;
+}
+.cc-crest-body b {
+  font: 700 calc(15px * var(--cc-inv)) / 1.15 system-ui;
+  color: #ececf3;
+  text-wrap: balance;
 }
 /* hover peek: the card widens and shows Claude's last 7 rows, live */
 .cc-peek {

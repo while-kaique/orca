@@ -1,4 +1,5 @@
 import type { CanvasChatHierarchy, CanvasQueueItem } from './canvas-chat-hierarchy'
+import { chatVisualBox } from './canvas-chat-shape'
 
 /** Border states drawn on the flowchart (fork spec: idle gray, working yellow, unseen green, seen dashed green, waiting red). */
 /** 'monitoring' = the turn ended but background agents/tasks are still running. */
@@ -178,6 +179,8 @@ export function layoutCanvas(
       ? AGENT_TOP_GAP + chat.agents.length * A.h + chat.extras.length * X.h + count * AGENT_GAP
       : 0
   }
+  const drawnHeight = (chat: CanvasChat): number =>
+    chatVisualBox(chat, { x: 0, y: 0, w: C.w, h: C.h }).h
   const rowWidth = (nodes: readonly ChatTree[]): number =>
     nodes.reduce((sum, node) => sum + treeWidth(node), 0) +
     Math.max(0, nodes.length - 1) * COLUMN_GAP
@@ -187,10 +190,13 @@ export function layoutCanvas(
     // Rows by role: every executor sits below the planners' row, even one the PO created directly.
     const tiers = new Map<string, number>()
     const hanging: number[] = []
+    // A row is as tall as what is drawn in it: slim planners and hexagon executors need less than a full card.
+    const heights: number[] = []
     const assign = (nodes: readonly ChatTree[], above: number): void => {
       for (const node of nodes) {
         const tier = Math.max(above + 1, roleTier(node.chat))
         tiers.set(node.chat.key, tier)
+        heights[tier] = Math.max(heights[tier] ?? 0, drawnHeight(node.chat))
         // Only what hangs off a chat with chats below it pushes the next row down; the rest has its own column.
         hanging[tier] = Math.max(
           hanging[tier] ?? 0,
@@ -203,11 +209,18 @@ export function layoutCanvas(
     const tierTops: number[] = []
     for (let tier = 0; tier < hanging.length; tier++) {
       tierTops[tier] =
-        tier === 0 ? 0 : tierTops[tier - 1] + C.h + (hanging[tier - 1] ?? 0) + PROJECT_TO_CHATS
+        tier === 0
+          ? 0
+          : tierTops[tier - 1] +
+            (heights[tier - 1] ?? C.h) +
+            (hanging[tier - 1] ?? 0) +
+            PROJECT_TO_CHATS
     }
     const bottom = Math.max(
       0,
-      ...project.chats.map((chat) => tierTops[tiers.get(chat.key) ?? 0] + C.h + hangingHeight(chat))
+      ...project.chats.map(
+        (chat) => tierTops[tiers.get(chat.key) ?? 0] + drawnHeight(chat) + hangingHeight(chat)
+      )
     )
     return {
       project,
@@ -267,7 +280,7 @@ export function layoutCanvas(
           const top = chatsTop + block.tierTops[block.tiers.get(chat.key) ?? 0]
           const cx = nodeX + (width - C.w) / 2
           boxes[chat.key] = { x: cx, y: top, w: C.w, h: C.h }
-          let stackY = top + C.h + AGENT_TOP_GAP
+          let stackY = top + drawnHeight(chat) + AGENT_TOP_GAP
           const stack = (id: string, size: { w: number; h: number }): void => {
             boxes[id] = { x: cx + AGENT_INDENT, y: stackY, w: size.w, h: size.h }
             stackY += size.h + AGENT_GAP

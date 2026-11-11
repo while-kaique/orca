@@ -1,5 +1,36 @@
 # Onde paramos — fork do Orca "PC como mesa"
 
+## 11/11/2026 (noite) — Ver o fluxograma sem reiniciar + formatos por papel
+
+**Vistoria (usar SEMPRE antes de dizer "pronto" em mudança de tela):**
+
+1. `python tools/vistoria-fluxograma/capturar.py` copia o estado real do Orca em uso (projetos, abas,
+   estados, hierarquia, contexto) para `.cache/vistoria-fluxograma/estado.json` (fora do git).
+2. `pnpm fixtures:shot canvas-chats/CanvasChatsPage:real --scale 2` desenha o fluxograma com esses dados e
+   grava `.cache/fixtures/canvas-chats__CanvasChatsPage--real.dark.png`. Abrir a imagem e olhar.
+3. Página solta (preview de opções): `node tools/vistoria-fluxograma/print-html.mjs entrada.html saida.png`.
+
+Limites da vistoria: a partida fria leva 1 a 2 min neste PC; os estados saem quase todos "parado"
+(falta copiar o que a tela considera visto/não visto); sem manchete do Haiku; não testa hover nem clique.
+O comando termina com erro por um recurso 404 da página, mas a imagem sai.
+
+**Fluxograma, estado atual:**
+
+- Cabeçalho do card em duas linhas (nome inteiro em cima; contexto, modelo e estado embaixo).
+- Barra de contexto 0 a 1M tokens lida do histórico da conversa (`canvas-chat-context-tokens.ts`).
+- Fileiras por papel: PO, planejadores, executores; cada fileira tem a altura do que é desenhado nela.
+  Planejadores vêm antes dos executores diretos; a linha sai do centro de baixo do criador.
+- Formatos (`canvas-chat-shape.ts`): planejador = card fino com uma frase; executor = hexágono
+  (`CanvasExecutorCrest.tsx`) com título de 1 ou 2 palavras dado pelo Haiku
+  (`canvas-chat-executor-name.ts`, IPC `repos:nameCanvasExecutor`) e a barra de contexto. Executor não
+  abre no hover, só no clique.
+- Cor do projeto só no card do projeto.
+
+**Causa do chat sem aba:** o Orca só lista a pasta principal do projeto `orca`; `orca-canvas`, `orca-voz`,
+`orca-enxuto` e `orca-atualiza` são cópias criadas por fora e não aparecem. Por isso `.hierarquia` veio
+para a pasta `orca`, o comando `hierarquia` aponta para `orca\skills\hierarquia`, e o trabalho passou
+a ser feito direto na pasta `orca` (branch `feat/pc-como-mesa`).
+
 ## 11/11/2026 — Hierarquia de chats (PO > Planejador > Executor) + ajustes do fluxograma
 
 **O que é:** um chat PO (Fable) por projeto recebe o pedido do Kaique, manda ordens a planejadores

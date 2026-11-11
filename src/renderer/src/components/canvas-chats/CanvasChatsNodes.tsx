@@ -19,6 +19,7 @@ import { closePcDeskChat } from '../sidebar/pc-desk-switcher/close-pc-desk-proje
 import type { CanvasAgent, CanvasBox, CanvasChat, CanvasProject } from './canvas-chats-layout'
 import { canvasChatModelLabel } from './canvas-chat-model-label'
 import { CanvasChatContextMeter } from './CanvasChatContextMeter'
+import { CanvasExecutorCrest } from './CanvasExecutorCrest'
 import { useCanvasExecutorName } from './canvas-chat-executor-name'
 import { chatShape, chatVisualBox } from './canvas-chat-shape'
 import { CanvasChatGate, CanvasChatRole } from './CanvasChatHierarchyBadges'
@@ -185,7 +186,7 @@ export function ChatNode({
   const status = useCanvasChatStatus(chat)
   const [confirmingClose, setConfirmingClose] = useState(false)
   const autoVoice = useCanvasListenMode()
-  const peeking = usePeek(open, cardRef)
+  const peeking = usePeek(open || chat.hierarchy?.role === 'executor', cardRef)
   const livePty = useAppStore((s) => s.ptyIdsByTabId[chat.tabId]?.[0] ?? null)
   const peekTheme = usePeekTheme()
   const peekFont = useAppStore((s) => s.settings?.terminalFontFamily)
@@ -229,7 +230,7 @@ export function ChatNode({
   const peekLines =
     tail.peek.length > 0 ? tail.peek : savedChatPeek(lastPrompt?.text, replyText, !livePty)
   const peek = peeking.on && peekLines.length > 0
-  // A planner is a slim card and an executor a circle, inside the same slot; open or peeking they are full cards.
+  // A planner is a slim card and an executor a hexagon, inside the same slot; open or peeking they are full cards.
   const shape = open || peek ? 'card' : chatShape(chat)
   const visual = shape === 'card' ? box : chatVisualBox(chat, box)
   const style = open
@@ -320,7 +321,7 @@ export function ChatNode({
           </div>
         </div>
       ) : null}
-      {shape === 'round' ? <div className="cc-round-name">{executorName}</div> : null}
+      {shape === 'crest' ? <CanvasExecutorCrest chat={chat} name={executorName} /> : null}
       <div className="cc-chat-head">
         <div className="cc-head-row">
           <span className="cc-dot" />
