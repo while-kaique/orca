@@ -1356,3 +1356,211 @@
 .cc-extra:hover .cc-extra-shot {
   border-color: color-mix(in srgb, var(--cc-pc, #8f8f9a) 60%, transparent);
 }
+
+/* attachments: one thin row of chips under a chat (agents, artifacts, localhosts, images); a chip opens its gallery */
+.cc-chips {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  z-index: 20;
+}
+.cc-chips-open {
+  z-index: 45;
+}
+.cc-chip {
+  --c: #8f8f9a;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px 0 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--c) 45%, #2b2b31);
+  background: color-mix(in srgb, var(--c) 12%, #121215);
+  font:
+    700 calc(10.5px * var(--cc-inv)) ui-monospace,
+    Consolas,
+    monospace;
+  color: #ececf3;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.cc-chip svg {
+  color: var(--c);
+}
+.cc-chip:hover,
+.cc-chip[data-on] {
+  background: color-mix(in srgb, var(--c) 28%, #121215);
+  border-color: var(--c);
+}
+.cc-chip[data-kind='agent'],
+.cc-chip-pop[data-kind='agent'] {
+  --c: #8b8cf6;
+}
+.cc-chip[data-kind='artifact'],
+.cc-chip-pop[data-kind='artifact'] {
+  --c: #4fb3d9;
+}
+.cc-chip[data-kind='server'],
+.cc-chip-pop[data-kind='server'] {
+  --c: #3ecf7a;
+}
+.cc-chip[data-kind='image'],
+.cc-chip-pop[data-kind='image'] {
+  --c: #e58fb1;
+}
+.cc-chip-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--c);
+  border-radius: 12px;
+  background: #17171c;
+  box-shadow: 0 18px 44px #000c;
+  cursor: default;
+}
+.cc-chip-pop-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: 600 calc(11px * var(--cc-inv)) system-ui;
+  color: #b4b4bf;
+  white-space: nowrap;
+}
+.cc-chip-pop-head svg {
+  color: var(--c);
+}
+.cc-chip-pop-head b {
+  color: #ececf3;
+}
+.cc-chip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 168px);
+  gap: 10px;
+  width: max-content;
+  max-width: 536px;
+}
+.cc-chip-agents {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 260px;
+}
+.cc-chip-agent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid #2b2b31;
+  background: #121215;
+  color: #b4b4bf;
+}
+.cc-chip-agent b {
+  font: 600 calc(12px * var(--cc-inv)) system-ui;
+  color: #ececf3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-chip-agent small {
+  margin-left: auto;
+  font: 500 calc(10.5px * var(--cc-inv)) system-ui;
+  color: #8d8d99;
+  white-space: nowrap;
+}
+.cc-extra.cc-extra-tile {
+  position: relative;
+  width: 168px;
+  height: 138px;
+  border-radius: 10px;
+  padding: 6px;
+  gap: 5px;
+}
+.cc-extra-tile .cc-agent-head b {
+  font-size: calc(10.5px * var(--cc-inv));
+}
+.cc-image-tile {
+  position: relative;
+  width: 168px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1.5px solid #3a3a42;
+  background: #121215;
+  cursor: pointer;
+}
+.cc-image-tile:hover {
+  border-color: var(--c);
+}
+.cc-image-shot {
+  height: 104px;
+  border-radius: 6px;
+  background: #0c0c0f;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #8d8d99;
+  font: 500 calc(10px * var(--cc-inv)) system-ui;
+  text-align: center;
+}
+.cc-image-shot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cc-image-tile b {
+  font:
+    600 calc(10px * var(--cc-inv)) ui-monospace,
+    Consolas,
+    monospace;
+  color: #b4b4bf;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-image-x {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid #3a3a42;
+  background: #17171ccc;
+  color: #ececf3;
+  opacity: 0;
+  cursor: pointer;
+}
+.cc-image-tile:hover .cc-image-x {
+  opacity: 1;
+}
+.cc-image-view-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 14px;
+  background: #0c0c0f;
+  color: #8d8d99;
+}
+.cc-image-view-body img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+}

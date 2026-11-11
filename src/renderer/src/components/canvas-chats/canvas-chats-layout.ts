@@ -19,7 +19,8 @@ export type CanvasAgent = {
 
 export type CanvasExtra = {
   id: string
-  kind: 'server' | 'artifact'
+  /** 'image': a picture file the chat printed; `url` is its path on disk. */
+  kind: 'server' | 'artifact' | 'image'
   label: string
   url: string
   /** Set for servers: what the stop button needs. */
@@ -76,23 +77,20 @@ export type CanvasLayout = {
 
 export const CANVAS_SIZES = {
   project: { w: 410, h: 116 },
-  chat: { w: 340, h: 230 },
-  agent: { w: 316, h: 78 },
-  /** Server/artifact: name row + a 16:10 picture of the page. */
-  extra: { w: 316, h: 236 }
+  chat: { w: 340, h: 230 }
 } as const
+
+/** The thin row of chips under a chat: one per kind of thing it left (agents, artifacts, servers, images). */
+export const CANVAS_ATTACHMENTS_ROW = { gap: 8, h: 30 } as const
 
 // Gaps are 30% over the first version, leaving room for what hangs off each chat.
 const COLUMN_GAP = 52
 const PROJECT_TO_CHATS = 80
-const AGENT_TOP_GAP = 26
-const AGENT_GAP = 12
 // One empty chat column between projects, so every chat of every row sits on the same column grid.
 const PROJECT_GAP = CANVAS_SIZES.chat.w + 2 * COLUMN_GAP
 // The header starts at its first chat's left edge; wider than one chat, it overhangs a single-chat block on the right.
 const HEADER_OVERHANG = CANVAS_SIZES.project.w - CANVAS_SIZES.chat.w
 const ROW_GAP = 195
-const AGENT_INDENT = 32
 // A squarer grid may cost up to 15% of zoom.
 const SQUARE_GRID_TOLERANCE = 0.85
 
@@ -171,14 +169,11 @@ export function layoutCanvas(
   projects: readonly CanvasProject[],
   viewport: { w: number; h: number }
 ): CanvasLayout {
-  const { project: P, chat: C, agent: A, extra: X } = CANVAS_SIZES
-  // What hangs under one chat: agents, then its servers/artifacts (taller, they carry a picture).
-  const hangingHeight = (chat: CanvasChat): number => {
-    const count = chat.agents.length + chat.extras.length
-    return count
-      ? AGENT_TOP_GAP + chat.agents.length * A.h + chat.extras.length * X.h + count * AGENT_GAP
+  const { project: P, chat: C } = CANVAS_SIZES
+  const hangingHeight = (chat: CanvasChat): number =>
+    chat.agents.length + chat.extras.length > 0
+      ? CANVAS_ATTACHMENTS_ROW.gap + CANVAS_ATTACHMENTS_ROW.h
       : 0
-  }
   const drawnHeight = (chat: CanvasChat): number =>
     chatVisualBox(chat, { x: 0, y: 0, w: C.w, h: C.h }).h
   const rowWidth = (nodes: readonly ChatTree[]): number =>
@@ -280,18 +275,16 @@ export function layoutCanvas(
           const top = chatsTop + block.tierTops[block.tiers.get(chat.key) ?? 0]
           const cx = nodeX + (width - C.w) / 2
           boxes[chat.key] = { x: cx, y: top, w: C.w, h: C.h }
-          let stackY = top + drawnHeight(chat) + AGENT_TOP_GAP
-          const stack = (id: string, size: { w: number; h: number }): void => {
-            boxes[id] = { x: cx + AGENT_INDENT, y: stackY, w: size.w, h: size.h }
-            stackY += size.h + AGENT_GAP
-          }
-          chat.agents.forEach((agent) => stack(agent.id, A))
-          chat.extras.forEach((extra) => stack(extra.id, X))
           placeRow(node.children, nodeX + (width - rowWidth(node.children)) / 2)
           nodeX += width + COLUMN_GAP
         }
       }
       placeRow(block.roots, x + (block.w - rowWidth(block.roots)) / 2)
+      // The project card starts at its first chat's left edge, wherever that chat ended up over its own chats.
+      const first = block.roots[0] ? boxes[block.roots[0].chat.key] : undefined
+      if (first) {
+        boxes[`project:${block.project.id}`].x = first.x
+      }
     })
     y += Math.max(...row.map((b) => b.h)) + ROW_GAP
   })
@@ -326,11 +319,4 @@ export function childChatPath(from: CanvasBox, to: CanvasBox): string {
   const dir = Math.sign(cx - sx)
   const r = Math.max(0, Math.min(12, Math.abs(cx - sx) / 2, (cy - m) / 2, CHILD_BUS_RISE / 2))
   return `M${sx} ${sy} V${m - r} Q${sx} ${m} ${sx + dir * r} ${m} H${cx - dir * r} Q${cx} ${m} ${cx} ${m + r} V${cy}`
-}
-
-/** Chat → agent like a folder tree: down the left spine, then into the agent's side. */
-export function elbowPath(from: CanvasBox, to: CanvasBox): string {
-  const sx = from.x + 20
-  const my = to.y + to.h / 2
-  return `M${sx} ${from.y + from.h} V${my - 8} Q${sx} ${my} ${sx + 8} ${my} H${to.x}`
 }

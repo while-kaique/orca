@@ -25,6 +25,16 @@ O comando termina com erro por um recurso 404 da página, mas a imagem sai.
   (`canvas-chat-executor-name.ts`, IPC `repos:nameCanvasExecutor`) e a barra de contexto. Executor não
   abre no hover, só no clique.
 - Cor do projeto só no card do projeto.
+- **Anexos em fichas** (`CanvasChatAttachments.tsx`): embaixo de cada chat, uma fileira fina com uma ficha
+  por tipo e a quantidade (agentes, artefatos, localhosts, imagens). Clicar na ficha abre a galeria do
+  tipo; clicar na miniatura abre grande. As pilhas de cards embaixo do chat saíram.
+- **Imagens** (novo): o fluxograma acha os caminhos de arquivo de imagem que o chat imprime
+  (`imagePathsIn` em `canvas-chat-artifacts.ts`, guarda as 24 últimas por chat) e o processo principal
+  devolve miniatura ou imagem grande (`repos:readCanvasImage`, `canvas-image-handler.ts`). Não acha caminho
+  que o terminal quebrou em duas linhas, nem caminho relativo.
+- Cenários de print sem chats reais: `canvas-chats/CanvasChatsPage:exemplo` (PO, 2 planejadores, 4
+  executores, todos os anexos), `:exemploGaleria` (galeria de imagens aberta) e `:exemploEstados` (todas as
+  cores de borda). Dados em `canvas-chats-fixture-scenario.ts`.
 
 **Causa do chat sem aba:** o Orca só lista a pasta principal do projeto `orca`; `orca-canvas`, `orca-voz`,
 `orca-enxuto` e `orca-atualiza` são cópias criadas por fora e não aparecem. Por isso `.hierarquia` veio

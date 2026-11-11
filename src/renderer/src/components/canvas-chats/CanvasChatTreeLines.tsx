@@ -1,10 +1,4 @@
-import {
-  busPath,
-  childChatPath,
-  elbowPath,
-  type CanvasBox,
-  type CanvasProject
-} from './canvas-chats-layout'
+import { busPath, childChatPath, type CanvasBox, type CanvasProject } from './canvas-chats-layout'
 import { chatVisualBox } from './canvas-chat-shape'
 
 /** Project → chat, chat → the chats it created, chat → what hangs off it. */
@@ -35,14 +29,6 @@ export function canvasChatTreeLines(
         )
       } else if (pbox && cbox) {
         lines.push(<path key={`b-${chat.key}`} className="cc-line-tree" d={busPath(pbox, cbox)} />)
-      }
-      for (const agent of [...chat.agents, ...chat.extras]) {
-        const abox = boxes[agent.id]
-        if (cbox && abox) {
-          lines.push(
-            <path key={`e-${agent.id}`} className="cc-line-tree" d={elbowPath(cbox, abox)} />
-          )
-        }
       }
     }
   }

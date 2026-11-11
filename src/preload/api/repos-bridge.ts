@@ -55,6 +55,11 @@ export const reposApi = {
     ipcRenderer.invoke('repos:readCanvasHierarchy', folders),
   readCanvasContextTokens: (transcriptPaths: string[]): Promise<CanvasContextTokens> =>
     ipcRenderer.invoke('repos:readCanvasContextTokens', transcriptPaths),
+  readCanvasImage: (request: {
+    path: string
+    size: 'thumb' | 'full'
+  }): Promise<{ kind: 'ok'; dataUrl: string } | { kind: 'error'; error: string }> =>
+    ipcRenderer.invoke('repos:readCanvasImage', request),
   decideCanvasHierarchyOrder: (
     decision: CanvasHierarchyDecision
   ): Promise<CanvasHierarchyDecisionResult> =>

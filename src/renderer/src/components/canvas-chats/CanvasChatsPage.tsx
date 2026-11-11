@@ -19,7 +19,8 @@ import {
 } from './canvas-chats-layout'
 import { canvasChatTreeLines } from './CanvasChatTreeLines'
 import { CanvasUserQueue } from './CanvasUserQueue'
-import { AgentNode, ChatNode, ProjectNode, STATUS_LABEL } from './CanvasChatsNodes'
+import { ChatNode, ProjectNode, STATUS_LABEL } from './CanvasChatsNodes'
+import { CanvasChatAttachments, CanvasImagePreview } from './CanvasChatAttachments'
 import { finishActiveCanvasVoice, useCanvasListenMode } from './canvas-voice-preference'
 import {
   applyCanvasOffsets,
@@ -29,7 +30,7 @@ import {
   useCanvasOffsets
 } from './canvas-chats-offsets'
 import { useCanvasCordLayer } from './use-canvas-cord-layer'
-import { CanvasWebPreview, ExtraNode } from './CanvasChatExtras'
+import { CanvasWebPreview } from './CanvasChatExtras'
 import { CanvasAddProjectButton } from './CanvasAddProjectButton'
 import './canvas-chats.css'
 
@@ -361,22 +362,9 @@ export default function CanvasChatsPage(): React.JSX.Element {
                       }
                       onStartLink={(e) => cordLayer.startLink(chat.key, e)}
                     />
-                    {chat.agents.map((agent) => {
-                      const abox = boxes[agent.id]
-                      return abox ? <AgentNode key={agent.id} agent={agent} box={abox} /> : null
-                    })}
-                    {chat.extras.map((extra) => {
-                      const xbox = boxes[extra.id]
-                      return xbox ? (
-                        <ExtraNode
-                          key={extra.id}
-                          extra={extra}
-                          box={xbox}
-                          turnKey={chat.status === 'working' ? '' : `${chat.startedAt}`}
-                          onExpand={() => setExpandedExtra(extra)}
-                        />
-                      ) : null
-                    })}
+                    {openKey === chat.key ? null : (
+                      <CanvasChatAttachments chat={chat} box={cbox} onExpand={setExpandedExtra} />
+                    )}
                   </div>
                 ) : null
               })}
@@ -384,7 +372,9 @@ export default function CanvasChatsPage(): React.JSX.Element {
           )
         })}
       </div>
-      {expandedExtra ? (
+      {expandedExtra?.kind === 'image' ? (
+        <CanvasImagePreview extra={expandedExtra} onClose={() => setExpandedExtra(null)} />
+      ) : expandedExtra ? (
         <CanvasWebPreview extra={expandedExtra} onClose={() => setExpandedExtra(null)} />
       ) : null}
       {projects.length === 0 ? (

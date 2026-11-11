@@ -75,7 +75,7 @@ it('puts the chats a chat created in a row below it, centered under it', () => {
   expect(boxes.plan2.y).toBe(boxes.plan1.y)
   expect(boxes.plan2.x - boxes.plan1.x).toBe(340 + 52)
   expect(boxes.po.x + 170).toBe((boxes.plan1.x + boxes.plan2.x + 340) / 2)
-  expect(boxes['project:p'].x).toBe(boxes.plan1.x)
+  expect(boxes['project:p'].x).toBe(boxes.po.x)
 })
 it('stacks three levels and keeps cousins from overlapping', () => {
   const { boxes } = layoutCanvas(
@@ -98,7 +98,8 @@ it('stacks three levels and keeps cousins from overlapping', () => {
 })
 it('starts the created chats below what hangs off their creator', () => {
   const { boxes } = layoutCanvas([project('p', [chat('po', 1), chat('plan', 0, 'po')])], wide)
-  expect(boxes.plan.y).toBe(boxes['po-x0'].y + 236 + 12 + 80)
+  // One thin row of chips (8 + 30) hangs under the creator, whatever it left behind.
+  expect(boxes.plan.y).toBe(boxes.po.y + 230 + 38 + 80)
 })
 it('keeps a chat whose creator is gone, or in a creation loop, as a top chat', () => {
   const { boxes } = layoutCanvas(

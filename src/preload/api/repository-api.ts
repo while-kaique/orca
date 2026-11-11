@@ -122,6 +122,11 @@ export type RepositoryApi = {
   readCanvasHierarchy: (folders: string[]) => Promise<CanvasHierarchySnapshot[]>
   /** Fork-only: tokens in each chat's context, read from its Claude transcript, for the flowchart. */
   readCanvasContextTokens: (transcriptPaths: string[]) => Promise<CanvasContextTokens>
+  /** Fork-only: an image file a chat printed, as a thumbnail or full picture, for the flowchart. */
+  readCanvasImage: (request: {
+    path: string
+    size: 'thumb' | 'full'
+  }) => Promise<{ kind: 'ok'; dataUrl: string } | { kind: 'error'; error: string }>
   /** Fork-only: the user's OK or send-back on a delivery, from the flowchart queue. */
   decideCanvasHierarchyOrder: (
     decision: CanvasHierarchyDecision

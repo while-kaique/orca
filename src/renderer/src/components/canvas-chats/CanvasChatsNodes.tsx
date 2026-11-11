@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Bot, ExternalLink, Palette, Plus, SquareTerminal, X } from 'lucide-react'
+import { ExternalLink, Palette, Plus, X } from 'lucide-react'
 import { DEFAULT_REPO_BADGE_COLOR, REPO_COLORS } from '../../../../shared/repo-badge-color'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
@@ -16,7 +16,7 @@ import { useCanvasListenMode } from './canvas-voice-preference'
 import { useCanvasChatStatus } from './canvas-chats-data'
 import { openPcDeskChatInRepo } from '../sidebar/pc-desk-switcher/launch-pc-desk-chat'
 import { closePcDeskChat } from '../sidebar/pc-desk-switcher/close-pc-desk-project'
-import type { CanvasAgent, CanvasBox, CanvasChat, CanvasProject } from './canvas-chats-layout'
+import type { CanvasBox, CanvasChat, CanvasProject } from './canvas-chats-layout'
 import { canvasChatModelLabel } from './canvas-chat-model-label'
 import { CanvasChatContextMeter } from './CanvasChatContextMeter'
 import { CanvasExecutorCrest } from './CanvasExecutorCrest'
@@ -123,37 +123,6 @@ export function ProjectNode({
           ) : null
         )}
       </div>
-    </div>
-  )
-}
-
-export function AgentNode({
-  agent,
-  box
-}: {
-  agent: CanvasAgent
-  box: CanvasBox
-}): React.JSX.Element {
-  const line = agent.blocked
-    ? translate('fork.canvas.agentBlocked', '⏸ esperando você responder o chat')
-    : agent.kind === 'task'
-      ? translate('fork.canvas.taskRunning', 'processo rodando em segundo plano')
-      : STATUS_LABEL[agent.status]
-  return (
-    <div
-      className="cc-node cc-agent"
-      data-status={agent.status}
-      data-blocked={agent.blocked ? '1' : undefined}
-      style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
-      title={agent.name}
-    >
-      <div className="cc-agent-head">
-        <span className="cc-bot">
-          {agent.kind === 'task' ? <SquareTerminal size={13} /> : <Bot size={13} />}
-        </span>
-        <b>{agent.name}</b>
-      </div>
-      <div className="cc-agent-line">{line}</div>
     </div>
   )
 }
