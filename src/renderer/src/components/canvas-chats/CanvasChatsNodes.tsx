@@ -55,7 +55,7 @@ export function ProjectNode({
     if (!repo) {
       return
     }
-    void openPcDeskChatInRepo(repo)
+    openPcDeskChatInRepo(repo)
     // Opening the chat activates its workspace; stay on the flowchart.
     if (useAppStore.getState().activeView !== 'canvas') {
       useAppStore.getState().openCanvasPage()
