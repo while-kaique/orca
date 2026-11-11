@@ -97,7 +97,35 @@ function lerEventos(projeto) {
 function anotar(projeto, tipo, dados) {
   const evento = { t: new Date().toISOString(), tipo, ...dados }
   appendFileSync(caminhos(projeto).registro, `${JSON.stringify(evento)}\n`, 'utf8')
+  gravarFoto(projeto)
   return evento
+}
+
+/** `estado.json`: a foto do momento que o fluxograma lê, sempre derivada do registro. */
+function gravarFoto(projeto) {
+  const estado = montarEstado(lerEventos(projeto))
+  const ordens = Object.fromEntries(
+    Object.values(estado.ordens).map((ordem) => [
+      ordem.id,
+      {
+        id: ordem.id,
+        de: ordem.de,
+        papel: ordem.papel,
+        chatId: ordem.chatId,
+        situacao: ordem.situacao,
+        reprovacoes: ordem.reprovacoes,
+        titulo: ordem.campos.titulo ?? ordem.campos.objetivo
+      }
+    ])
+  )
+  const foto = {
+    atualizadoEm: new Date().toISOString(),
+    po: estado.po,
+    chats: estado.chats,
+    ordens,
+    fila: filaDoKaique(estado)
+  }
+  writeFileSync(join(caminhos(projeto).base, 'estado.json'), JSON.stringify(foto, null, 2), 'utf8')
 }
 
 function lerConfig(projeto) {
@@ -117,7 +145,7 @@ function quemSou() {
 function semAcento(texto) {
   return String(texto)
     .normalize('NFD')
-    .replace(/[̀-ͯ]/gu, '')
+    .replace(/\p{Mn}/gu, '')
     .replace(/[^\x20-\x7e]/gu, ' ')
     .replace(/"/gu, "'")
 }
@@ -125,16 +153,29 @@ function semAcento(texto) {
 function orca(args) {
   const comando = process.env.HIERARQUIA_ORCA ?? 'orca-dev'
   // No Windows o comando é um .cmd, que só abre pelo shell.
-  const saida = execFileSync(comando, [...args, '--json'], {
-    encoding: 'utf8',
-    shell: process.platform === 'win32',
-    maxBuffer: 64 * 1024 * 1024
-  })
+  let saida
+  try {
+    saida = execFileSync(comando, [...args, '--json'], {
+      encoding: 'utf8',
+      shell: process.platform === 'win32',
+      maxBuffer: 64 * 1024 * 1024
+    })
+  } catch (erro) {
+    // O Orca sai com código 1 também quando só não confirmou o início do turno: a resposta vem igual.
+    if (!String(erro.stdout ?? '').includes('{')) {
+      throw erro
+    }
+    saida = String(erro.stdout)
+  }
   const util = saida
     .split('\n')
     .filter((linha) => !linha.includes('_keepalive'))
     .join('\n')
   return JSON.parse(util.slice(util.indexOf('{')))
+}
+
+function dormir(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 }
 
 function citar(texto) {
@@ -355,8 +396,12 @@ const comandos = {
     const eu = quemSou()
     // O chat pode terminar antes de o lançador anotar quem ele é: espera a anotação chegar.
     let estado = montarEstado(lerEventos(projeto))
-    for (let i = 0; i < 60 && estado.ordens[op.ordem] && !estado.ordens[op.ordem].chatId; i++) {
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2000)
+    for (
+      let i = 0;
+      i < 60 && estado.ordens[op.ordem] && estado.ordens[op.ordem].chatId !== eu;
+      i++
+    ) {
+      dormir(2000)
       estado = montarEstado(lerEventos(projeto))
     }
     const provas = op.prova.map((caminho) => {
@@ -427,26 +472,41 @@ ${op.motivo}
     )
     const pasta = citar(`path:${(ordem.pasta || projeto).replaceAll('\\', '/')}`)
     try {
-      const resposta = orca([
-        'orchestration',
-        'worker-start',
-        ...(estado.chats[eu].papel === 'po' ? [] : ['--from', eu]),
-        '--spec',
-        citar(
-          semAcento(
-            `Sua entrega da ordem ${op.ordem} foi REPROVADA. Motivo: ${op.motivo}. Corrija so o que o motivo aponta, produza prova nova, rode hierarquia entregar --ordem ${op.ordem} --prova CAMINHO e depois envie worker_done.`
-          )
-        ),
-        '--task-title',
-        citar(`correcao ${op.ordem}`),
-        '--terminal',
-        ordem.chatId,
-        '--worktree',
-        pasta,
-        '--timeout-ms',
-        ESPERA_DO_LANCAMENTO_MS
-      ])
+      const reenviar = () =>
+        orca([
+          'orchestration',
+          'worker-start',
+          ...(estado.chats[eu].papel === 'po' ? [] : ['--from', eu]),
+          '--spec',
+          citar(
+            semAcento(
+              `Sua entrega da ordem ${op.ordem} foi REPROVADA. Motivo: ${op.motivo}. Corrija so o que o motivo aponta, produza prova nova, rode hierarquia entregar --ordem ${op.ordem} --prova CAMINHO e depois envie worker_done.`
+            )
+          ),
+          '--task-title',
+          citar(`correcao ${op.ordem}`),
+          '--terminal',
+          ordem.chatId,
+          '--worktree',
+          pasta,
+          '--timeout-ms',
+          ESPERA_DO_LANCAMENTO_MS
+        ])
+      let resposta = reenviar()
+      // Logo depois de entregar o chat ainda está fechando o turno e o Orca não o aceita: espera e repete.
+      for (let i = 0; i < 6 && resposta.error?.code === 'agent_unconfigured'; i++) {
+        dormir(15000)
+        resposta = reenviar()
+      }
       const dispatchId = resposta.result?.dispatchId
+      if (!resposta.ok || !dispatchId) {
+        throw new Error(JSON.stringify(resposta.error ?? resposta).slice(0, 400))
+      }
+      if (resposta.result.state !== 'ready') {
+        console.log(
+          `ATENÇÃO: o Orca não confirmou que o chat ${ordem.chatId} recebeu a correção (${resposta.result.state}). Leia a tela dele antes de reenviar.`
+        )
+      }
       anotar(projeto, 'chat_lancado', {
         ordemId: op.ordem,
         chatId: ordem.chatId,
