@@ -73,6 +73,8 @@ pasta `orca` (`feat/pc-como-mesa`).
   `claude-finished-shell-notification.ts`): pedido de permissão em modo automático não vira "precisa de
   você"; comando de fundo já terminado dá baixa mesmo se o turno foi interrompido.
 - Botão "Novo chat ou projeto" (e o "+" da barra): projeto com `.hierarquia` e sem PO ativo abre o chat já como PO no Fable (`--model fable` + pedido para rodar `hierarquia criar-po`), em `launch-pc-desk-chat.ts`. `hierarquia estado` agora regrava o `estado.json`.
+- Projetos empilhados por coluna: cada projeto fica logo abaixo do que está acima nas mesmas colunas, com o mesmo vão usado entre colunas (`ROW_GAP` em `canvas-chats-layout.ts`); antes a fileira inteira esperava o projeto mais alto.
+- Hexágono do executor desenhado a 75% (`EXECUTOR_CREST_SCALE`), centrado no mesmo espaço; o layout reserva o tamanho cheio (`chatFootprintHeight`), então nada ao redor se mexe.
 - Chat dormindo: abrir o card acorda só ele e mostra "Restaurando o chat…"
   (`CanvasChatTerminal.tsx`, `use-canvas-chat-terminal-wake.ts`); terminal fecha no tamanho da caixa
   (`preview-grid-claim.ts`); card aberto pede 300 linhas de histórico (o popout segue com 24).

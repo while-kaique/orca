@@ -52,7 +52,13 @@ it('puts 4 projects in a 2x2 grid on a wide screen', () => {
   const { boxes } = layoutCanvas(four, { w: 2065, h: 1350 })
   expect(boxes['project:cs'].y).toBe(boxes['project:ad'].y)
   expect(boxes['project:sh'].y).toBeGreaterThan(boxes['project:cs'].y)
-  expect(boxes['project:sh'].y).toBe(boxes['project:pr'].y)
+})
+it('stacks a project right under the one above it in its columns, with the column gap', () => {
+  const { boxes } = layoutCanvas(four, { w: 2065, h: 1350 })
+  // cs ends at 426 (header 116 + 80 + chat 230); ad, with chips under a chat, at 464; the gap is 374.
+  expect(boxes['project:sh'].y).toBe(800)
+  // pr is in ad's columns, so it goes under ad, not under cs.
+  expect(boxes['project:pr'].y).toBe(838)
 })
 it('lines every top chat up on one column grid, whatever the project', () => {
   const { boxes } = layoutCanvas(four, { w: 2065, h: 1350 })

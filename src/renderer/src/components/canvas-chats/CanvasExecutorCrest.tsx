@@ -1,7 +1,7 @@
 import type React from 'react'
 import { CanvasChatContextMeter } from './CanvasChatContextMeter'
 import type { CanvasChat } from './canvas-chats-layout'
-import { EXECUTOR_CREST } from './canvas-chat-shape'
+import { EXECUTOR_CREST, EXECUTOR_CREST_SCALE } from './canvas-chat-shape'
 
 const { w, h } = EXECUTOR_CREST
 const INSET = 3
@@ -26,7 +26,11 @@ export function CanvasExecutorCrest({
   name: string
 }): React.JSX.Element {
   return (
-    <div className="cc-crest-body">
+    // Drawn at full size and scaled as a whole, so text and meter shrink with the outline.
+    <div
+      className="cc-crest-body"
+      style={{ width: w, height: h, transform: `scale(${EXECUTOR_CREST_SCALE})` }}
+    >
       <svg className="cc-crest-outline" viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
         <polygon points={OUTLINE} />
       </svg>

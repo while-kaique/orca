@@ -1,5 +1,5 @@
 import type { CanvasChatHierarchy, CanvasQueueItem } from './canvas-chat-hierarchy'
-import { chatVisualBox } from './canvas-chat-shape'
+import { chatFootprintHeight } from './canvas-chat-shape'
 
 /** Border states drawn on the flowchart (fork spec: idle gray, working yellow, unseen green, seen dashed green, waiting red). */
 /** 'monitoring' = the turn ended but background agents/tasks are still running. */
@@ -90,7 +90,8 @@ const PROJECT_TO_CHATS = 80
 const PROJECT_GAP = CANVAS_SIZES.chat.w + 2 * COLUMN_GAP
 // The header starts at its first chat's left edge; wider than one chat, it overhangs a single-chat block on the right.
 const HEADER_OVERHANG = CANVAS_SIZES.project.w - CANVAS_SIZES.chat.w
-const ROW_GAP = 195
+// Same empty space down as across (header to header), so a short project does not leave a hole under it.
+const ROW_GAP = PROJECT_GAP - HEADER_OVERHANG
 // A squarer grid may cost up to 15% of zoom.
 const SQUARE_GRID_TOLERANCE = 0.85
 
@@ -174,8 +175,7 @@ export function layoutCanvas(
     chat.agents.length + chat.extras.length > 0
       ? CANVAS_ATTACHMENTS_ROW.gap + CANVAS_ATTACHMENTS_ROW.h
       : 0
-  const drawnHeight = (chat: CanvasChat): number =>
-    chatVisualBox(chat, { x: 0, y: 0, w: C.w, h: C.h }).h
+  const drawnHeight = (chat: CanvasChat): number => chatFootprintHeight(chat, C.h)
   const rowWidth = (nodes: readonly ChatTree[]): number =>
     nodes.reduce((sum, node) => sum + treeWidth(node), 0) +
     Math.max(0, nodes.length - 1) * COLUMN_GAP
@@ -230,7 +230,28 @@ export function layoutCanvas(
   if (blocks.length === 0) {
     return { boxes, bounds: { x: 0, y: 0, w: 0, h: 0 } }
   }
-  type Grid = { s: number; rows: Block[][]; W: number; H: number }
+  type Spot = { block: Block; x: number; y: number }
+  // Each block goes right under whatever above it overlaps its columns, not under the row's tallest block.
+  const stack = (rows: readonly Block[][]): { spots: Spot[]; H: number } => {
+    const spots: Spot[] = []
+    rows.forEach((row) => {
+      let x = 0
+      const above = [...spots]
+      for (const block of row) {
+        const right = x + block.w + HEADER_OVERHANG
+        const y = Math.max(
+          0,
+          ...above
+            .filter((s) => s.x < right && x < s.x + s.block.w + HEADER_OVERHANG)
+            .map((s) => s.y + s.block.h + ROW_GAP)
+        )
+        spots.push({ block, x, y })
+        x += block.w + PROJECT_GAP
+      }
+    })
+    return { spots, H: Math.max(...spots.map((s) => s.y + s.block.h)) }
+  }
+  type Grid = { s: number; rows: Block[][]; W: number; H: number; spots: Spot[] }
   const grids: Grid[] = []
   for (let r = 1; r <= blocks.length; r++) {
     const per = Math.ceil(blocks.length / r)
@@ -242,12 +263,10 @@ export function layoutCanvas(
       Math.max(
         ...rows.map((row) => row.reduce((sum, b) => sum + b.w, 0) + (row.length - 1) * PROJECT_GAP)
       ) + HEADER_OVERHANG
-    const H =
-      rows.reduce((sum, row) => sum + Math.max(...row.map((b) => b.h)), 0) +
-      (rows.length - 1) * ROW_GAP
+    const { spots, H } = stack(rows)
     const s = Math.min((viewport.w - 120) / W, (viewport.h - 120) / H)
     if (!grids.some((g) => g.rows.length === rows.length)) {
-      grids.push({ s, rows, W, H })
+      grids.push({ s, rows, W, H, spots })
     }
   }
   // Near-equal zoom: the squarer grid wins (4 projects = 2x2, not one long row).
@@ -258,36 +277,29 @@ export function layoutCanvas(
     g.s === topS || (topS > 0 && g.s >= topS * SQUARE_GRID_TOLERANCE)
   const best =
     grids.filter(close).sort((a, b) => squareness(a) - squareness(b) || b.s - a.s)[0] ?? grids[0]
-  let y = 0
-  best.rows.forEach((row) => {
-    let nextX = 0
-    row.forEach((block) => {
-      const x = nextX
-      nextX += block.w + PROJECT_GAP
-      boxes[`project:${block.project.id}`] = { x, y, w: P.w, h: P.h }
-      const chatsTop = y + P.h + PROJECT_TO_CHATS
-      // Each chat sits centered over the chats it created, on the row of its role.
-      const placeRow = (nodes: readonly ChatTree[], left: number): void => {
-        let nodeX = left
-        for (const node of nodes) {
-          const width = treeWidth(node)
-          const { chat } = node
-          const top = chatsTop + block.tierTops[block.tiers.get(chat.key) ?? 0]
-          const cx = nodeX + (width - C.w) / 2
-          boxes[chat.key] = { x: cx, y: top, w: C.w, h: C.h }
-          placeRow(node.children, nodeX + (width - rowWidth(node.children)) / 2)
-          nodeX += width + COLUMN_GAP
-        }
+  for (const { block, x, y } of best.spots) {
+    boxes[`project:${block.project.id}`] = { x, y, w: P.w, h: P.h }
+    const chatsTop = y + P.h + PROJECT_TO_CHATS
+    // Each chat sits centered over the chats it created, on the row of its role.
+    const placeRow = (nodes: readonly ChatTree[], left: number): void => {
+      let nodeX = left
+      for (const node of nodes) {
+        const width = treeWidth(node)
+        const { chat } = node
+        const top = chatsTop + block.tierTops[block.tiers.get(chat.key) ?? 0]
+        const cx = nodeX + (width - C.w) / 2
+        boxes[chat.key] = { x: cx, y: top, w: C.w, h: C.h }
+        placeRow(node.children, nodeX + (width - rowWidth(node.children)) / 2)
+        nodeX += width + COLUMN_GAP
       }
-      placeRow(block.roots, x + (block.w - rowWidth(block.roots)) / 2)
-      // The project card starts at its first chat's left edge, wherever that chat ended up over its own chats.
-      const first = block.roots[0] ? boxes[block.roots[0].chat.key] : undefined
-      if (first) {
-        boxes[`project:${block.project.id}`].x = first.x
-      }
-    })
-    y += Math.max(...row.map((b) => b.h)) + ROW_GAP
-  })
+    }
+    placeRow(block.roots, x + (block.w - rowWidth(block.roots)) / 2)
+    // The project card starts at its first chat's left edge, wherever that chat ended up over its own chats.
+    const first = block.roots[0] ? boxes[block.roots[0].chat.key] : undefined
+    if (first) {
+      boxes[`project:${block.project.id}`].x = first.x
+    }
+  }
   return { boxes, bounds: { x: 0, y: 0, w: best.W, h: best.H } }
 }
 
