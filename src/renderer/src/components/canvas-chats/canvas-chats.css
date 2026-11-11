@@ -216,6 +216,33 @@
 .cc-chat:not(.cc-open):hover {
   z-index: 35;
 }
+/* roles keep their slot but draw differently: planner = slim card, executor = circle with its job title */
+.cc-shape-slim .cc-prompt {
+  display: none;
+}
+.cc-shape-slim .cc-feed-clean .cc-summary,
+.cc-shape-slim .cc-feed-clean .cc-preview {
+  -webkit-line-clamp: 1;
+}
+.cc-shape-slim .cc-feed {
+  padding-top: calc(5px * var(--cc-inv));
+  padding-bottom: calc(5px * var(--cc-inv));
+}
+.cc-chat.cc-shape-round {
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+}
+.cc-shape-round > :not(.cc-round-name, .cc-xwrap, .cc-edge, .cc-confirm) {
+  display: none;
+}
+.cc-round-name {
+  padding: 0 calc(18px * var(--cc-inv));
+  font: 700 calc(17px * var(--cc-inv)) / 1.2 system-ui;
+  color: #ececf3;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
 /* hover peek: the card widens and shows Claude's last 7 rows, live */
 .cc-peek {
   z-index: 36;

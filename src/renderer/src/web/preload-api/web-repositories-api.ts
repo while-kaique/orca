@@ -80,6 +80,7 @@ export function createReposApi(): NonNullable<Partial<PreloadApi>['repos']> {
     setPcDeskSmartTitles: () => Promise.resolve(),
     summarizeCanvasReply: () => Promise.resolve({ kind: 'error', error: 'unsupported' }),
     captureCanvasPagePreview: () => Promise.resolve({ kind: 'error', error: 'unsupported' }),
+    nameCanvasExecutor: () => Promise.resolve({ kind: 'error', error: 'unsupported' }),
     readCanvasHierarchy: () => Promise.resolve([]),
     readCanvasContextTokens: () => Promise.resolve({}),
     decideCanvasHierarchyOrder: () => Promise.resolve({ kind: 'error', error: 'unsupported' }),

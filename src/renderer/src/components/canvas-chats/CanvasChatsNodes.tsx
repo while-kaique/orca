@@ -19,6 +19,8 @@ import { closePcDeskChat } from '../sidebar/pc-desk-switcher/close-pc-desk-proje
 import type { CanvasAgent, CanvasBox, CanvasChat, CanvasProject } from './canvas-chats-layout'
 import { canvasChatModelLabel } from './canvas-chat-model-label'
 import { CanvasChatContextMeter } from './CanvasChatContextMeter'
+import { useCanvasExecutorName } from './canvas-chat-executor-name'
+import { chatShape, chatVisualBox } from './canvas-chat-shape'
 import { CanvasChatGate, CanvasChatRole } from './CanvasChatHierarchyBadges'
 import { CanvasProjectClose } from './CanvasProjectClose'
 
@@ -204,6 +206,7 @@ export function ChatNode({
     chat.startedAt ? String(chat.startedAt) : ''
   )
   const lastPrompt = chat.lines.find((line) => line.role === 'user')
+  const executorName = useCanvasExecutorName(chat, lastPrompt?.text ?? '')
   const modelLabel = canvasChatModelLabel(chat.model)
   // Wrapped terminal lines read as one paragraph; bullets and tool markers are noise on a card.
   const preview = replyText
@@ -226,6 +229,9 @@ export function ChatNode({
   const peekLines =
     tail.peek.length > 0 ? tail.peek : savedChatPeek(lastPrompt?.text, replyText, !livePty)
   const peek = peeking.on && peekLines.length > 0
+  // A planner is a slim card and an executor a circle, inside the same slot; open or peeking they are full cards.
+  const shape = open || peek ? 'card' : chatShape(chat)
+  const visual = shape === 'card' ? box : chatVisualBox(chat, box)
   const style = open
     ? {
         left: box.x + box.w / 2 - openSize.w / 2,
@@ -235,11 +241,11 @@ export function ChatNode({
       }
     : peek
       ? { left: box.x + box.w / 2 - PEEK_W / 2, top: box.y, width: PEEK_W, minHeight: box.h }
-      : { left: box.x, top: box.y, width: box.w, height: box.h }
+      : { left: visual.x, top: visual.y, width: visual.w, height: visual.h }
   return (
     <div
       ref={cardRef}
-      className={`cc-node cc-chat${open ? ' cc-open' : ''}${peek ? ' cc-peek' : ''}${linkRole ? ` cc-link-${linkRole}` : ''}`}
+      className={`cc-node cc-chat${open ? ' cc-open' : ''}${peek ? ' cc-peek' : ''}${shape === 'card' ? '' : ` cc-shape-${shape}`}${linkRole ? ` cc-link-${linkRole}` : ''}`}
       data-chat-key={chat.key}
       data-status={status}
       style={style}
@@ -314,6 +320,7 @@ export function ChatNode({
           </div>
         </div>
       ) : null}
+      {shape === 'round' ? <div className="cc-round-name">{executorName}</div> : null}
       <div className="cc-chat-head">
         <div className="cc-head-row">
           <span className="cc-dot" />

@@ -42,6 +42,11 @@ export const reposApi = {
     text: string
   }): Promise<{ kind: 'ok'; summary: string } | { kind: 'error'; error: string }> =>
     ipcRenderer.invoke('repos:summarizeCanvasReply', request),
+  nameCanvasExecutor: (request: {
+    cwd: string
+    text: string
+  }): Promise<{ kind: 'ok'; summary: string } | { kind: 'error'; error: string }> =>
+    ipcRenderer.invoke('repos:nameCanvasExecutor', request),
   captureCanvasPagePreview: (
     url: string
   ): Promise<{ kind: 'ok'; dataUrl: string } | { kind: 'error'; error: string }> =>
