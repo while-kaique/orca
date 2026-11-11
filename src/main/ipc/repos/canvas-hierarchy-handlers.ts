@@ -71,7 +71,12 @@ export function decideCanvasHierarchyOrder(
         timeout: DECISION_TIMEOUT_MS,
         windowsHide: true,
         // Electron runs the script as plain Node; no chat identity, so the command sees the user.
-        env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', ORCA_TERMINAL_HANDLE: '' }
+        env: {
+          ...process.env,
+          ELECTRON_RUN_AS_NODE: '1',
+          ORCA_TERMINAL_HANDLE: '',
+          ORCA_TAB_ID: ''
+        }
       },
       (error, _stdout, stderr) =>
         resolve(

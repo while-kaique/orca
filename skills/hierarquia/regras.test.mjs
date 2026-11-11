@@ -341,3 +341,17 @@ test('com vaga sobrando nada e fechado, mesmo havendo chat terminado', () => {
     }
   )
 })
+
+test('o chat e a aba; o identificador de terminal muda quando o Orca reabre', () => {
+  const eventos = [
+    ev('po_criado', { chatId: 'aba-po', handle: 'term-1' }),
+    ev('chat_reconectado', { chatId: 'aba-po', handle: 'term-2' })
+  ]
+  const estado = montarEstado(eventos)
+  assert.equal(estado.po, 'aba-po')
+  assert.equal(estado.chats['aba-po'].handle, 'term-2')
+  assert.equal(
+    decidirOrdem(estado, { de: 'aba-po', para: 'planejador', campos: CAMPOS }).acao,
+    'criar'
+  )
+})

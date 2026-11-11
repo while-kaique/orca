@@ -17,7 +17,7 @@ export type CanvasHierarchyOrderState =
   | 'subiu'
 
 export type CanvasHierarchyChat = {
-  /** Terminal handle of the chat, the id the command registers. */
+  /** The chat's tab id: it survives an Orca restart, unlike the terminal handle. */
   id: string
   papel: CanvasHierarchyRole
   pai: string | null
@@ -28,7 +28,7 @@ export type CanvasHierarchyChat = {
 
 export type CanvasHierarchyOrder = {
   id: string
-  /** Terminal handle of the chat that gave the order. */
+  /** Tab id of the chat that gave the order. */
   de: string
   chatId: string | null
   situacao: CanvasHierarchyOrderState
@@ -40,7 +40,7 @@ export type CanvasHierarchyQueueItem = {
   tipo: 'ok' | 'reprovada_duas_vezes' | 'pergunta'
   ordemId?: string
   perguntaId?: string
-  /** Terminal handle of the chat the item came from. */
+  /** Tab id of the chat the item came from. */
   chatId: string
   resumo?: string
   texto?: string

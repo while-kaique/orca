@@ -142,12 +142,30 @@ function lerConfig(projeto) {
   return existsSync(config) ? JSON.parse(readFileSync(config, 'utf8')) : {}
 }
 
+/** O chat é a aba: ela continua a mesma quando o Orca reabre; o terminal ganha outro identificador. */
 function quemSou() {
-  const chat = process.env.ORCA_TERMINAL_HANDLE
-  if (!chat) {
-    sair('Este comando precisa rodar dentro de um chat do Orca (ORCA_TERMINAL_HANDLE ausente).')
+  const chat = process.env.ORCA_TAB_ID
+  if (!chat || !process.env.ORCA_TERMINAL_HANDLE) {
+    sair('Este comando precisa rodar dentro de um chat do Orca (ORCA_TAB_ID ausente).')
   }
   return chat
+}
+
+function meuTerminal() {
+  return process.env.ORCA_TERMINAL_HANDLE
+}
+
+/** Depois de um reinício do Orca, o chat conhecido anota o terminal novo na primeira vez que roda o comando. */
+function reconectar(op) {
+  const eu = process.env.ORCA_TAB_ID
+  const projeto = eu && meuTerminal() ? acharProjeto(op.projeto) : null
+  if (!projeto || !existsSync(caminhos(projeto).registro)) {
+    return
+  }
+  const conhecido = montarEstado(lerEventos(projeto)).chats[eu]
+  if (conhecido && conhecido.handle !== meuTerminal()) {
+    anotar(projeto, 'chat_reconectado', { chatId: eu, handle: meuTerminal() })
+  }
 }
 
 function textoDaOrdem(ordemId, papel, campos) {
@@ -180,6 +198,17 @@ function pedidoParaOrca(projeto, ordemId, papel, campos) {
   )
 }
 
+/** A aba em que o Orca abriu o chat recém-lançado. */
+function abaDoChat(dispatchId) {
+  try {
+    const visto = orca(['orchestration', 'worker-show', '--dispatch', dispatchId]).result ?? {}
+    const painel = visto.terminal?.recordedPaneKey ?? visto.dispatch?.assigneePaneKey
+    return painel ? String(painel).split(':')[0] : null
+  } catch {
+    return null
+  }
+}
+
 function lancar(projeto, estado, ordem, modelo, fechar) {
   const eu = quemSou()
   if (fechar) {
@@ -201,7 +230,7 @@ function lancar(projeto, estado, ordem, modelo, fechar) {
   const resposta = orca([
     'orchestration',
     'worker-start',
-    ...(souPo ? [] : ['--from', eu]),
+    ...(souPo ? [] : ['--from', meuTerminal()]),
     '--spec',
     citar(pedidoParaOrca(projeto, ordem.id, ordem.papel, ordem.campos)),
     '--task-title',
@@ -223,9 +252,11 @@ function lancar(projeto, estado, ordem, modelo, fechar) {
     sair(`O Orca não criou o chat. Resposta: ${JSON.stringify(resposta).slice(0, 600)}`)
   }
   const copia = (dados.effects ?? []).find((efeito) => efeito.kind === 'worktree')
+  const chatId = abaDoChat(dados.dispatchId) ?? terminal.id
   anotar(projeto, 'chat_lancado', {
     ordemId: ordem.id,
-    chatId: terminal.id,
+    chatId,
+    handle: terminal.id,
     pasta: String(copia?.id ?? '').split('::')[1] ?? projeto,
     modelo,
     dispatchId: dados.dispatchId,
@@ -239,7 +270,7 @@ function lancar(projeto, estado, ordem, modelo, fechar) {
         `Leia a tela dele antes de relançar: orca-dev orchestration worker-read --dispatch ${dados.dispatchId} --source terminal --json`
     )
   }
-  return { chatId: terminal.id, dispatchId: dados.dispatchId }
+  return { chatId, dispatchId: dados.dispatchId }
 }
 
 const comandos = {
@@ -266,7 +297,7 @@ const comandos = {
     if (!existsSync(registro)) {
       writeFileSync(registro, '', 'utf8')
     }
-    anotar(projeto, 'po_criado', { chatId: eu })
+    anotar(projeto, 'po_criado', { chatId: eu, handle: meuTerminal() })
     console.log(`PO registrado em ${base}. Leia PRODUTO.md e DECISOES.md antes de responder.`)
   },
 
@@ -420,7 +451,7 @@ ${op.motivo}
         orca([
           'orchestration',
           'worker-start',
-          ...(estado.chats[eu].papel === 'po' ? [] : ['--from', eu]),
+          ...(estado.chats[eu].papel === 'po' ? [] : ['--from', meuTerminal()]),
           '--spec',
           citar(
             semAcento(
@@ -430,7 +461,7 @@ ${op.motivo}
           '--task-title',
           citar(`correcao ${op.ordem}`),
           '--terminal',
-          ordem.chatId,
+          estado.chats[ordem.chatId].handle,
           '--worktree',
           pasta,
           '--timeout-ms',
@@ -454,6 +485,7 @@ ${op.motivo}
       anotar(projeto, 'chat_lancado', {
         ordemId: op.ordem,
         chatId: ordem.chatId,
+        handle: estado.chats[ordem.chatId].handle,
         pasta: ordem.pasta,
         modelo: estado.chats[ordem.chatId].modelo,
         dispatchId
@@ -550,7 +582,7 @@ ${op.motivo}
 function decisaoDoKaique(op, tipo) {
   const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
   const estado = montarEstado(lerEventos(projeto))
-  const chat = process.env.ORCA_TERMINAL_HANDLE
+  const chat = process.env.ORCA_TAB_ID
   if (chat && estado.chats[chat]) {
     sair('Só o Kaique dá OK ou devolve. Um chat da hierarquia não decide o próprio trabalho.')
   }
@@ -562,7 +594,7 @@ function decisaoDoKaique(op, tipo) {
   }
   anotar(projeto, tipo, { ordemId: op.ordem, ...(op.motivo ? { motivo: op.motivo } : {}) })
   avisarPo(
-    estado.po,
+    estado.chats[estado.po]?.handle,
     tipo === 'ok'
       ? `O Kaique deu OK na ordem ${op.ordem}. Rode hierarquia estado e siga: agora pode juntar ou publicar essa entrega.`
       : `O Kaique DEVOLVEU a ordem ${op.ordem}. Motivo: ${op.motivo}. Rode hierarquia estado e decida o proximo passo.`
@@ -578,4 +610,8 @@ const [nome, ...resto] = process.argv.slice(2)
 if (!comandos[nome]) {
   sair(`Uso: hierarquia <${Object.keys(comandos).join(' | ')}> [opções]`)
 }
-comandos[nome](opcoes(resto))
+const op = opcoes(resto)
+if (nome !== 'criar-po') {
+  reconectar(op)
+}
+comandos[nome](op)

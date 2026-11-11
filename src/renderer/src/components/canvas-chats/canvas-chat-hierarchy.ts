@@ -58,19 +58,13 @@ export function useCanvasHierarchy(folders: readonly string[]): readonly CanvasH
 /** Marks each chat with its role and order, fills in creators the status feed lost, and returns the user's queue. */
 export function applyCanvasHierarchy(
   chats: CanvasChat[],
-  latestByChat: ReadonlyMap<string, CanvasChatLatestEntry>,
   snapshot: CanvasHierarchySnapshot
 ): CanvasQueueItem[] {
-  const chatByHandle = new Map<string, CanvasChat>()
-  for (const chat of chats) {
-    const handle = latestByChat.get(chat.key)?.entry.terminalHandle
-    if (handle) {
-      chatByHandle.set(handle, chat)
-    }
-  }
+  // The command registers chats by tab id, which is the flowchart's chat key.
+  const chatByKey = new Map(chats.map((chat) => [chat.key, chat]))
   const orders = Object.values(snapshot.ordens)
-  for (const [handle, chat] of chatByHandle) {
-    const known = snapshot.chats[handle]
+  for (const chat of chats) {
+    const known = snapshot.chats[chat.key]
     if (!known) {
       continue
     }
@@ -87,12 +81,12 @@ export function applyCanvasHierarchy(
         : null,
       toCheck: orders.filter(
         (o) =>
-          o.de === handle &&
+          o.de === chat.key &&
           (o.situacao === 'conferindo_plano' || o.situacao === 'conferindo_produto')
       ).length,
       touchedByUser: known.mexidoPeloKaique
     }
-    const creator = known.pai ? chatByHandle.get(known.pai) : undefined
+    const creator = known.pai ? chatByKey.get(known.pai) : undefined
     if (!chat.parentKey && creator && creator !== chat) {
       chat.parentKey = creator.key
     }
@@ -100,7 +94,7 @@ export function applyCanvasHierarchy(
   return snapshot.fila.map((item) => ({
     ...item,
     folder: snapshot.folder,
-    chatKey: chatByHandle.get(item.chatId)?.key ?? null
+    chatKey: chatByKey.has(item.chatId) ? item.chatId : null
   }))
 }
 
@@ -113,5 +107,5 @@ export function linkProjectChats(
 ): CanvasQueueItem[] {
   linkCreatedChats(chats, latestByChat)
   const snapshot = snapshots.find((candidate) => projectFolders.includes(candidate.folder))
-  return snapshot ? applyCanvasHierarchy(chats, latestByChat, snapshot) : []
+  return snapshot ? applyCanvasHierarchy(chats, snapshot) : []
 }

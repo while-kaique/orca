@@ -42,6 +42,7 @@ export function montarEstado(eventos) {
         estado.po = ev.chatId
         estado.chats[ev.chatId] = {
           id: ev.chatId,
+          handle: ev.handle ?? null,
           papel: 'po',
           modelo: PAPEIS.po.modelo,
           pai: null,
@@ -70,6 +71,7 @@ export function montarEstado(eventos) {
         ordem.situacao = 'trabalhando'
         estado.chats[ev.chatId] = {
           id: ev.chatId,
+          handle: ev.handle ?? null,
           papel: ordem.papel,
           modelo: ev.modelo,
           pai: ordem.de,
@@ -113,6 +115,11 @@ export function montarEstado(eventos) {
       case 'chat_encerrado':
         if (estado.chats[ev.chatId]) {
           estado.chats[ev.chatId].ativo = false
+        }
+        break
+      case 'chat_reconectado':
+        if (estado.chats[ev.chatId]) {
+          estado.chats[ev.chatId].handle = ev.handle
         }
         break
       case 'kaique_mexeu':
