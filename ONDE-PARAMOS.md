@@ -37,6 +37,9 @@ pasta `orca` (`feat/pc-como-mesa`).
 - **Chat lançado no projeto do Orca nasce sem aba** (terminal "órfão"): roda, mas não aparece na barra
   nem no fluxograma. No Astra Designer aparece. Diferenças: aqui `config.json` tem
   `pastaDosChats: "projeto"` (executor na própria pasta) e o PO morava em outro projeto. Causa não provada.
+  Pista forte: `orca-dev terminal create --worktree path:.../orca-canvas` devolveu `surface: background` com
+  o aviso "Terminal reveal timed out", e `terminal focus` respondeu ok sem a aba aparecer. Chat sem aba
+  não volta depois de reiniciar o Orca.
 - **Reiniciar o Orca mata os executores em andamento**, e a ordem fica presa como "trabalhando" (a
   `o-002` ficou assim). Avisar o Kaique antes de ele reiniciar.
 - **Pergunta de executor não chega como aviso ao PO.** Só aparece em
@@ -54,6 +57,12 @@ pasta `orca` (`feat/pc-como-mesa`).
   em `canvas-chats/`.
 
 **Não feito / próximos passos:**
+
+0. **Push NÃO feito em 11/11.** `ORCA_CODE_QUALITY_BASE=origin/feat/pc-como-mesa pnpm check:changed` falhou em
+   9 portões (qualidade do código alterado: 5 achados; catálogo de tradução; teste `regras.test.mjs` sem
+   executor; manifesto de skills; e 4 catracas). Limpar isso antes de enviar; é o pedido combinado para o
+   teste do ciclo completo. O projeto ficou **sem PO ativo**: o próximo chat aberto em `orca-canvas` roda
+   `hierarquia criar-po` (ver `.hierarquia/DECISOES.md`).
 
 1. Teste do ciclo completo com planejador Opus (nunca rodou). Pedido combinado: registro de diagnóstico
    do fluxograma, para depurar sem print.
