@@ -65,6 +65,8 @@ export function montarEstado(eventos) {
         break
       case 'chat_lancado':
         ordem.chatId = ev.chatId
+        ordem.dispatchId = ev.dispatchId
+        ordem.pasta = ev.pasta
         ordem.situacao = 'trabalhando'
         estado.chats[ev.chatId] = {
           id: ev.chatId,
