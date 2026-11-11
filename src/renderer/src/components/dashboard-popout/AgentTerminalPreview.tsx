@@ -179,7 +179,7 @@ export function AgentTerminalPreview({
       standalone?.write(chunk, {
         live,
         onDone: () => {
-          boxFit.schedule()
+          boxFit.scheduleAfterWrite()
           onDone?.()
         }
       })
