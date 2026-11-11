@@ -311,7 +311,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
         {projects.map((project) => {
           const pbox = boxes[`project:${project.id}`]
           return (
-            <div key={project.id} style={{ '--cc-pc': project.color } as React.CSSProperties}>
+            <div key={project.id}>
               {pbox ? (
                 <ProjectNode
                   project={project}

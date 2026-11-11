@@ -1,5 +1,10 @@
 import { expect, it } from 'vitest'
-import { chatDescendants, layoutCanvas, type CanvasProject } from './canvas-chats-layout'
+import {
+  chatDescendants,
+  layoutCanvas,
+  type CanvasChat,
+  type CanvasProject
+} from './canvas-chats-layout'
 
 const chat = (key: string, extras = 0, parentKey: string | null = null) => ({
   key,
@@ -25,7 +30,7 @@ const chat = (key: string, extras = 0, parentKey: string | null = null) => ({
     url: ''
   }))
 })
-const project = (id: string, chats: ReturnType<typeof chat>[]): CanvasProject => ({
+const project = (id: string, chats: CanvasChat[]): CanvasProject => ({
   id,
   name: id,
   color: '',
@@ -108,4 +113,24 @@ it('lists everything below a chat so it can be dragged as one piece', () => {
   const chats = [chat('po'), chat('plan', 0, 'po'), chat('exec', 0, 'plan'), chat('other')]
   expect(chatDescendants(chats, 'po').map((c) => c.key)).toEqual(['plan', 'exec'])
   expect(chatDescendants(chats, 'other')).toEqual([])
+})
+const role = (c: CanvasChat, r: 'po' | 'planejador' | 'executor'): CanvasChat => ({
+  ...c,
+  hierarchy: { role: r, order: null, toCheck: 0, touchedByUser: false }
+})
+it('keeps executors below the planners row even when the PO created them directly', () => {
+  const { boxes } = layoutCanvas(
+    [
+      project('p', [
+        role(chat('po'), 'po'),
+        role(chat('direct', 0, 'po'), 'executor'),
+        role(chat('plan', 0, 'po'), 'planejador'),
+        role(chat('exec', 0, 'plan'), 'executor')
+      ])
+    ],
+    wide
+  )
+  expect(boxes.plan.y).toBe(boxes.po.y + 230 + 80)
+  expect(boxes.exec.y).toBe(boxes.plan.y + 230 + 80)
+  expect(boxes.direct.y).toBe(boxes.exec.y)
 })

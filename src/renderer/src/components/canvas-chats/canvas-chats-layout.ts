@@ -98,7 +98,16 @@ const SQUARE_GRID_TOLERANCE = 0.85
 const CHILD_BUS_RISE = PROJECT_TO_CHATS / 2
 
 export type ChatTree = { chat: CanvasChat; children: ChatTree[] }
-type Block = { project: CanvasProject; roots: ChatTree[]; w: number; h: number }
+type Block = {
+  project: CanvasProject
+  roots: ChatTree[]
+  /** Row of each chat, and where each row starts below the project. */
+  tiers: Map<string, number>
+  tierTops: number[]
+  w: number
+  h: number
+}
+const ROLE_TIER = { po: 0, planejador: 1, executor: 2 } as const
 
 /** Chats created by another chat of the same project hang under it; every other chat is a root. */
 export function chatForest(chats: readonly CanvasChat[]): ChatTree[] {
@@ -168,17 +177,34 @@ export function layoutCanvas(
     nodes.reduce((sum, node) => sum + treeWidth(node), 0) +
     Math.max(0, nodes.length - 1) * COLUMN_GAP
   const treeWidth = (node: ChatTree): number => Math.max(C.w, rowWidth(node.children))
-  const treeHeight = (node: ChatTree): number =>
-    C.h +
-    hangingHeight(node.chat) +
-    (node.children.length ? PROJECT_TO_CHATS + Math.max(...node.children.map(treeHeight)) : 0)
   const blocks: Block[] = projects.map((project) => {
     const roots = chatForest(project.chats)
+    // Rows by role: every executor sits below the planners' row, even one the PO created directly.
+    const tiers = new Map<string, number>()
+    const hanging: number[] = []
+    const assign = (nodes: readonly ChatTree[], above: number): void => {
+      for (const node of nodes) {
+        const role = node.chat.hierarchy?.role
+        const tier = Math.max(above + 1, role ? ROLE_TIER[role] : 0)
+        tiers.set(node.chat.key, tier)
+        hanging[tier] = Math.max(hanging[tier] ?? 0, hangingHeight(node.chat))
+        assign(node.children, tier)
+      }
+    }
+    assign(roots, -1)
+    const tierTops: number[] = []
+    for (let tier = 0; tier < hanging.length; tier++) {
+      tierTops[tier] =
+        tier === 0 ? 0 : tierTops[tier - 1] + C.h + (hanging[tier - 1] ?? 0) + PROJECT_TO_CHATS
+    }
+    const last = hanging.length - 1
     return {
       project,
       roots,
+      tiers,
+      tierTops,
       w: Math.max(C.w, rowWidth(roots)),
-      h: P.h + (roots.length ? PROJECT_TO_CHATS + Math.max(...roots.map(treeHeight)) : 0)
+      h: P.h + (roots.length ? PROJECT_TO_CHATS + tierTops[last] + C.h + (hanging[last] ?? 0) : 0)
     }
   })
   const boxes: Record<string, CanvasBox> = {}
@@ -220,12 +246,14 @@ export function layoutCanvas(
       const x = nextX
       nextX += block.w + PROJECT_GAP
       boxes[`project:${block.project.id}`] = { x, y, w: P.w, h: P.h }
-      // Each chat sits centered over the chats it created, which form the row below it.
-      const placeRow = (nodes: readonly ChatTree[], left: number, top: number): void => {
+      const chatsTop = y + P.h + PROJECT_TO_CHATS
+      // Each chat sits centered over the chats it created, on the row of its role.
+      const placeRow = (nodes: readonly ChatTree[], left: number): void => {
         let nodeX = left
         for (const node of nodes) {
           const width = treeWidth(node)
           const { chat } = node
+          const top = chatsTop + block.tierTops[block.tiers.get(chat.key) ?? 0]
           const cx = nodeX + (width - C.w) / 2
           boxes[chat.key] = { x: cx, y: top, w: C.w, h: C.h }
           let stackY = top + C.h + AGENT_TOP_GAP
@@ -235,15 +263,11 @@ export function layoutCanvas(
           }
           chat.agents.forEach((agent) => stack(agent.id, A))
           chat.extras.forEach((extra) => stack(extra.id, X))
-          placeRow(
-            node.children,
-            nodeX + (width - rowWidth(node.children)) / 2,
-            top + C.h + hangingHeight(chat) + PROJECT_TO_CHATS
-          )
+          placeRow(node.children, nodeX + (width - rowWidth(node.children)) / 2)
           nodeX += width + COLUMN_GAP
         }
       }
-      placeRow(block.roots, x + (block.w - rowWidth(block.roots)) / 2, y + P.h + PROJECT_TO_CHATS)
+      placeRow(block.roots, x + (block.w - rowWidth(block.roots)) / 2)
     })
     y += Math.max(...row.map((b) => b.h)) + ROW_GAP
   })

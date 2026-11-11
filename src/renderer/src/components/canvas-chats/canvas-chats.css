@@ -419,7 +419,7 @@
 .cc-model[data-family='haiku'] {
   color: #8d8d99;
 }
-/* a chat created by another chat: the line takes the project color */
+/* a chat created by another chat: a stronger neutral line (the project color stays on the project card) */
 .cc-line-created {
   stroke-opacity: 0.75;
 }

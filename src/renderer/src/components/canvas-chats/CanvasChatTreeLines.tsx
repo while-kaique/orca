@@ -22,7 +22,6 @@ export function canvasChatTreeLines(
           <path
             key={`c-${chat.key}`}
             className="cc-line-tree cc-line-created"
-            style={{ stroke: project.color }}
             d={childChatPath(creatorBox, cbox)}
           />
         )
