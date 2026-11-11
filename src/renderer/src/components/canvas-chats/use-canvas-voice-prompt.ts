@@ -4,6 +4,7 @@ import { useAudioCapture } from '@/hooks/use-audio-capture'
 import { formatFinalTranscriptSegment } from '../../../../shared/dictation-transcript-spacing'
 import type { DictationMeterState } from '../../../../shared/dictation-audio-meter'
 import { terminalPreviewApiFor } from '../dashboard-popout/terminal-preview-api'
+import { iterateAgentPromptPasteChunks } from '../../../../shared/agent-launch/startup/agent-prompt-injection'
 import { setActiveCanvasVoice } from './canvas-voice-preference'
 
 // Fork: an open chat card listens to the mic; 3 s of silence after speech transcribes and submits to that chat.
@@ -94,7 +95,10 @@ export function useCanvasVoicePrompt(ptyId: string | null, autoStart: boolean) {
         return
       }
       const api = terminalPreviewApiFor(ptyId)
-      await api.input(ptyId, text.replace(/\s*\n\s*/g, ' '))
+      // Raw typed text arrived cut in Claude on Windows (only the tail); a bracketed paste lands whole.
+      for (const chunk of iterateAgentPromptPasteChunks(text.replace(/\s*\n\s*/g, ' '))) {
+        await api.input(ptyId, chunk)
+      }
       if (!enter) {
         return
       }
