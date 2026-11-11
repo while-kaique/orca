@@ -133,4 +133,12 @@ it('keeps executors below the planners row even when the PO created them directl
   expect(boxes.plan.y).toBe(boxes.po.y + 230 + 80)
   expect(boxes.exec.y).toBe(boxes.plan.y + 230 + 80)
   expect(boxes.direct.y).toBe(boxes.exec.y)
+  expect(boxes.plan.x).toBeLessThan(boxes.direct.x)
+})
+it('does not push a row down for what hangs off a chat with nothing below it', () => {
+  const { boxes } = layoutCanvas(
+    [project('p', [chat('alone', 2), chat('po'), chat('plan', 0, 'po')])],
+    wide
+  )
+  expect(boxes.plan.y).toBe(boxes.po.y + 230 + 80)
 })

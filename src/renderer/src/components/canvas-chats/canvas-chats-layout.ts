@@ -108,6 +108,7 @@ type Block = {
   h: number
 }
 const ROLE_TIER = { po: 0, planejador: 1, executor: 2 } as const
+const roleTier = (chat: CanvasChat): number => (chat.hierarchy ? ROLE_TIER[chat.hierarchy.role] : 0)
 
 /** Chats created by another chat of the same project hang under it; every other chat is a root. */
 export function chatForest(chats: readonly CanvasChat[]): ChatTree[] {
@@ -131,6 +132,10 @@ export function chatForest(chats: readonly CanvasChat[]): ChatTree[] {
     } else {
       roots.push(node)
     }
+  }
+  // Planners first, then the executors a chat created directly: the tree reads left to right, top to bottom.
+  for (const node of nodes.values()) {
+    node.children.sort((a, b) => roleTier(a.chat) - roleTier(b.chat))
   }
   return roots
 }
@@ -184,10 +189,13 @@ export function layoutCanvas(
     const hanging: number[] = []
     const assign = (nodes: readonly ChatTree[], above: number): void => {
       for (const node of nodes) {
-        const role = node.chat.hierarchy?.role
-        const tier = Math.max(above + 1, role ? ROLE_TIER[role] : 0)
+        const tier = Math.max(above + 1, roleTier(node.chat))
         tiers.set(node.chat.key, tier)
-        hanging[tier] = Math.max(hanging[tier] ?? 0, hangingHeight(node.chat))
+        // Only what hangs off a chat with chats below it pushes the next row down; the rest has its own column.
+        hanging[tier] = Math.max(
+          hanging[tier] ?? 0,
+          node.children.length ? hangingHeight(node.chat) : 0
+        )
         assign(node.children, tier)
       }
     }
@@ -197,14 +205,17 @@ export function layoutCanvas(
       tierTops[tier] =
         tier === 0 ? 0 : tierTops[tier - 1] + C.h + (hanging[tier - 1] ?? 0) + PROJECT_TO_CHATS
     }
-    const last = hanging.length - 1
+    const bottom = Math.max(
+      0,
+      ...project.chats.map((chat) => tierTops[tiers.get(chat.key) ?? 0] + C.h + hangingHeight(chat))
+    )
     return {
       project,
       roots,
       tiers,
       tierTops,
       w: Math.max(C.w, rowWidth(roots)),
-      h: P.h + (roots.length ? PROJECT_TO_CHATS + tierTops[last] + C.h + (hanging[last] ?? 0) : 0)
+      h: P.h + (roots.length ? PROJECT_TO_CHATS + bottom : 0)
     }
   })
   const boxes: Record<string, CanvasBox> = {}
@@ -289,18 +300,18 @@ export function busPath(from: CanvasBox, to: CanvasBox): string {
   return `M${px} ${py} V${m - r} Q${px} ${m} ${px + dir * r} ${m} H${cx - dir * r} Q${cx} ${m} ${cx} ${m + r} V${cy}`
 }
 
-/** Chat → a chat it created: down the same left spine as its agents, across above the child, then down into it. */
+/** Chat → a chat it created: out of its bottom center, across right below it, then straight down the child's own column. */
 export function childChatPath(from: CanvasBox, to: CanvasBox): string {
-  const sx = from.x + 20
+  const sx = from.x + from.w / 2
   const sy = from.y + from.h
   const cx = to.x + to.w / 2
   const cy = to.y
-  const m = cy - CHILD_BUS_RISE
+  const m = sy + CHILD_BUS_RISE
   if (Math.abs(cx - sx) < 1) {
     return `M${sx} ${sy} V${cy}`
   }
   const dir = Math.sign(cx - sx)
-  const r = Math.max(0, Math.min(12, Math.abs(cx - sx) / 2, (m - sy) / 2, CHILD_BUS_RISE / 2))
+  const r = Math.max(0, Math.min(12, Math.abs(cx - sx) / 2, (cy - m) / 2, CHILD_BUS_RISE / 2))
   return `M${sx} ${sy} V${m - r} Q${sx} ${m} ${sx + dir * r} ${m} H${cx - dir * r} Q${cx} ${m} ${cx} ${m + r} V${cy}`
 }
 
