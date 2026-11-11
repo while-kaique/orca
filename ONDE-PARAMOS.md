@@ -1,5 +1,72 @@
 # Onde paramos — fork do Orca "PC como mesa"
 
+## 11/11/2026 — Hierarquia de chats (PO > Planejador > Executor) + ajustes do fluxograma
+
+**O que é:** um chat PO (Fable) por projeto recebe o pedido do Kaique, manda ordens a planejadores
+(Opus) e executores (Sonnet), confere as entregas e só ele faz push/deploy. Branch
+`feat/hierarquia-de-chats` (worktree `Desktop\Projetos\orca-canvas`), juntada por avanço simples na
+pasta `orca` (`feat/pc-como-mesa`).
+
+| Peça              | Onde                                                   | Como funciona                                                                                                                                              |
+| ----------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Comando           | `skills/hierarquia/hierarquia.mjs` (+ `regras.mjs`)    | `criar-po`, `ordem`, `entregar`, `conferir`, `perguntar`, `pedir-ok`, `ok`, `devolver`, `estado`. No PATH por `%APPDATA%\orca-fork\cli\bin\hierarquia.cmd` |
+| Papéis            | `skills/hierarquia/papeis/{po,planejador,executor}.md` | o chat lê o seu ao nascer; cada um com a sua parte das regras (push só do PO, menor número de executores, território)                                      |
+| Estado do projeto | `<projeto>/.hierarquia/` (fora do git)                 | `registro.jsonl` (verdade), `estado.json` (foto para o fluxograma), `ordens/`, `provas/`, `PRODUTO.md`, `DECISOES.md`, `config.json`                       |
+| Regras impostas   | `regras.mjs`                                           | modelo por papel, ordem sem os 5 campos é recusada, entrega sem prova é recusada, teto 2 planejadores / 4 executores, só o Kaique dá OK                    |
+| Fluxograma        | `canvas-chats/canvas-chat-hierarchy.ts` e cards        | chat criado fica embaixo do criador com linha e selo do modelo; papel e estado da entrega no card; caixa "Esperando você" com OK e Devolver                |
+
+**Feito em 11/11 (tudo commitado; ver `git log`):**
+
+- Chat identificado pela aba (sobrevive ao reinício do Orca).
+- Desenho: todos os chats na mesma grade de colunas; card do projeto começa no x do primeiro chat.
+- X no card do projeto (fecha todos os chats, com confirmação) e botão "Novo chat ou projeto" com a
+  busca da barra (`PcDeskProjectPicker`, extraído de `PcDeskNewProjectButton`).
+- Estado falso corrigido na regra do Orca (`claude-reported-state.ts`,
+  `claude-finished-shell-notification.ts`): pedido de permissão em modo automático não vira "precisa de
+  você"; comando de fundo já terminado dá baixa mesmo se o turno foi interrompido.
+- Chat dormindo: abrir o card acorda só ele e mostra "Restaurando o chat…"
+  (`CanvasChatTerminal.tsx`, `use-canvas-chat-terminal-wake.ts`); terminal fecha no tamanho da caixa
+  (`preview-grid-claim.ts`); card aberto pede 300 linhas de histórico (o popout segue com 24).
+- Servidor de tipos dos chats desligado em `.claude/settings.json` (custava 4 a 5 GB por chat).
+- Barra de status do Claude removida de `~/.claude/settings.json` (cópia em
+  `settings.json.bak-statusline-11-11`).
+- Mestre de Banners virou PO do Astra Designer (lá o executor nasce com aba e ligado ao PO).
+
+**Pegadinhas (todas vistas em 11/11):**
+
+- **Chat lançado no projeto do Orca nasce sem aba** (terminal "órfão"): roda, mas não aparece na barra
+  nem no fluxograma. No Astra Designer aparece. Diferenças: aqui `config.json` tem
+  `pastaDosChats: "projeto"` (executor na própria pasta) e o PO morava em outro projeto. Causa não provada.
+- **Reiniciar o Orca mata os executores em andamento**, e a ordem fica presa como "trabalhando" (a
+  `o-002` ficou assim). Avisar o Kaique antes de ele reiniciar.
+- **Pergunta de executor não chega como aviso ao PO.** Só aparece em
+  `orca-dev orchestration inbox`. A `o-004` ficou 40 min parada por isso. Olhar a caixa de tempos em tempos.
+- **Ordem repetida confunde o executor:** relançar com o mesmo arquivo fez a `o-004` perguntar se era
+  duplicata. Ao relançar, dizer na ordem que a anterior morreu.
+- **`hierarquia ok` recusa rodar de dentro de um chat da hierarquia.** Quando o Kaique dá o OK por
+  escrito no chat do PO, registrar com `env -u ORCA_TAB_ID -u ORCA_TERMINAL_HANDLE`.
+- **Arquivo de ordem é JSON:** barra invertida de caminho do Windows quebra; usar `/`.
+- **Memória:** cada Claude custa ~300 MB, e o app de teste oculto ~1,8 GB. Com pouca memória o Windows
+  mata `pnpm tc`; usar `pnpm tc:web` e uma coisa pesada por vez.
+- **No modo normal o card segue "precisa de você" depois do clique em permitir:** desde 05/11 o fork só
+  recebe os avisos de ferramenta para pergunta e plano (`claude-managed-hook-events.ts`), por velocidade.
+- **Executores dividem a pasta `orca-canvas`:** commit sempre com arquivos nomeados; uma ordem por vez
+  em `canvas-chats/`.
+
+**Não feito / próximos passos:**
+
+1. Teste do ciclo completo com planejador Opus (nunca rodou). Pedido combinado: registro de diagnóstico
+   do fluxograma, para depurar sem print.
+2. Contador de contexto (0 a 1M de tokens) em cada card; o número vem do histórico da conversa.
+3. Descobrir por que o chat nasce sem aba neste projeto.
+4. Lentidão ao abrir, medida em 11/11 13:38: 276 s remontando o app (montar no commit resolve), 18 s
+   varrendo 22 pastas de skills, todos os chats acordando juntos, antivírus 1 s por processo.
+5. "Em segundo plano" falso do Ideias Ads: caminho corrigido, causa daquele chat não provada. Para
+   fechar, gravar o `background_tasks` do próximo `Stop`.
+6. A "letra gigante" do card aberto não reproduziu em teste.
+
+**Atualizado:** 11/11/2026.
+
 ## 09/11/2026 — Fluxograma de chats (canvas) — NO AR
 
 Botão novo no canto superior esquerdo (ícone de fluxo, ao lado do da barra lateral) troca a tela

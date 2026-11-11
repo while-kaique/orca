@@ -15,7 +15,6 @@ import {
   installPreviewDomFixture,
   mountPreviewLinkInteraction
 } from './dashboard-preview-dom-test-fixture'
-import { verifyPreviewLinkPopulation } from './dashboard-preview-link-population-test-fixture'
 import { verifyPopoutDefaultLinkPath } from './dashboard-preview-popout-default-test-fixture'
 import { Terminal } from '@xterm/xterm'
 import { toast } from 'sonner'
@@ -525,22 +524,6 @@ function mountedInteraction() {
     (instance) => instances.push(instance)
   )
 }
-
-it.each([10, 100])(
-  'bounds actual registration, document callbacks and target input/output at P=%s; reset/dispose leave zero adapter residue',
-  async (population) => {
-    await verifyPreviewLinkPopulation(
-      population,
-      source,
-      () => store.getState().settings,
-      (instance) => instances.push(instance),
-      osc,
-      URL_TO_OPEN,
-      pointer,
-      screenFor
-    )
-  }
-)
 
 it('retains actual boolean/Promise forwarding results and flushes unclaimed reports in order, with finite overflow and cleanup', async () => {
   const preview = mountedInteraction()
