@@ -6,13 +6,14 @@ export const PAPEIS = {
   executor: { modelo: 'sonnet', cria: [] }
 }
 
-export const TETO = { planejadoresPorProjeto: 2, executoresPorPai: 4 }
+/** Por projeto: chats trabalhando ao mesmo tempo. Executores somam todos os criadores (adendo 2 da o-021). */
+export const TETO = { planejadoresPorProjeto: 2, executoresPorProjeto: 2 }
 
 export const CAMPOS_DA_ORDEM = ['objetivo', 'porque', 'criterios', 'limites', 'territorio']
 
 export const LIMITE_DE_REPROVACOES = 2
 
-/** Situações em que a ordem ainda ocupa uma vaga do teto. */
+/** Situações em que o chat da ordem ainda não pode dar lugar a outro. */
 const SITUACOES_ATIVAS = new Set([
   'trabalhando',
   'em_prova',
@@ -20,6 +21,12 @@ const SITUACOES_ATIVAS = new Set([
   'conferindo_produto',
   'devolvido'
 ])
+
+/** Ocupa vaga: o chat está trabalhando. Entrega esperando conferência solta a vaga, senão a fila trava com o criador dormindo. */
+const OCUPA_VAGA = new Set(['trabalhando', 'em_prova', 'devolvido'])
+
+/** Ainda não terminou, do ponto de vista de quem criou. */
+const NAO_TERMINADA = new Set([...OCUPA_VAGA, 'em_espera'])
 
 function campoVazio(valor) {
   if (Array.isArray(valor)) {
@@ -34,7 +41,7 @@ export function camposFaltando(campos) {
 
 /** Reconstrói o estado do projeto a partir das linhas do registro, na ordem em que foram escritas. */
 export function montarEstado(eventos) {
-  const estado = { po: null, chats: {}, ordens: {}, perguntas: {} }
+  const estado = { po: null, chats: {}, ordens: {}, perguntas: {}, avisos: {} }
   for (const ev of eventos) {
     const ordem = ev.ordemId ? estado.ordens[ev.ordemId] : undefined
     switch (ev.tipo) {
@@ -58,6 +65,10 @@ export function montarEstado(eventos) {
           papel: ev.para,
           campos: ev.campos,
           situacao: ev.emEspera ? 'em_espera' : 'trabalhando',
+          pedido: ev.pedido ?? ev.ordemId,
+          prioridade: Boolean(ev.prioridade),
+          pastaDoCriador: ev.pastaDoCriador ?? null,
+          chegada: Object.keys(estado.ordens).length,
           chatId: null,
           reprovacoes: 0,
           provas: [],
@@ -132,8 +143,13 @@ export function montarEstado(eventos) {
         ordem.situacao = 'devolvido'
         ordem.historico.push({ por: 'kaique', t: ev.t, aprovada: false, motivo: ev.motivo })
         break
+      case 'saiu_da_espera':
+        ordem.situacao = 'trabalhando'
+        break
       case 'parou_sem_entregar':
         ordem.situacao = 'parou'
+        ordem.motivoDaParada = ev.motivo
+        ordem.paradaAutomatica = Boolean(ev.automatico)
         break
       case 'chat_encerrado':
         if (estado.chats[ev.chatId]) {
@@ -168,25 +184,39 @@ export function montarEstado(eventos) {
       case 'resposta':
         estado.perguntas[ev.perguntaId].resposta = ev.texto
         break
+      case 'pedido_fechado':
+        estado.avisos[`${ev.chatId} ${ev.pedido}`] = ev.assinatura
+        break
     }
   }
   return estado
 }
 
-function ordensAtivasDe(estado, criador, papel) {
+function ocupandoVaga(estado, papel) {
   return Object.values(estado.ordens).filter(
-    (ordem) =>
-      ordem.papel === papel &&
-      SITUACOES_ATIVAS.has(ordem.situacao) &&
-      (criador === undefined || ordem.de === criador)
-  )
+    (ordem) => ordem.papel === papel && OCUPA_VAGA.has(ordem.situacao)
+  ).length
 }
 
-function vagaLivre(estado, de, para) {
-  if (para === 'planejador') {
-    return ordensAtivasDe(estado, undefined, 'planejador').length < TETO.planejadoresPorProjeto
+const TETO_DO_PAPEL = {
+  planejador: () => TETO.planejadoresPorProjeto,
+  executor: () => TETO.executoresPorProjeto
+}
+
+function vagaLivre(estado, para) {
+  return ocupandoVaga(estado, para) < TETO_DO_PAPEL[para]()
+}
+
+/** O que `hierarquia estado` mostra do teto: quem trabalha, o limite e quem espera vaga. */
+export function ocupacao(estado) {
+  return {
+    planejadores: ocupandoVaga(estado, 'planejador'),
+    executores: ocupandoVaga(estado, 'executor'),
+    teto: TETO,
+    emEspera: Object.values(estado.ordens)
+      .filter((ordem) => ordem.situacao === 'em_espera')
+      .map((ordem) => ordem.id)
   }
-  return ordensAtivasDe(estado, de, 'executor').length < TETO.executoresPorPai
 }
 
 /** FR-3, FR-4, FR-5, FR-10, FR-20: quem cria quem, modelo por papel, cinco campos e teto. */
@@ -202,7 +232,7 @@ export function decidirOrdem(estado, { de, para, campos }) {
   if (faltando.length > 0) {
     return { acao: 'recusar', motivo: `Faltam campos na ordem: ${faltando.join(', ')}.` }
   }
-  if (!vagaLivre(estado, de, para)) {
+  if (!vagaLivre(estado, para)) {
     return { acao: 'esperar', modelo: PAPEIS[para].modelo }
   }
   const fechar = chatParaFecharAoAbrir(estado, de, para)
@@ -214,9 +244,10 @@ export function decidirOrdem(estado, { de, para, campos }) {
  * lugar a outro: o mais antigo que já terminou, quando os chats abertos enchem o teto.
  */
 function chatParaFecharAoAbrir(estado, de, para) {
-  const teto = para === 'planejador' ? TETO.planejadoresPorProjeto : TETO.executoresPorPai
+  const teto = TETO_DO_PAPEL[para]()
+  // Só fecha chat criado pelo mesmo criador: chat de outro nunca é tocado.
   const abertos = Object.values(estado.chats).filter(
-    (chat) => chat.ativo && chat.papel === para && (para === 'planejador' || chat.pai === de)
+    (chat) => chat.ativo && chat.papel === para && chat.pai === de
   )
   if (abertos.length < teto) {
     return null
@@ -227,17 +258,187 @@ function chatParaFecharAoAbrir(estado, de, para) {
   return terminado?.id ?? null
 }
 
-/** FR-20: ordens em espera que já cabem no teto, da mais antiga para a mais nova. */
+/** FR-20: ordens em espera que já cabem no teto: primeiro as que passam na frente, depois por chegada. */
 export function ordensLiberadasDaEspera(estado) {
   const liberadas = []
   const simulado = { ...estado, ordens: { ...estado.ordens } }
-  for (const ordem of Object.values(estado.ordens)) {
-    if (ordem.situacao === 'em_espera' && vagaLivre(simulado, ordem.de, ordem.papel)) {
+  for (const ordem of filaDeEspera(estado)) {
+    if (ordem.situacao === 'em_espera' && vagaLivre(simulado, ordem.papel)) {
       liberadas.push(ordem.id)
       simulado.ordens[ordem.id] = { ...ordem, situacao: 'trabalhando' }
     }
   }
   return liberadas
+}
+
+/** Quem espera vaga, na ordem em que vai sair. */
+export function filaDeEspera(estado) {
+  return Object.values(estado.ordens)
+    .filter((ordem) => ordem.situacao === 'em_espera')
+    .sort((a, b) => Number(b.prioridade) - Number(a.prioridade) || a.chegada - b.chegada)
+}
+
+/** O pedido de uma ordem nova: o que o criador deu, senão o da ordem do próprio criador, senão ela mesma. */
+export function pedidoDaOrdemNova(estado, de, pedidoDado) {
+  if (String(pedidoDado ?? '').trim() !== '') {
+    return String(pedidoDado).trim()
+  }
+  return estado.ordens[estado.chats[de]?.ordemId]?.pedido ?? null
+}
+
+/** A ordem e todas as criadas abaixo dela. */
+function arvoreDaOrdem(estado, ordem) {
+  const filhas = ordem.chatId
+    ? Object.values(estado.ordens).filter((outra) => outra.de === ordem.chatId)
+    : []
+  return [ordem, ...filhas.flatMap((filha) => arvoreDaOrdem(estado, filha))]
+}
+
+/**
+ * O que o criador espera, agrupado pelo pedido das ordens que ele criou: cada grupo junta essas ordens
+ * e as de baixo delas. `assinatura` muda quando alguma ordem do grupo muda de situação.
+ */
+export function pedidosDoCriador(estado, criador) {
+  const grupos = new Map()
+  for (const ordem of Object.values(estado.ordens)) {
+    if (ordem.de !== criador) {
+      continue
+    }
+    const grupo = grupos.get(ordem.pedido) ?? { pedido: ordem.pedido, diretas: [], todas: [] }
+    grupo.diretas.push(ordem)
+    grupo.todas.push(...arvoreDaOrdem(estado, ordem))
+    grupos.set(ordem.pedido, grupo)
+  }
+  return [...grupos.values()].map((grupo) => ({
+    ...grupo,
+    terminado: grupo.todas.every((ordem) => !NAO_TERMINADA.has(ordem.situacao)),
+    assinatura: grupo.todas.map((ordem) => `${ordem.id}:${ordem.situacao}`).join(',')
+  }))
+}
+
+/** Pedidos que fecharam e ainda não viraram mensagem para o criador nesta situação. */
+export function pedidosParaAvisar(estado, criador) {
+  return pedidosDoCriador(estado, criador).filter(
+    (grupo) => grupo.terminado && estado.avisos[`${criador} ${grupo.pedido}`] !== grupo.assinatura
+  )
+}
+
+const ENTREGUE = new Set([
+  'conferindo_plano',
+  'conferindo_produto',
+  'aprovado',
+  'esperando_kaique',
+  'liberado'
+])
+
+/** A mensagem única de um pedido: quais ordens entregaram e quais pararam. */
+export function mensagemDoPedido(grupo) {
+  const lista = (ordens) =>
+    ordens.length === 0
+      ? 'nenhuma'
+      : ordens.map((ordem) => `${ordem.id} (${ordem.situacao})`).join(', ')
+  const entregaram = grupo.diretas.filter((ordem) => ENTREGUE.has(ordem.situacao))
+  const pararam = grupo.diretas.filter((ordem) => !ENTREGUE.has(ordem.situacao))
+  return `PEDIDO FECHADO: ${grupo.pedido}. Entregaram: ${lista(entregaram)}. Pararam: ${lista(pararam)}. Rode hierarquia estado e confira o pacote.`
+}
+
+function situacaoDoPedido(ordens) {
+  if (ordens.some((ordem) => OCUPA_VAGA.has(ordem.situacao))) {
+    return 'em andamento'
+  }
+  if (ordens.some((ordem) => ordem.situacao === 'em_espera')) {
+    return 'esperando vaga'
+  }
+  if (ordens.some((ordem) => ['conferindo_plano', 'conferindo_produto'].includes(ordem.situacao))) {
+    return 'esperando validar'
+  }
+  return ordens.every((ordem) => ordem.situacao === 'parou') ? 'parado' : 'entregue'
+}
+
+/** Cada pedido do projeto para `hierarquia estado`, com a posição de quem espera vaga. */
+export function pedidosNoEstado(estado) {
+  const fila = filaDeEspera(estado).map((ordem) => ordem.id)
+  const grupos = new Map()
+  for (const ordem of Object.values(estado.ordens)) {
+    const lista = grupos.get(ordem.pedido) ?? []
+    lista.push({ ...ordem, posicaoNaFila: fila.indexOf(ordem.id) + 1 || null })
+    grupos.set(ordem.pedido, lista)
+  }
+  return [...grupos.entries()].map(([pedido, ordens]) => ({
+    pedido,
+    ordens,
+    situacao: situacaoDoPedido(ordens)
+  }))
+}
+
+/**
+ * Chat morto: a ordem ocupa vaga, mas a aba não existe mais, o terminal caiu ou não sai nada na tela
+ * há mais que `prazoMs` (sem pergunta aberta e sem ordem filha por terminar, que são esperas legítimas).
+ */
+export function chatsSemVida(estado, terminais, agora, prazoMs) {
+  const mortos = []
+  for (const ordem of Object.values(estado.ordens)) {
+    const chat = ordem.chatId ? estado.chats[ordem.chatId] : null
+    if (!chat || !OCUPA_VAGA.has(ordem.situacao)) {
+      continue
+    }
+    const terminal =
+      terminais.find((t) => t.tabId === chat.id) ?? terminais.find((t) => t.handle === chat.handle)
+    if (!terminal) {
+      mortos.push({
+        ordemId: ordem.id,
+        motivo: 'o chat nao tem terminal ligado (aba fechada ou dormindo)'
+      })
+      continue
+    }
+    if (terminal.connected === false) {
+      mortos.push({ ordemId: ordem.id, motivo: 'o terminal do chat caiu' })
+      continue
+    }
+    const esperando =
+      Object.values(estado.perguntas).some((p) => p.de === chat.id && p.resposta === null) ||
+      Object.values(estado.ordens).some(
+        (filha) => filha.de === chat.id && NAO_TERMINADA.has(filha.situacao)
+      )
+    const parado = terminal.lastOutputAt ? agora - terminal.lastOutputAt : 0
+    if (!esperando && parado > prazoMs) {
+      mortos.push({
+        ordemId: ordem.id,
+        motivo: `nada na tela do chat ha ${Math.round(parado / 60000)} min`
+      })
+    }
+  }
+  return mortos
+}
+
+/**
+ * Ligado (terminal vivo), dormindo (a aba existe sem terminal, como o fluxograma desenha depois de
+ * reabrir o Orca) ou fechado (a aba sumiu). `abas` null: sem a sessão do Orca, só dá para dizer ligado.
+ */
+export function vidaDoChat(chat, terminais, abas) {
+  const terminal =
+    terminais.find((t) => t.tabId === chat.id) ?? terminais.find((t) => t.handle === chat.handle)
+  if (terminal && terminal.connected !== false) {
+    return 'ligado'
+  }
+  if (!abas) {
+    return 'sem terminal'
+  }
+  return abas.has(chat.id) ? 'dormindo' : 'fechado'
+}
+
+/**
+ * Vez para comando pesado. `dono` segura a vez; `fila` espera, por chegada. Dono morto solta a vez, e
+ * ela vai ao primeiro vivo da fila.
+ */
+export function decidirVez({ dono, fila, vivo }) {
+  const donoVivo = Boolean(dono) && vivo(dono.pid)
+  const vivos = fila.filter((item) => vivo(item.pid)).sort((a, b) => a.chegada - b.chegada)
+  return {
+    soltarDono: Boolean(dono) && !donoVivo,
+    proximo: donoVivo ? null : (vivos[0] ?? null),
+    mortosNaFila: fila.filter((item) => !vivo(item.pid))
+  }
 }
 
 /** Quem confere a entrega é quem deu a ordem: planejador confere o plano, PO confere o produto. */
@@ -412,7 +613,9 @@ export function decidirInicio(vigia, visto, agora) {
   }
   const proximo = { ...vigia, onde: visto.onde }
   if (visto.onde !== 'na_caixa') {
-    return { acao: 'esperar', vigia: { ...proximo, naCaixaDesde: null } }
+    // Leitura que falhou (máquina carregada) não prova que o texto saiu da caixa: a contagem continua.
+    const desde = visto.onde === 'desconhecido' ? vigia.naCaixaDesde : null
+    return { acao: 'esperar', vigia: { ...proximo, onde: vigia.onde, naCaixaDesde: desde } }
   }
   const desde = vigia.naCaixaDesde ?? agora
   if (!vigia.tentouEnviarEm && agora - desde >= ESTABILIDADE_DA_CAIXA_MS) {

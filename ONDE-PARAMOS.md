@@ -1,9 +1,66 @@
 # Onde paramos — fork do Orca "PC como mesa"
 
+## 12/11/2026 (tarde, ordem o-021) — comando `hierarquia`: PO dorme, aviso por pedido, fila, vez, chat morto
+
+**Como ler:** **VISTO NO ORCA REAL** = rodado no Orca em uso com chats de teste de verdade, com a saída
+guardada. **SÓ DECLARADO** = escrito, sem ter sido visto funcionando. Provas em
+`.hierarquia/provas/o-021/` (pasta principal, fora do git). Spec: `docs/specs/hierarquia-fluxo-sem-vigia.md`.
+Branch: `kaiquebreno-ggp/planejador-o-021-hierarquia` (não enviada; quem junta é o PO).
+
+**Regras de fluxo que o PO já escreveu nos papéis hoje** (commits `cfaa99b890`, `101ce4fef5`, `f52ea0b03f`):
+
+- O PO lança e **dorme**; só acorda com o pacote de um pedido, uma pergunta ou o Kaique.
+- O **planejador é dono da área até o fim**: cria executores, junta, prova no produto real e entrega um
+  pacote só. A prova é sempre do **produto de verdade**, nunca de cenário montado.
+- **Vários pedidos em fila** (`.hierarquia/FILA.md`, uma linha por pedido); cada pedido fecha sozinho.
+- "Faz isso" dito ao PO é ordem para **planejar e organizar chats**, não para ele codar. Coisa pontual vai
+  para um chat livre.
+- Teto: **2 planejadores e 2 executores trabalhando por projeto** (antes eram 4 executores por criador).
+
+**O que mudou para quem usa** (todos os comandos com `hierarquia`):
+
+- **Aviso por pedido.** `ordem --pedido NOME [--na-frente]`. Um processo de fundo por chat criador (o
+  "vigia") segura a caixa de correio dele e escreve **uma** linha no chat quando todas as ordens daquele
+  pedido terminam: `PEDIDO FECHADO: NOME. Entregaram: ... Pararam: ...`. **VISTO NO ORCA REAL:** no pedido
+  TESTE-X, a 1ª entrega (14:35:07) não escreveu nada; a 2ª fechou o pedido com uma linha (14:40:40), com o
+  TESTE-Y ainda trabalhando; depois TESTE-Y, M1, M2 e V, cada um com a sua linha (`tela-do-criador.txt`,
+  `registro-dos-testes.txt`). **Falha parcial:** com o Orca lento (30 a 56 s por chamada), o aviso do próprio
+  Orca "You have N orchestration messages" ainda escapou algumas vezes; o conteúdo foi para o vigia.
+- **Fila com prioridade e teto 2+2.** Ordem acima do teto espera e sai sozinha; `--na-frente` pega a próxima
+  vaga. **VISTO NO ORCA REAL:** X2 (`--na-frente`) saiu 1,6 s depois da entrega do X1, antes do Y (`estado-1.txt`).
+- **Chat morto e baixa.** Ordem cujo chat fechou, caiu ou ficou 20 min sem nada na tela vira "parou"
+  sozinha e fecha o pedido; `baixa --ordem ID --motivo "..."` para quem criou. **VISTO NO ORCA REAL:** aba
+  da o-026 fechada às 15:10:42, parada sozinha às 15:11:30; baixa da o-027 (`B-*.txt`).
+- **Lançamento sem mão.** Número da ordem sob trava (dois lançamentos juntos nunca repetem); ordem parada
+  na caixa é enviada mesmo com o Orca lento; o vigia tenta de novo. **VISTO NO ORCA REAL:** dois
+  lançamentos juntos (o-001/o-002 e o-026/o-027) nasceram registrados. A o-026 e a o-027 ficaram
+  digitadas sem enviar; o vigia enviou as duas sozinho (o-027: `chat_iniciou` com `porVigiaDoCriador`
+  às 15:11:01; o-026 começou às 15:06:49, pelo `ok.txt`, mas o registro dela ficou "não começou" porque a
+  leitura da tela levou mais que a espera). Ninguém mandou tecla (`registro-dos-testes.txt`).
+- **Vez para comando pesado.** `vez -- <comando>`: um por vez na máquina inteira. **VISTO:** dois juntos
+  rodaram em fila; matar o dono soltou a vez em 0,49 s (`D-vez.txt`). `pnpm tc` e o print rodaram por ela.
+- **Responder pergunta.** `perguntar` escreve a pergunta no chat de quem criou; `responder --pergunta p-NNN
+  --texto "..."` escreve a resposta no chat que perguntou. **VISTO NO ORCA REAL:** p-003 (`E-tela-*.txt`).
+- **Ver e fechar o que criou.** `estado` mostra cada chat ligado, dormindo ou fechado (lê a sessão que o
+  Orca grava, sem mudar o Orca); `fechar --ordem ID | --pedido NOME | --terminados`. **VISTO:** o-018 do PO
+  aparece "dormindo"; `fechar --terminados` fechou o X2 ligado e recusou fechar chat do PO
+  (`adendo5-*.txt`). **SÓ DECLARADO:** fechar aba **dormindo** (não deu para produzir uma sem reabrir o
+  Orca). Para os cartões dormindo do PO, depois de juntar: `hierarquia fechar --terminados`, rodado no chat
+  do PO.
+- **Nenhum chat da hierarquia como "Livre".** O fluxograma lia só o primeiro registro do projeto; agora
+  junta todos. Abas lançadas ganham o título da ordem. **VISTO** no print do estado real com o código novo
+  (`adendo4-fluxograma-real-com-teste.dark.png`). `criar-po` num 2º registro só com `--teste`.
+- **Nenhuma janela de cmd.** **VISTO:** vigia rodando 2 min, zero janelas novas (`janelas-vigia-2min.txt`).
+
+**Efeito dos meus testes em chats que não eram meus:** antes do conserto, três lançamentos meus fecharam
+(liberaram) chats terminados do PO das ordens o-002, o-003 e o-004 (dispatches `ctx_5072e6967059`,
+`ctx_525bb4c38e76`, `ctx_ff69be79d8ca`; `chat_encerrado` "deu lugar a outro chat" às 14:33, 14:35 e 14:38).
+Hoje só fecha chat do mesmo criador.
+
 ## 12/11/2026 (rodada do PO 105fc07b) — etiquetas, desenho, "aguardando equipe", máscara e comando `hierarquia`
 
-> **Atenção 1:** **NADA disto aparece no Orca em uso** até ele ser reconstruído e reaberto. Isso não foi
-> feito: precisa do OK do Kaique.
+> **Atenção 1:** para as mudanças aparecerem no Orca em uso basta **reabrir pelo atalho "Orca (meu)"**: ele
+> remonta sozinho (visto em 12/11: montagem às 10:39–10:41, depois do último commit).
 >
 > **Atenção 2:** a **troca de modelo com `/model` ao vivo continua sem teste.**
 

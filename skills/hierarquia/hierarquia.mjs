@@ -1,27 +1,28 @@
 #!/usr/bin/env node
 // Comando único da hierarquia PO > Planejador > Executor (spec 001).
 // Aplica as regras de regras.mjs, escreve o registro do projeto e chama o lançador do Orca.
-import { execFileSync } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, isAbsolute, join, resolve } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { isAbsolute, join, resolve } from 'node:path'
 import {
   decidirConferencia,
   decidirEntrega,
   decidirOrdem,
   decidirPedidoDeOk,
   destinoDaPergunta,
-  filaDoKaique,
   montarEstado,
-  ordensLiberadasDaEspera
+  ordensLiberadasDaEspera,
+  pedidoDaOrdemNova
 } from './regras.mjs'
 import {
   abaDoChat,
-  avisarPo,
   branchDoProjeto,
   citar,
   dormir,
   enviarCorrecao,
+  escreverNoChat,
   garantirExecucao,
+  renomearAba,
   lancarWorker,
   manterAberto,
   orca
@@ -35,110 +36,18 @@ import {
 } from './pedido-da-ordem.mjs'
 import { criarVigia } from './inicio-do-turno.mjs'
 import { opcoes } from './opcoes-da-linha.mjs'
-import { imprimirEstado } from './estado-na-tela.mjs'
+import { comandoEstado } from './estado-na-tela.mjs'
+import { fecharChats, ordensParaFechar } from './fechar-chats.mjs'
 import { foraDoGit } from './pasta-fora-do-git.mjs'
+import { decisaoDoKaique } from './decisao-do-kaique.mjs'
+import { destravarInicios } from './destravar-inicio.mjs'
+import { acharProjeto, anotar, caminhos, lerConfig, lerEventos, sair } from './registro.mjs'
+import { pegarTrava } from './trava.mjs'
+import { rodarNaVez } from './vez.mjs'
+import { garantirVigia, vigiar } from './vigia-do-criador.mjs'
 
 const AQUI = import.meta.dirname
 const ESPERA_DO_LANCAMENTO_MS = '180000'
-
-function sair(mensagem, codigo = 1) {
-  console.error(mensagem)
-  process.exit(codigo)
-}
-
-/** A pasta do projeto é a que tem `.hierarquia/`; cópias de trabalho do git apontam para a principal. */
-function acharProjeto(explicito) {
-  if (explicito) {
-    return resolve(explicito)
-  }
-  if (process.env.HIERARQUIA_PROJETO) {
-    return resolve(process.env.HIERARQUIA_PROJETO)
-  }
-  let pasta = process.cwd()
-  for (;;) {
-    if (existsSync(join(pasta, '.hierarquia'))) {
-      return pasta
-    }
-    const acima = dirname(pasta)
-    if (acima === pasta) {
-      break
-    }
-    pasta = acima
-  }
-  try {
-    const comum = execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
-      encoding: 'utf8'
-    }).trim()
-    const principal = dirname(comum)
-    if (existsSync(join(principal, '.hierarquia'))) {
-      return principal
-    }
-  } catch {
-    // Pasta sem git: segue para o erro abaixo.
-  }
-  return null
-}
-
-function caminhos(projeto) {
-  const base = join(projeto, '.hierarquia')
-  return {
-    base,
-    registro: join(base, 'registro.jsonl'),
-    ordens: join(base, 'ordens'),
-    config: join(base, 'config.json')
-  }
-}
-
-function lerEventos(projeto) {
-  const { registro } = caminhos(projeto)
-  if (!existsSync(registro)) {
-    return []
-  }
-  return readFileSync(registro, 'utf8')
-    .split('\n')
-    .filter((linha) => linha.trim() !== '')
-    .map((linha) => JSON.parse(linha))
-}
-
-function anotar(projeto, tipo, dados) {
-  const evento = { t: new Date().toISOString(), tipo, ...dados }
-  appendFileSync(caminhos(projeto).registro, `${JSON.stringify(evento)}\n`, 'utf8')
-  gravarFoto(projeto)
-  return evento
-}
-
-/** `estado.json`: a foto do momento que o fluxograma lê, sempre derivada do registro. */
-function gravarFoto(projeto) {
-  const estado = montarEstado(lerEventos(projeto))
-  const ordens = Object.fromEntries(
-    Object.values(estado.ordens).map((ordem) => [
-      ordem.id,
-      {
-        id: ordem.id,
-        de: ordem.de,
-        papel: ordem.papel,
-        chatId: ordem.chatId,
-        situacao: ordem.situacao,
-        reprovacoes: ordem.reprovacoes,
-        titulo: ordem.campos.titulo ?? ordem.campos.objetivo,
-        inicio: ordem.inicio
-      }
-    ])
-  )
-  const foto = {
-    atualizadoEm: new Date().toISOString(),
-    po: estado.po,
-    chats: estado.chats,
-    ordens,
-    fila: filaDoKaique(estado)
-  }
-  writeFileSync(join(caminhos(projeto).base, 'estado.json'), JSON.stringify(foto, null, 2), 'utf8')
-}
-
-function lerConfig(projeto) {
-  const { config } = caminhos(projeto)
-  return existsSync(config) ? JSON.parse(readFileSync(config, 'utf8')) : {}
-}
 
 /** O chat é a aba: ela continua a mesma quando o Orca reabre; o terminal ganha outro identificador. */
 function quemSou() {
@@ -180,12 +89,14 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
     garantirExecucao()
   }
   // 'current' seria a pasta de quem lança; o chat tem que nascer na pasta do projeto.
-  const pasta =
-    lerConfig(projeto).pastaDosChats === 'projeto'
-      ? citar(`path:${projeto.replaceAll('\\', '/')}`)
-      : 'new-child'
+  // Ordem leve pode nascer na pasta de quem criou: sem cópia nova, sem instalar dependências.
+  const pastaFixa =
+    ordem.pastaDoCriador ?? (lerConfig(projeto).pastaDosChats === 'projeto' ? projeto : null)
+  const pasta = pastaFixa ? citar(`path:${pastaFixa.replaceAll('\\', '/')}`) : 'new-child'
   const pedido = pedidoParaOrca(projeto, ordem.id, ordem.papel, ordem.campos)
   const titulo = tituloDaTarefa(ordem)
+  // A etiqueta do fluxograma já diz o papel: a aba leva só o título da ordem.
+  const tituloDaAba = ordem.campos.titulo ?? ordem.id
   const args = [
     'orchestration',
     'worker-start',
@@ -221,6 +132,7 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
     aoNascer: (chat) => {
       abaVigiada = chat.chatId
       registrar(chat, 'esperando_o_orca')
+      void renomearAba(chat.handle, tituloDaAba)
       vigia.ligar(chat.dispatchId, chat.handle)
     },
     aoEsperar: () => vigia.vigiar(anotarInicio)
@@ -246,6 +158,7 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
   } else {
     const { dispatchId, taskId } = dados
     registrar({ chatId, handle, pasta: pastaDoChat, dispatchId, taskId }, dados.state)
+    void renomearAba(handle, tituloDaAba)
   }
   manterAberto(dados.dispatchId)
   if (dados.state !== 'ready') {
@@ -259,11 +172,20 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
 const comandos = {
   'criar-po'(op) {
     const projeto = resolve(op.projeto ?? process.cwd())
+    const eu = quemSou()
+    const ondeJaEsta = acharProjeto()
+    if (!op.teste && ondeJaEsta && resolve(ondeJaEsta) !== projeto) {
+      const papel = montarEstado(lerEventos(ondeJaEsta)).chats[eu]
+      if (papel?.ativo) {
+        sair(
+          `Este chat já é ${papel.papel} em ${ondeJaEsta}. Virar PO de outro registro só para teste, com --teste: os chats criados lá aparecem como "Livre" no fluxograma.`
+        )
+      }
+    }
     const { base, ordens, registro } = caminhos(projeto)
     mkdirSync(ordens, { recursive: true })
     foraDoGit(projeto)
     const estado = montarEstado(lerEventos(projeto))
-    const eu = quemSou()
     if (estado.po && estado.po !== eu) {
       sair(`Já há um PO aberto neste projeto (${String(estado.po)}); feche a aba dele antes.`)
     }
@@ -290,32 +212,45 @@ const comandos = {
   async ordem(op) {
     const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
     if (!op.para || !op.arquivo) {
-      sair('Uso: hierarquia ordem --para planejador|executor --arquivo ordem.json')
+      sair(
+        'Uso: hierarquia ordem --para planejador|executor --arquivo ordem.json [--pedido NOME] [--na-frente]'
+      )
     }
     const campos = JSON.parse(readFileSync(resolve(op.arquivo), 'utf8'))
-    const eventos = lerEventos(projeto)
-    const estado = montarEstado(eventos)
     const eu = quemSou()
-    const decisao = decidirOrdem(estado, { de: eu, para: op.para, campos })
-    if (decisao.acao === 'recusar') {
-      sair(`Ordem recusada: ${decisao.motivo}`)
+    // Dois lançamentos juntos: o número da ordem e a vaga do teto se decidem um de cada vez.
+    const soltar = pegarTrava(join(caminhos(projeto).base, 'trava-ordem'))
+    let ordemId
+    let decisao
+    try {
+      const estado = montarEstado(lerEventos(projeto))
+      decisao = decidirOrdem(estado, { de: eu, para: op.para, campos })
+      if (decisao.acao === 'recusar') {
+        sair(`Ordem recusada: ${decisao.motivo}`)
+      }
+      ordemId = `o-${String(Object.keys(estado.ordens).length + 1).padStart(3, '0')}`
+      writeFileSync(
+        join(caminhos(projeto).ordens, `${ordemId}.md`),
+        textoDaOrdem(ordemId, op.para, campos),
+        'utf8'
+      )
+      anotar(projeto, 'ordem_criada', {
+        ordemId,
+        de: eu,
+        para: op.para,
+        campos,
+        pedido: pedidoDaOrdemNova(estado, eu, op.pedido ?? campos.pedido) ?? ordemId,
+        prioridade: Boolean(op['na-frente']),
+        ...(op['na-pasta-do-criador'] ? { pastaDoCriador: pastaDoGit(process.cwd()) } : {}),
+        emEspera: decisao.acao === 'esperar'
+      })
+    } finally {
+      soltar()
     }
-    const ordemId = `o-${String(Object.keys(estado.ordens).length + 1).padStart(3, '0')}`
-    writeFileSync(
-      join(caminhos(projeto).ordens, `${ordemId}.md`),
-      textoDaOrdem(ordemId, op.para, campos),
-      'utf8'
-    )
-    anotar(projeto, 'ordem_criada', {
-      ordemId,
-      de: eu,
-      para: op.para,
-      campos,
-      emEspera: decisao.acao === 'esperar'
-    })
+    garantirVigia(caminhos(projeto).base, eu, import.meta.filename, projeto)
     if (decisao.acao === 'esperar') {
       console.log(
-        `Ordem ${ordemId} em espera: o teto de chats está cheio. Ela sai quando abrir vaga.`
+        `Ordem ${ordemId} em espera: o teto está cheio. Ela sai sozinha quando abrir vaga${op['na-frente'] ? ', na frente das outras' : ''}.`
       )
       return
     }
@@ -334,37 +269,73 @@ const comandos = {
 
   async 'lancar-espera'(op) {
     const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
-    const eu = quemSou()
-    let estado = montarEstado(lerEventos(projeto))
-    const minhas = ordensLiberadasDaEspera(estado).filter((id) => estado.ordens[id].de === eu)
-    for (const ordemId of minhas) {
-      estado = montarEstado(lerEventos(projeto))
-      const ordem = estado.ordens[ordemId]
-      const decisao = decidirOrdem(estado, { de: eu, para: ordem.papel, campos: ordem.campos })
-      if (decisao.acao !== 'criar') {
-        continue
-      }
-      const { chatId } = await lancar(projeto, estado, ordem, decisao.modelo, decisao.fechar)
-      console.log(`Ordem ${ordemId} saiu da espera: chat ${chatId}.`)
-    }
-    if (minhas.length === 0) {
+    const saidas = await lancarDaEspera(projeto, quemSou(), console.log)
+    if (saidas === 0) {
       console.log('Nenhuma ordem sua em espera cabe no teto agora.')
     }
+  },
+
+  /** Processo de fundo ligado por `ordem`: segura o correio do criador e o acorda uma vez por pedido. */
+  async vigiar(op) {
+    const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
+    const eu = quemSou()
+    await vigiar({
+      base: caminhos(projeto).base,
+      eu,
+      lerEstado: () => montarEstado(lerEventos(projeto)),
+      anotar: (tipo, dados) => anotar(projeto, tipo, dados),
+      lancarDaEspera: (log) => lancarDaEspera(projeto, eu, log),
+      destravar: (log) => destravarInicios(projeto, eu, log)
+    })
+  },
+
+  baixa(op) {
+    const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
+    const estado = montarEstado(lerEventos(projeto))
+    const eu = quemSou()
+    const ordem = estado.ordens[op.ordem]
+    if (!ordem || ordem.de !== eu) {
+      sair('Só quem criou a ordem dá baixa nela. Uso: hierarquia baixa --ordem ID --motivo "..."')
+    }
+    if (!['trabalhando', 'em_prova', 'devolvido', 'em_espera'].includes(ordem.situacao)) {
+      sair(`A ordem ${op.ordem} já terminou (${ordem.situacao}).`)
+    }
+    if (String(op.motivo ?? '').trim() === '') {
+      sair('Baixa exige o motivo: --motivo "..."')
+    }
+    anotar(projeto, 'parou_sem_entregar', { ordemId: op.ordem, por: eu, motivo: op.motivo })
+    console.log(`Ordem ${op.ordem} parada. A vaga dela está livre.`)
+  },
+
+  async responder(op) {
+    const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
+    const estado = montarEstado(lerEventos(projeto))
+    const eu = quemSou()
+    const pergunta = estado.perguntas[op.pergunta]
+    if (!pergunta || pergunta.para !== eu) {
+      sair(
+        'Só quem recebeu a pergunta responde. Uso: hierarquia responder --pergunta p-NNN --texto "..."'
+      )
+    }
+    if (String(op.texto ?? '').trim() === '') {
+      sair('Falta a resposta: --texto "..."')
+    }
+    anotar(projeto, 'resposta', { perguntaId: op.pergunta, por: eu, texto: op.texto })
+    const chegou = await escreverNoChat(
+      estado.chats[pergunta.de]?.handle,
+      `RESPOSTA ${op.pergunta} de quem criou voce: ${op.texto}`
+    )
+    console.log(
+      chegou
+        ? `Resposta ${op.pergunta} escrita no chat que perguntou.`
+        : `Resposta ${op.pergunta} registrada, mas o chat que perguntou não recebeu: ele está fechado?`
+    )
   },
 
   entregar(op) {
     const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
     const eu = quemSou()
-    // O chat pode terminar antes de o lançador anotar quem ele é: espera a anotação chegar.
-    let estado = montarEstado(lerEventos(projeto))
-    for (
-      let i = 0;
-      i < 60 && estado.ordens[op.ordem] && estado.ordens[op.ordem].chatId !== eu;
-      i++
-    ) {
-      dormir(2000)
-      estado = montarEstado(lerEventos(projeto))
-    }
+    const estado = esperarMeuRegistro(projeto, eu)
     const provas = op.prova.map((caminho) => {
       const completo = isAbsolute(caminho) ? caminho : resolve(caminho)
       return { caminho: completo, existe: existsSync(completo) }
@@ -423,6 +394,7 @@ const comandos = {
       )
       return
     }
+    garantirVigia(caminhos(projeto).base, eu, import.meta.filename, projeto)
     appendFileSync(
       join(caminhos(projeto).ordens, `${op.ordem}.md`),
       `
@@ -482,19 +454,46 @@ ${op.motivo}
     }
   },
 
-  perguntar(op) {
+  async perguntar(op) {
     const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
-    const estado = montarEstado(lerEventos(projeto))
     const eu = quemSou()
-    const para =
-      destinoDaPergunta(estado, eu) ?? sair('Este chat está fora da hierarquia do projeto.')
-    const perguntaId = `p-${String(Object.keys(estado.perguntas).length + 1).padStart(3, '0')}`
-    anotar(projeto, 'pergunta', { perguntaId, de: eu, para, texto: op.texto })
-    console.log(
-      para === 'kaique'
-        ? `Pergunta ${perguntaId} está na Fila do Kaique. Siga com as outras frentes enquanto ele não responde.`
-        : `Pergunta ${perguntaId} registrada para ${para}. Envie-a agora com o comando "ask" do seu preâmbulo e espere a resposta.`
+    const soltar = pegarTrava(join(caminhos(projeto).base, 'trava-ordem'))
+    let estado
+    let para
+    let perguntaId
+    esperarMeuRegistro(projeto, eu)
+    try {
+      estado = montarEstado(lerEventos(projeto))
+      para = destinoDaPergunta(estado, eu) ?? sair('Este chat está fora da hierarquia do projeto.')
+      perguntaId = `p-${String(Object.keys(estado.perguntas).length + 1).padStart(3, '0')}`
+      anotar(projeto, 'pergunta', { perguntaId, de: eu, para, texto: op.texto })
+    } finally {
+      soltar()
+    }
+    if (para === 'kaique') {
+      console.log(
+        `Pergunta ${perguntaId} está na Fila do Kaique. Siga com as outras frentes enquanto ele não responde.`
+      )
+      return
+    }
+    const ordemId = estado.chats[eu]?.ordemId
+    const chegou = await escreverNoChat(
+      estado.chats[para]?.handle,
+      `PERGUNTA ${perguntaId} da ordem ${ordemId}: ${op.texto} -- Responda com: hierarquia responder --pergunta ${perguntaId} --texto "..."`
     )
+    console.log(
+      chegou
+        ? `Pergunta ${perguntaId} escrita no chat de quem criou você. Não use o "ask" do preâmbulo: termine o turno e espere, a resposta chega escrita aqui.`
+        : `Pergunta ${perguntaId} registrada, mas o chat de quem criou você não recebeu. Envie-a com o "ask" do seu preâmbulo.`
+    )
+  },
+
+  /** `hierarquia vez -- <comando>`: um comando pesado por vez na máquina inteira. */
+  async vez(op) {
+    if (op.comando.trim() === '') {
+      sair('Uso: hierarquia vez -- <comando pesado>')
+    }
+    process.exitCode = await rodarNaVez(op.comando)
   },
 
   'pedir-ok'(op) {
@@ -535,51 +534,99 @@ ${op.motivo}
     console.log(`Chat ${op.chat} encerrado.`)
   },
 
-  estado(op) {
+  async estado(op) {
     const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
-    const estado = montarEstado(lerEventos(projeto))
-    gravarFoto(projeto)
-    if (op.json) {
-      console.log(JSON.stringify({ estado, fila: filaDoKaique(estado) }, null, 2))
-      return
+    await comandoEstado(projeto, op)
+  },
+
+  /** Quem criou fecha o chat de uma ordem sua (ligado ou dormindo), ou todos os seus que terminaram. */
+  async fechar(op) {
+    const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
+    if (!op.ordem && !op.terminados && !op.pedido) {
+      sair('Uso: hierarquia fechar --ordem ID | --terminados | --pedido NOME')
     }
-    imprimirEstado(projeto, estado, filaDoKaique(estado))
+    const estado = montarEstado(lerEventos(projeto))
+    const eu = quemSou()
+    const ids = ordensParaFechar(estado, eu, op)
+    const linhas = await fecharChats({
+      projeto,
+      estado,
+      eu,
+      ids,
+      anotar: (tipo, dados) => anotar(projeto, tipo, dados)
+    })
+    console.log(linhas.length > 0 ? linhas.join('\n') : 'Nenhum chat seu para fechar.')
   }
 }
 
-function decisaoDoKaique(op, tipo) {
-  const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
-  const estado = montarEstado(lerEventos(projeto))
-  const chat = process.env.ORCA_TAB_ID
-  if (chat && estado.chats[chat]) {
-    sair('Só o Kaique dá OK ou devolve. Um chat da hierarquia não decide o próprio trabalho.')
+/** O chat pode começar a trabalhar antes de o lançador anotar quem ele é: espera a anotação, até 2 min. */
+function esperarMeuRegistro(projeto, eu) {
+  let estado = montarEstado(lerEventos(projeto))
+  for (let i = 0; i < 60 && !estado.chats[eu]; i++) {
+    dormir(2000)
+    estado = montarEstado(lerEventos(projeto))
   }
-  if (estado.ordens[op.ordem]?.situacao !== 'esperando_kaique') {
-    sair(`A ordem ${op.ordem} não está esperando o Kaique.`)
-  }
-  if (tipo !== 'ok' && String(op.motivo ?? '').trim() === '') {
-    sair('Devolver exige o motivo: --motivo "..."')
-  }
-  anotar(projeto, tipo, { ordemId: op.ordem, ...(op.motivo ? { motivo: op.motivo } : {}) })
-  avisarPo(
-    estado.chats[estado.po]?.handle,
-    tipo === 'ok'
-      ? `O Kaique deu OK na ordem ${op.ordem}. Rode hierarquia estado e siga: agora pode juntar ou publicar essa entrega.`
-      : `O Kaique DEVOLVEU a ordem ${op.ordem}. Motivo: ${op.motivo}. Rode hierarquia estado e decida o proximo passo.`
-  )
-  console.log(
-    tipo === 'ok'
-      ? `OK do Kaique registrado para ${op.ordem}.`
-      : `Ordem ${op.ordem} devolvida ao PO.`
-  )
+  return estado
 }
 
-const [nome, ...resto] = process.argv.slice(2)
+function pastaDoGit(pasta) {
+  return execFileSync('git', ['rev-parse', '--show-toplevel'], {
+    cwd: pasta,
+    encoding: 'utf8',
+    windowsHide: true
+  }).trim()
+}
+
+/** Ordens do chat que estão em espera e já cabem no teto. Marca a saída antes de lançar, para dois vigias não pegarem a mesma vaga. */
+async function lancarDaEspera(projeto, eu, log) {
+  let saidas = 0
+  for (;;) {
+    const soltar = pegarTrava(join(caminhos(projeto).base, 'trava-ordem'))
+    let ordem
+    let decisao
+    try {
+      const estado = montarEstado(lerEventos(projeto))
+      const proxima = ordensLiberadasDaEspera(estado)[0]
+      ordem = proxima && estado.ordens[proxima].de === eu ? estado.ordens[proxima] : null
+      decisao = ordem && decidirOrdem(estado, { de: eu, para: ordem.papel, campos: ordem.campos })
+      if (decisao?.acao === 'criar') {
+        anotar(projeto, 'saiu_da_espera', { ordemId: ordem.id })
+      }
+    } finally {
+      soltar()
+    }
+    if (decisao?.acao !== 'criar') {
+      return saidas
+    }
+    const atual = montarEstado(lerEventos(projeto))
+    const { chatId } = await lancar(
+      projeto,
+      atual,
+      atual.ordens[ordem.id],
+      decisao.modelo,
+      decisao.fechar
+    )
+    log(`Ordem ${ordem.id} saiu da espera: chat ${chatId}.`)
+    saidas += 1
+  }
+}
+
+const [nome, ...argumentos] = process.argv.slice(2)
 if (!comandos[nome]) {
   sair(`Uso: hierarquia <${Object.keys(comandos).join(' | ')}> [opções]`)
 }
+const separador = argumentos.indexOf('--')
+const resto = separador === -1 ? argumentos : argumentos.slice(0, separador)
 const op = opcoes(resto)
-if (nome !== 'criar-po') {
+// O comando volta a ser uma linha de shell: argumento com espaço ou símbolo vai entre aspas.
+op.comando =
+  separador === -1
+    ? ''
+    : argumentos
+        .slice(separador + 1)
+        .map((arg) => (/[\s"&|<>^()]/u.test(arg) ? `"${arg.replaceAll('"', '\\"')}"` : arg))
+        .join(' ')
+if (nome !== 'criar-po' && nome !== 'vez') {
   reconectar(op)
 }
 await comandos[nome](op)

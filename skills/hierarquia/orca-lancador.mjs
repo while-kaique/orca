@@ -1,6 +1,6 @@
 // Conversa com o Orca: lançar chat, manter aberto e avisar. Usado pelo comando `hierarquia`.
 import { execFile, execFileSync } from 'node:child_process'
-import { acharTarefaNova, acharTerminalNovo } from './regras.mjs'
+import { acharTarefaNova, acharTerminalNovo, ondeEstaOTexto } from './regras.mjs'
 
 /** O texto que vai para o Orca precisa ser ASCII puro: acento vira lixo na ordem. */
 export function semAcento(texto) {
@@ -16,6 +16,8 @@ function opcoesDoProcesso() {
     encoding: 'utf8',
     // No Windows o comando é um .cmd, que só abre pelo shell.
     shell: process.platform === 'win32',
+    // O vigia roda solto, sem console: sem isto cada chamada abre uma janela de cmd na tela.
+    windowsHide: true,
     maxBuffer: 64 * 1024 * 1024
   }
 }
@@ -72,7 +74,8 @@ export function citar(texto) {
 export function branchDoProjeto(projeto) {
   return execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
     cwd: projeto,
-    encoding: 'utf8'
+    encoding: 'utf8',
+    windowsHide: true
   }).trim()
 }
 
@@ -121,6 +124,48 @@ export function avisarPo(po, texto) {
   } catch {
     // Sem o aviso, o PO ainda vê a decisão no próximo `hierarquia estado`.
   }
+}
+
+/** A aba nasce como "worker-task_...": com o título da ordem, quem olha o fluxograma sabe o que ela é. */
+export function renomearAba(handle, titulo) {
+  return orcaEmSegundoPlano([
+    'terminal',
+    'rename',
+    '--terminal',
+    handle,
+    '--title',
+    citar(semAcento(titulo))
+  ]).catch(() => null)
+}
+
+/**
+ * Escreve uma linha no chat como se alguém digitasse e enviasse; se ela ficar parada na caixa de
+ * texto, envia de novo uma vez. `%` sai porque o shell do Windows o trocaria.
+ */
+export async function escreverNoChat(handle, texto) {
+  const linha = semAcento(texto).replace(/%/gu, ' por cento')
+  const enviar = (conteudo) =>
+    orcaEmSegundoPlano([
+      'terminal',
+      'send',
+      '--terminal',
+      handle,
+      '--text',
+      citar(conteudo),
+      '--enter'
+    ])
+  const resposta = await enviar(linha)
+  if (!resposta.ok) {
+    return false
+  }
+  await esperar(4000)
+  const tela = (
+    await orcaEmSegundoPlano(['terminal', 'read', '--terminal', handle]).catch(() => null)
+  )?.result?.terminal?.tail
+  if (tela && ondeEstaOTexto(tela, linha.slice(0, 40)) === 'na_caixa') {
+    await enviar(' ')
+  }
+  return true
 }
 
 /** A aba em que o Orca abriu o chat recém-lançado; cada chamada ao Orca demora, então uma só quando basta. */

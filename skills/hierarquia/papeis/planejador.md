@@ -36,29 +36,38 @@ do trabalho, ele entra no seu pacote: leia, ajuste o plano e entregue tudo junto
    outra mexe e peça mudança mínima (sem reformatar linhas alheias). Arquivo em que todas as tarefas
    acrescentam algo (lista de cenários, índice, registro de rotas): peça um arquivo novo por tarefa
    em vez de todos editarem o mesmo. Uma só espera a outra quando depende do que a outra vai criar.
-6. **Confira** cada entrega (abaixo).
+6. **Confira** cada entrega (abaixo). Você não precisa vigiar: o comando escreve no seu chat **uma**
+   mensagem quando todas as ordens do pedido terminaram ("PEDIDO FECHADO: ..."). Chat que fechou,
+   caiu ou ficou 20 min sem nada na tela conta como parado sozinho; baixa sua numa ordem:
+   `hierarquia baixa --ordem ID --motivo "..."`.
 7. **Junte.** Traga para a **sua** branch a branch de cada executor aprovado (`git merge`), uma por
    vez. Conflito você resolve, ou manda um executor resolver. O PO não junta branch de executor.
 8. **Prove o conjunto.** Com tudo junto na sua branch: rode as checagens que o projeto exige e veja o
    **produto de verdade funcionando** (o programa real aberto, o comando real rodando), critério por
    critério da sua ordem. Print de cenário montado não prova que o produto funciona. Guarde saídas e
    prints na pasta de prova. Escreva também, em palavras simples, o que ficou **sem** provar.
+   Toda checagem pesada (`pnpm tc`, testes, `pnpm fixtures:shot`, build) roda com
+   `hierarquia vez -- <comando>`: um comando pesado por vez na máquina, os outros esperam.
 9. **Entregue uma vez só**, com `hierarquia entregar`, quando todos os seus executores terminaram e
    os passos 7 e 8 estão feitos. A entrega diz: a branch final, o que mudou no produto, onde está a
-   prova e o que ficou sem provar.
+   prova e o que ficou sem provar. Antes, feche os chats dos seus executores que terminaram:
+   `hierarquia fechar --terminados` (nunca remove pasta nem branch).
 
-Limite: 4 executores ao mesmo tempo. O que passar disso espera na fila.
+Limite: o comando segura 2 executores trabalhando no projeto inteiro (somando os do outro planejador e
+os do PO). O que passar disso espera na fila e sai sozinho quando abre vaga.
 
 ## Quantos executores usar
 
-O teto é 4, mas o número certo é **o menor que resolve**. Cada executor custa: um chat novo, uma
+O teto é 2 executores no projeto inteiro, divididos com o outro planejador se houver, mas o número
+certo é **o menor que resolve**. Cada executor custa: um chat novo, uma
 ordem para escrever, uma entrega para conferir. Decida assim:
 
 - **1 executor:** a mudança cabe em um território só, ou as partes dependem uma da outra. É o caso
   mais comum. Mudança simples nunca justifica mais de um.
-- **2 a 4 executores:** quando existem partes **independentes** (uma não precisa do resultado da
+- **2 executores:** quando existem partes **independentes** (uma não precisa do resultado da
   outra) e fazer em paralelo economiza tempo de verdade. Arquivo em comum não impede: a junção é
-  pelo git. O teto de 4 já protege a máquina; memória do computador não é critério seu.
+  pelo git. Mais partes que vagas: lance todas; as que passarem do teto esperam na fila e saem
+  sozinhas. O teto já protege a máquina; memória do computador não é critério seu.
 
 Escreva no plano, em uma linha, por que escolheu esse número.
 
@@ -110,7 +119,8 @@ Releia este arquivo, a sua ordem e rode `hierarquia estado` antes de continuar.
 
 ## Dúvidas
 
-A dúvida do executor chega em você. Responda o que souber pelo plano e pela ordem. O que você não
+A dúvida do executor chega escrita no seu chat. Responda o que souber pelo plano e pela ordem, com
+`hierarquia responder --pergunta p-NNN --texto "..."`. O que você não
 souber, mande ao PO com `hierarquia perguntar`. Nunca abra pergunta direta para o Kaique: quem
 fala com ele é o PO.
 
