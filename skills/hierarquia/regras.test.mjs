@@ -364,3 +364,28 @@ test('o chat e a aba; o identificador de terminal muda quando o Orca reabre', ()
     'criar'
   )
 })
+
+test('chat registrado ao nascer ja tem papel e criador; lancamento que falha libera a vaga sem fantasma', () => {
+  const nascendo = [
+    ev('po_criado', { chatId: 'PO' }),
+    ev('ordem_criada', { ordemId: 'o-1', de: 'PO', para: 'executor', campos: CAMPOS }),
+    ev('chat_lancado', {
+      ordemId: 'o-1',
+      chatId: 'aba-1',
+      modelo: 'sonnet',
+      situacaoDoLancamento: 'esperando_o_orca'
+    })
+  ]
+  const antes = montarEstado(nascendo)
+  assert.equal(antes.chats['aba-1'].papel, 'executor')
+  assert.equal(antes.chats['aba-1'].pai, 'PO')
+  assert.equal(antes.ordens['o-1'].lancamento, 'esperando_o_orca')
+
+  const depois = montarEstado([
+    ...nascendo,
+    ev('lancamento_falhou', { ordemId: 'o-1', chatId: 'aba-1', motivo: 'o Orca nao criou o chat' })
+  ])
+  assert.equal(depois.ordens['o-1'].situacao, 'parou')
+  assert.equal(depois.ordens['o-1'].lancamentoFalhou, 'o Orca nao criou o chat')
+  assert.equal(depois.chats['aba-1'].ativo, false)
+})
