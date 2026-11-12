@@ -3,7 +3,7 @@ import { citar, esperar, orcaEmSegundoPlano } from './orca-lancador.mjs'
 import { decidirInicio, ondeEstaOTexto } from './regras.mjs'
 
 const INTERVALO_MS = 2000
-const PRAZO_FINAL_MS = 20000
+const PRAZO_FINAL_MS = 60000
 
 async function atividadeDoWorker(dispatchId) {
   const resposta = await orcaEmSegundoPlano([

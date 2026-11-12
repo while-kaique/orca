@@ -460,6 +460,13 @@ test('ordem parada na caixa e enviada uma vez so; chat que ja trabalha nao receb
     'comecou'
   )
   const sozinho = { naCaixaDesde: null, tentouEnviarEm: null, enviadaEm: null, comecouEm: null }
+  let carregada = sozinho
+  const comFalhas = ['na_caixa', 'desconhecido', 'na_caixa'].map((onde, i) => {
+    const r = decidirInicio(carregada, { atividade: null, onde }, 1000 + i * 2500)
+    carregada = r.vigia
+    return r.acao
+  })
+  assert.deepEqual(comFalhas, ['esperar', 'esperar', 'enviar'])
   assert.equal(
     decidirInicio(sozinho, { atividade: 'working', onde: 'na_caixa' }, 1000).acao,
     'comecou'

@@ -153,7 +153,7 @@ function precisaDoCriador(estado, eu, mensagem) {
  * O laço do vigia. `deps`: lerEstado(), anotar(tipo, dados), lancarDaEspera() e o chat dono (`eu`).
  * Termina quando todo pedido do criador fechou e virou mensagem, ou quando a aba dele some.
  */
-export async function vigiar({ base, eu, lerEstado, anotar, lancarDaEspera }) {
+export async function vigiar({ base, eu, lerEstado, anotar, lancarDaEspera, destravar }) {
   const meus = arquivos(base, eu)
   const dados = { pid: process.pid, chatId: eu, desde: new Date().toISOString() }
   for (;;) {
@@ -219,6 +219,7 @@ export async function vigiar({ base, eu, lerEstado, anotar, lancarDaEspera }) {
         }
       }
       await lancarDaEspera(log)
+      await destravar(log)
       const estado = lerEstado()
       for (const grupo of pedidosParaAvisar(estado, eu)) {
         if (jaFechados.get(grupo.pedido) === grupo.assinatura) {

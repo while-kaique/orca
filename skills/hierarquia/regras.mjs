@@ -594,7 +594,9 @@ export function decidirInicio(vigia, visto, agora) {
   }
   const proximo = { ...vigia, onde: visto.onde }
   if (visto.onde !== 'na_caixa') {
-    return { acao: 'esperar', vigia: { ...proximo, naCaixaDesde: null } }
+    // Leitura que falhou (máquina carregada) não prova que o texto saiu da caixa: a contagem continua.
+    const desde = visto.onde === 'desconhecido' ? vigia.naCaixaDesde : null
+    return { acao: 'esperar', vigia: { ...proximo, onde: vigia.onde, naCaixaDesde: desde } }
   }
   const desde = vigia.naCaixaDesde ?? agora
   if (!vigia.tentouEnviarEm && agora - desde >= ESTABILIDADE_DA_CAIXA_MS) {

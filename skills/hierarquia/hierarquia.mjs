@@ -39,6 +39,7 @@ import { opcoes } from './opcoes-da-linha.mjs'
 import { imprimirEstado } from './estado-na-tela.mjs'
 import { foraDoGit } from './pasta-fora-do-git.mjs'
 import { decisaoDoKaique } from './decisao-do-kaique.mjs'
+import { destravarInicios } from './destravar-inicio.mjs'
 import {
   acharProjeto,
   anotar,
@@ -286,7 +287,8 @@ const comandos = {
       eu,
       lerEstado: () => montarEstado(lerEventos(projeto)),
       anotar: (tipo, dados) => anotar(projeto, tipo, dados),
-      lancarDaEspera: (log) => lancarDaEspera(projeto, eu, log)
+      lancarDaEspera: (log) => lancarDaEspera(projeto, eu, log),
+      destravar: (log) => destravarInicios(projeto, eu, log)
     })
   },
 
