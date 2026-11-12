@@ -10,6 +10,7 @@ import { criarSeNaoExiste, lerJson, processoVivo } from './trava.mjs'
 /** Chat sem nada na tela por mais que isso, sem pergunta aberta nem filha trabalhando, conta como parado. */
 export const PRAZO_SEM_ATIVIDADE_MS = 20 * 60 * 1000
 const PASSO_MS = 5000
+const SOBRA_DEPOIS_DO_ULTIMO_MS = 3 * 60 * 1000
 const VIDA_MS = 30000
 const ESPERA_DO_CORREIO_MS = '60000'
 
@@ -205,6 +206,7 @@ export async function vigiar({ base, eu, lerEstado, anotar, lancarDaEspera, dest
   )
   log(`vigia ligado (caixas: chat${run ? ` e ${run}` : ''})`)
   let conferidoEm = 0
+  let tudoFechadoEm = null
   try {
     for (;;) {
       if (Date.now() - conferidoEm > VIDA_MS) {
@@ -234,9 +236,15 @@ export async function vigiar({ base, eu, lerEstado, anotar, lancarDaEspera, dest
         })
         log(`pedido fechado: ${grupo.pedido}`)
       }
+      // O worker_done do último filho chega depois da entrega: a caixa fica segura mais um pouco.
       if (pedidosDoCriador(lerEstado(), eu).every((grupo) => grupo.terminado)) {
-        log('todos os pedidos fecharam: vigia desligado')
-        return
+        tudoFechadoEm ??= Date.now()
+        if (Date.now() - tudoFechadoEm > SOBRA_DEPOIS_DO_ULTIMO_MS) {
+          log('todos os pedidos fecharam: vigia desligado')
+          return
+        }
+      } else {
+        tudoFechadoEm = null
       }
       await esperar(PASSO_MS)
     }
