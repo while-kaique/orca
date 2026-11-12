@@ -5,6 +5,7 @@ import {
   acharTarefaNova,
   acharTerminalNovo,
   chatsSemVida,
+  criadorSemAba,
   decidirConferencia,
   decidirEntrega,
   decidirInicio,
@@ -16,6 +17,7 @@ import {
   montarEstado,
   ondeEstaOTexto,
   ordensLiberadasDaEspera,
+  ordensSemInicio,
   pedidosParaAvisar,
   temOkDoKaique
 } from './regras.mjs'
@@ -455,9 +457,29 @@ test('ordem parada na caixa e enviada uma vez so; chat que ja trabalha nao receb
     return r.acao
   })
   assert.deepEqual(acoes, ['esperar', 'esperar', 'enviar', 'esperar'])
+  // A tecla pode se perder: com o texto ainda na caixa 20 s depois, envia de novo (e so de novo ali).
+  assert.equal(decidirInicio(vigia, parado, 25500).acao, 'enviar')
+  assert.equal(
+    decidirInicio(vigia, { atividade: 'working', onde: 'na_caixa' }, 25500).acao,
+    'comecou'
+  )
   assert.equal(
     decidirInicio(vigia, { atividade: 'working', onde: 'no_historico' }, 12000).acao,
     'comecou'
+  )
+  // Chat novo que ja concluiu o turno comecou (tela velha); reaproveitado (correcao) ou com a ordem na caixa, nao.
+  const base = { naCaixaDesde: null, tentouEnviarEm: null, enviadaEm: null, comecouEm: null }
+  assert.equal(
+    decidirInicio({ ...base, chatNovo: true }, { atividade: 'done', onde: 'ausente' }, 1000).acao,
+    'comecou'
+  )
+  assert.equal(
+    decidirInicio({ ...base, chatNovo: false }, { atividade: 'done', onde: 'ausente' }, 1000).acao,
+    'esperar'
+  )
+  assert.equal(
+    decidirInicio({ ...base, chatNovo: true }, { atividade: 'done', onde: 'na_caixa' }, 1000).acao,
+    'esperar'
   )
   const sozinho = { naCaixaDesde: null, tentouEnviarEm: null, enviadaEm: null, comecouEm: null }
   let carregada = sozinho
@@ -570,4 +592,38 @@ test('a vez de quem morreu e solta e vai ao primeiro vivo da fila', () => {
     decidirVez({ dono: { pid: 30 }, fila: [{ pid: 40, chegada: 1 }], vivo }).proximo,
     null
   )
+})
+
+test('o vigia acha a aba do criador pelo terminal quando o Orca a lista com outro identificador', () => {
+  const terminais = [{ tabId: 'pty:fae6::C:/orca@@351ac37a', handle: 'term_bc1f' }]
+  assert.equal(criadorSemAba(terminais, '105fc07b', ['term_bc1f', undefined]), false)
+  assert.equal(criadorSemAba(terminais, '105fc07b', ['term_antigo']), true)
+})
+
+test('chat que nao comecou: o vigia tenta ate 45 min, depois desiste uma vez', () => {
+  const t0 = Date.parse('2026-11-12T16:00:00Z')
+  const lancado = (inicio) => {
+    const estado = montarEstado([
+      ev('po_criado', { chatId: 'PO' }),
+      ev('ordem_criada', { ordemId: 'o-1', de: 'PO', para: 'executor', campos: CAMPOS }),
+      {
+        ...ev('chat_lancado', {
+          ordemId: 'o-1',
+          chatId: 'aba-1',
+          modelo: 'sonnet',
+          situacaoDoLancamento: 'esperando_o_orca'
+        }),
+        t: new Date(t0).toISOString()
+      },
+      ...(inicio ? [ev('chat_nao_iniciou', { ordemId: 'o-1', naCaixa: true, ...inicio })] : [])
+    ])
+    return (minutos) => ordensSemInicio(estado, 'PO', t0 + minutos * 60000)
+  }
+  const pendente = lancado(null)
+  assert.equal(pendente(5).tentar.length, 0)
+  assert.equal(pendente(11).tentar.length, 1)
+  const naoEnviada = lancado({})
+  assert.equal(naoEnviada(1).tentar.length, 1)
+  assert.equal(naoEnviada(46).desistir.length, 1)
+  assert.equal(lancado({ desistiu: true })(46).desistir.length, 0)
 })

@@ -81,6 +81,8 @@ export function montarEstado(eventos) {
         ordem.pasta = ev.pasta
         ordem.situacao = 'trabalhando'
         ordem.lancamento = ev.situacaoDoLancamento
+        ordem.lancadoEm = ev.t
+        ordem.inicioDesistido = false
         ordem.inicio = ev.situacaoDoLancamento === 'ready' ? 'confirmado' : 'pendente'
         estado.chats[ev.chatId] = {
           id: ev.chatId,
@@ -106,6 +108,7 @@ export function montarEstado(eventos) {
         break
       case 'chat_nao_iniciou':
         ordem.inicio = ev.naCaixa ? 'nao_enviada' : 'nao_confirmado'
+        ordem.inicioDesistido = Boolean(ev.desistiu)
         break
       case 'lancamento_falhou':
         ordem.situacao = 'parou'
@@ -598,17 +601,28 @@ export function ondeEstaOTexto(linhas, trecho) {
 }
 
 export const ESTABILIDADE_DA_CAIXA_MS = 4000
+/** Depois de enviar, o texto precisa continuar na caixa por este tempo para valer um novo envio (a tecla pode ter se perdido). */
+export const REENVIO_APOS_MS = 20000
+export const MAXIMO_DE_ENVIOS = 6
+/** O comando que lancou o chat tem ate isto para confirmar o inicio; depois, quem insiste e o vigia do criador. */
+export const JANELA_DO_COMANDO_MS = 10 * 60 * 1000
+/** Quanto tempo o vigia do criador insiste num chat que nao comecou, a contar do lancamento. */
+export const PRAZO_DE_INSISTIR_MS = 45 * 60 * 1000
 
 /**
  * Um passo da conferência do início do turno. `vigia` guarda o que já foi visto/feito; `visto` é
- * {atividade, onde}. Envia no máximo uma vez, e só quando o texto ficou parado na caixa.
+ * {atividade, onde}. Só envia com o texto parado na caixa; chat que já trabalha nunca recebe tecla.
+ * Reenvia se o texto continua na caixa bem depois do último envio.
  */
 export function decidirInicio(vigia, visto, agora) {
   if (vigia.comecouEm) {
     return { acao: 'comecou', vigia }
   }
-  if (visto.atividade === 'working' || visto.onde === 'no_historico') {
-    const fonte = visto.atividade === 'working' ? 'atividade' : 'tela'
+  // Turno já concluído (a tela lida pode estar velha) vale como começou, mas só em chat novo e sem a ordem parada na caixa.
+  const concluido = vigia.chatNovo && visto.atividade === 'done' && visto.onde !== 'na_caixa'
+  if (visto.atividade === 'working' || visto.onde === 'no_historico' || concluido) {
+    const fonte =
+      visto.atividade === 'working' ? 'atividade' : concluido ? 'turno_concluido' : 'tela'
     return { acao: 'comecou', vigia: { ...vigia, comecouEm: agora, fonte, onde: visto.onde } }
   }
   const proximo = { ...vigia, onde: visto.onde }
@@ -618,8 +632,51 @@ export function decidirInicio(vigia, visto, agora) {
     return { acao: 'esperar', vigia: { ...proximo, onde: vigia.onde, naCaixaDesde: desde } }
   }
   const desde = vigia.naCaixaDesde ?? agora
-  if (!vigia.tentouEnviarEm && agora - desde >= ESTABILIDADE_DA_CAIXA_MS) {
-    return { acao: 'enviar', vigia: { ...proximo, naCaixaDesde: desde } }
+  const envios = vigia.envios ?? (vigia.tentouEnviarEm ? 1 : 0)
+  const paradoDesde = envios === 0 ? desde : Math.max(desde, vigia.tentouEnviarEm ?? 0)
+  const espera = envios === 0 ? ESTABILIDADE_DA_CAIXA_MS : REENVIO_APOS_MS
+  if (envios < MAXIMO_DE_ENVIOS && agora - paradoDesde >= espera) {
+    return { acao: 'enviar', vigia: { ...proximo, naCaixaDesde: desde, envios: envios + 1 } }
   }
-  return { acao: 'esperar', vigia: { ...proximo, naCaixaDesde: desde } }
+  return { acao: 'esperar', vigia: { ...proximo, naCaixaDesde: desde, envios } }
+}
+
+/** A aba do criador some da lista do Orca com outro identificador depois de o Orca reabrir: vale achá-la também pelo terminal. */
+export function criadorSemAba(terminais, chatId, handles) {
+  const certos = handles.filter(Boolean)
+  return (
+    terminais.length > 0 && !terminais.some((t) => t.tabId === chatId || certos.includes(t.handle))
+  )
+}
+
+/**
+ * Ordens do criador cujo chat ainda não comecou e que o vigia deve destravar: as que o comando
+ * já declarou sem início e as que ficaram "lançando" além da janela do comando (ele morreu).
+ * `desistir` lista as que passaram do prazo de insistir e ainda não foram declaradas desistidas.
+ */
+export function ordensSemInicio(estado, eu, agora) {
+  const tentar = []
+  const desistir = []
+  for (const ordem of Object.values(estado.ordens)) {
+    const chat = ordem.chatId ? estado.chats[ordem.chatId] : null
+    if (
+      ordem.de !== eu ||
+      ordem.situacao !== 'trabalhando' ||
+      !chat?.ativo ||
+      ordem.inicio === 'confirmado' ||
+      ordem.inicioDesistido
+    ) {
+      continue
+    }
+    const idade = agora - Date.parse(ordem.lancadoEm)
+    if (Number.isNaN(idade)) {
+      continue
+    }
+    if (idade >= PRAZO_DE_INSISTIR_MS) {
+      desistir.push(ordem)
+    } else if (ordem.inicio !== 'pendente' || idade >= JANELA_DO_COMANDO_MS) {
+      tentar.push(ordem)
+    }
+  }
+  return { tentar, desistir }
 }

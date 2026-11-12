@@ -4,7 +4,13 @@ import { execFile, execFileSync, spawn } from 'node:child_process'
 import { appendFileSync, mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { escreverNoChat, esperar, orcaEmSegundoPlano } from './orca-lancador.mjs'
-import { chatsSemVida, mensagemDoPedido, pedidosDoCriador, pedidosParaAvisar } from './regras.mjs'
+import {
+  chatsSemVida,
+  criadorSemAba,
+  mensagemDoPedido,
+  pedidosDoCriador,
+  pedidosParaAvisar
+} from './regras.mjs'
 import { criarSeNaoExiste, lerJson, processoVivo } from './trava.mjs'
 
 /** Chat sem nada na tela por mais que isso, sem pergunta aberta nem filha trabalhando, conta como parado. */
@@ -212,7 +218,7 @@ export async function vigiar({ base, eu, lerEstado, anotar, lancarDaEspera, dest
       if (Date.now() - conferidoEm > VIDA_MS) {
         conferidoEm = Date.now()
         const terminais = (await orcaEmSegundoPlano(['terminal', 'list'])).result?.terminals ?? []
-        if (terminais.length > 0 && !terminais.some((t) => t.tabId === eu)) {
+        if (criadorSemAba(terminais, eu, [handle(), process.env.ORCA_TERMINAL_HANDLE])) {
           log('a aba do criador sumiu: vigia desligado')
           return
         }

@@ -1,5 +1,6 @@
 // A pasta `.hierarquia/` fica fora do git do projeto. Usado pelo comando `hierarquia`.
 import { appendFileSync, existsSync, readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 
 /** `.hierarquia/` é do PO, não do produto: fica fora do git do projeto, sem mexer no .gitignore dele. */
@@ -22,4 +23,13 @@ export function foraDoGit(projeto) {
   } catch {
     // `.git` é arquivo (cópia de trabalho) ou sem permissão: o PO avisa se aparecer no git status.
   }
+}
+
+/** A raiz do git em que a pasta está. */
+export function pastaDoGit(pasta) {
+  return execFileSync('git', ['rev-parse', '--show-toplevel'], {
+    cwd: pasta,
+    encoding: 'utf8',
+    windowsHide: true
+  }).trim()
 }

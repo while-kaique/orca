@@ -272,6 +272,57 @@ export async function lancarWorker(args, tituloDaTarefa, { aoNascer, aoEsperar }
   return { resposta, nascido: certo ? nascido : null, enganado: certo ? null : nascido }
 }
 
+/** O Orca desistiu de criar a pasta de trabalho porque o git passou do limite dele (máquina lenta). */
+export function pastaDemorouDemais(resposta) {
+  const dados = resposta.result ?? {}
+  return (
+    dados.failedStage === 'worktree_create' ||
+    /Creating the worktree took longer/u.test(String(dados.lastError ?? resposta.error ?? ''))
+  )
+}
+
+/** Solta no Orca o que um lançamento sem chat deixou pendente: o despacho vira abandonado e a tarefa, cancelada. */
+export async function soltarLancamentoSemChat(resposta, de) {
+  const { dispatchId, taskId } = resposta.result ?? {}
+  const quem = de ? ['--from', de] : []
+  if (dispatchId) {
+    await orcaEmSegundoPlano(['orchestration', 'worker-abandon', '--dispatch', dispatchId]).catch(
+      () => null
+    )
+  }
+  if (taskId) {
+    await orcaEmSegundoPlano([
+      'orchestration',
+      'task-update',
+      '--id',
+      taskId,
+      '--status',
+      'failed',
+      '--result',
+      'cancelled',
+      ...quem
+    ]).catch(() => null)
+  }
+  return (resposta.result?.residualResources ?? []).length
+}
+
+/**
+ * Lança; se o Orca desistiu da pasta de trabalho, solta o que ficou pendente e lança mais uma vez
+ * com mais tempo. Nada é gravado no registro entre as duas: quem chama grava só o resultado final.
+ */
+export async function lancarComNovaTentativa(lancarUmaVez, [primeiraMs, segundaMs], de) {
+  const semChat = (saida) => !saida.nascido && !saida.resposta.result?.terminal
+  let lancamento = await lancarUmaVez(primeiraMs)
+  if (semChat(lancamento) && pastaDemorouDemais(lancamento.resposta)) {
+    console.log(
+      'A pasta de trabalho demorou mais de 3 min para nascer (maquina ocupada). Tentando de novo uma vez, com o dobro do tempo.'
+    )
+    await soltarLancamentoSemChat(lancamento.resposta, de)
+    lancamento = await lancarUmaVez(segundaMs)
+  }
+  return lancamento
+}
+
 /** Devolve a correção ao chat que já existe (`--terminal`); o Orca recusa enquanto ele ainda fecha o turno anterior. */
 export function enviarCorrecao({ de, handle, pasta, ordemId, pedido, timeoutMs }) {
   const reenviar = () =>

@@ -176,8 +176,10 @@ lento.
 2. Escreva a ordem com os cinco campos: objetivo, por quê, critérios de aceite, limites, território.
    Os critérios de aceite são seus e vêm **antes** do trabalho. Quem executa nunca define o que é "pronto".
 3. Lance tudo o que o plano prevê, um comando depois do outro. Rode `hierarquia estado` **uma vez**
-   no fim para ver que cada chat nasceu registrado embaixo de você e começou. Chat que não começou:
-   conte ao Kaique (ver "Antes de abrir qualquer chat"). Depois disso, pare.
+   no fim para ver que cada chat nasceu registrado embaixo de você e começou. O comando insiste
+   sozinho até o chat começar (o vigia segue até 45 min) e, se a pasta de trabalho demorar, tenta de
+   novo uma vez; só quando ele disser "a ordem esta digitada no chat X, falta enviar" ou "nao criou a
+   pasta em duas tentativas" conte ao Kaique (ver "Antes de abrir qualquer chat"). Depois disso, pare.
 
 ## Depois de lançar: você dorme (regra do Kaique, 12/11/2026)
 

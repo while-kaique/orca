@@ -1,5 +1,26 @@
 # Onde paramos — fork do Orca "PC como mesa"
 
+## 12/11/2026 (noite, ordem o-032) — `hierarquia ordem` insiste até o chat começar
+
+**Estado:** código e papéis na branch `kaiquebreno-ggp/feat-o-032-executor` (não enviada; quem junta é o PO).
+Spec: `docs/specs/hierarquia-fluxo-sem-vigia.md`, item (C2). Provas: `.hierarquia/provas/o-032/` (pasta principal, fora do git).
+
+**Causas (12/11).** o-030: o Orca desistiu de criar a pasta porque o `git` passou do limite dele (180 s), visto no
+despacho `ctx_76d4f4c114c2` (`failedStage: worktree_create`, sem pasta nem branch sobrando). o-031: o comando só
+olhou a tela por 60 s e o vigia do criador, que devia continuar, desligou em 12 s: o Orca lista a aba do PO
+reaberto como `pty:...` e o vigia achou que ela sumiu (log `vigias/105fc07b...log`, 3 vezes).
+
+**O que mudou para quem usa:** o comando confere o início por até 4 min e só envia Enter com a ordem parada na
+caixa (reenvia depois de 20 s se continuar lá, no máximo 6 vezes; chat que já trabalha nunca recebe tecla). Se
+terminar sem o chat começar, o vigia do criador segue por até 45 min e, se desistir, escreve no chat do criador
+"a ordem esta digitada no chat X, falta enviar"; `hierarquia estado` mostra a mesma frase. Se o Orca desistir da
+pasta, o comando solta o despacho pendente, espera o dobro e tenta **uma** vez mais. Papéis `po.md` e
+`planejador.md` atualizados (uma frase cada).
+
+**Como ler as provas:** **VISTO COM ORCA DE TESTE** = o comando de verdade rodou contra um Orca de teste que responde
+como o real, só com espera (sem carga). **VISTO NO ORCA REAL** = chat real. Lista completa do que ficou sem provar
+na entrega da o-032 (`.hierarquia/provas/o-032/resumo.md`).
+
 ## 12/11/2026 (tarde, ordem o-021) — comando `hierarquia`: PO dorme, aviso por pedido, fila, vez, chat morto
 
 **Como ler:** **VISTO NO ORCA REAL** = rodado no Orca em uso com chats de teste de verdade, com a saída
