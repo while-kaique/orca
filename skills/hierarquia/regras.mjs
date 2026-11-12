@@ -245,7 +245,10 @@ export function decidirOrdem(estado, { de, para, campos }) {
  */
 function chatParaFecharAoAbrir(estado, de, para) {
   const teto = TETO_DO_PAPEL[para]()
-  const abertos = Object.values(estado.chats).filter((chat) => chat.ativo && chat.papel === para)
+  // Só fecha chat criado pelo mesmo criador: chat de outro nunca é tocado.
+  const abertos = Object.values(estado.chats).filter(
+    (chat) => chat.ativo && chat.papel === para && chat.pai === de
+  )
   if (abertos.length < teto) {
     return null
   }

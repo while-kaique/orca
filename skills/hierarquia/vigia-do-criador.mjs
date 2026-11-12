@@ -56,7 +56,10 @@ function matarArvore(processo) {
   }
   try {
     if (process.platform === 'win32') {
-      execFileSync('taskkill', ['/pid', String(processo.pid), '/T', '/F'], { stdio: 'ignore' })
+      execFileSync('taskkill', ['/pid', String(processo.pid), '/T', '/F'], {
+        stdio: 'ignore',
+        windowsHide: true
+      })
     } else {
       processo.kill()
     }
@@ -88,7 +91,12 @@ function segurarCaixa(caixa, aoChegar, aoErrar) {
         ESPERA_DO_CORREIO_MS,
         '--json'
       ],
-      { encoding: 'utf8', shell: process.platform === 'win32', maxBuffer: 16 * 1024 * 1024 },
+      {
+        encoding: 'utf8',
+        shell: process.platform === 'win32',
+        windowsHide: true,
+        maxBuffer: 16 * 1024 * 1024
+      },
       (erro, saida) => {
         try {
           const util = String(saida ?? '')

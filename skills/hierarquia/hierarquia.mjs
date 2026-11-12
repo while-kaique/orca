@@ -568,7 +568,8 @@ ${op.motivo}
 function pastaDoGit(pasta) {
   return execFileSync('git', ['rev-parse', '--show-toplevel'], {
     cwd: pasta,
-    encoding: 'utf8'
+    encoding: 'utf8',
+    windowsHide: true
   }).trim()
 }
 

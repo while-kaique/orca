@@ -30,7 +30,8 @@ export function acharProjeto(explicito) {
   }
   try {
     const comum = execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
-      encoding: 'utf8'
+      encoding: 'utf8',
+      windowsHide: true
     }).trim()
     const principal = dirname(comum)
     if (existsSync(join(principal, '.hierarquia'))) {

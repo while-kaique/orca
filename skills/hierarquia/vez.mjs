@@ -67,7 +67,7 @@ export async function rodarNaVez(comando) {
   const esperou = Math.round((Date.now() - chegada) / 1000)
   console.log(`[vez] ${hora()} comecou (esperou ${esperou} s): ${comando}`)
   const codigo = await new Promise((pronto) => {
-    const filho = spawn(comando, { shell: true, stdio: 'inherit' })
+    const filho = spawn(comando, { shell: true, stdio: 'inherit', windowsHide: true })
     filho.on('exit', (code) => pronto(code ?? 1))
     filho.on('error', () => pronto(1))
   })

@@ -16,6 +16,8 @@ function opcoesDoProcesso() {
     encoding: 'utf8',
     // No Windows o comando é um .cmd, que só abre pelo shell.
     shell: process.platform === 'win32',
+    // O vigia roda solto, sem console: sem isto cada chamada abre uma janela de cmd na tela.
+    windowsHide: true,
     maxBuffer: 64 * 1024 * 1024
   }
 }
@@ -72,7 +74,8 @@ export function citar(texto) {
 export function branchDoProjeto(projeto) {
   return execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
     cwd: projeto,
-    encoding: 'utf8'
+    encoding: 'utf8',
+    windowsHide: true
   }).trim()
 }
 
