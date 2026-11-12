@@ -52,8 +52,33 @@ Quem criou dá baixa com `hierarquia baixa --ordem ID --motivo "..."`. Ordem par
 - 1", e dois lançamentos juntos ganhariam o mesmo número; agora a criação é feita sob uma trava do
   projeto (`.hierarquia/trava-ordem`); (2) com o Orca lento (cada leitura de tela levou 33 a 56 s em
   12/11), uma leitura que falhava zerava a contagem de "4 s parada na caixa" e o envio nunca saía; agora
-  leitura falha não zera e a espera final é de 60 s; (3) o vigia do criador volta a tentar (até 3 vezes)
-  a ordem que ficou "não enviada". `perguntar` e `entregar` esperam até 2 min o registro do próprio chat.
+  leitura falha não zera; (3) o vigia do criador volta a tentar a ordem que ficou "não enviada".
+  `perguntar` e `entregar` esperam até 2 min o registro do próprio chat. Os prazos de (2) e (3) foram
+  trocados pela o-032 (abaixo).
+
+**(C2, o-032) O lançamento insiste até o chat começar.** Em 12/11 o comando falhou duas vezes com a
+máquina lenta. Causas: o-030, o Orca desistiu de criar a pasta de trabalho porque o `git` passou do
+limite dele (180 s; `ORCA_WORKTREE_ADD_TIMEOUT_MS`, que só muda no ambiente que inicia o Orca);
+o-031, o chat nasceu mas o comando só olhou a tela por 60 s (cada leitura levou de 12 a 60 s) e o
+vigia do criador, que deveria continuar, desligou-se em 12 s porque o Orca lista a aba do PO reaberto
+com outro identificador (`pty:...`) e o vigia concluiu que a aba sumiu. O que vale agora:
+
+1. **Envio até começar.** Depois que o Orca responde, o comando confere por até **4 min**. Só envia
+   Enter com o texto parado na caixa por 4 s; se 20 s depois o texto ainda está na caixa, envia de
+   novo (até 6 envios). Antes de cada tecla lê a atividade do chat e a tela: chat que já trabalha, ou
+   com a ordem já no histórico, nunca recebe tecla nem a ordem de novo.
+2. **O vigia continua sozinho.** Se o comando termina sem o chat ter começado, grava
+   `chat_nao_iniciou` e o vigia do criador segue em rodadas de 60 s por até **45 min** a contar do
+   lançamento (o limite de envios vale para o vigia todo). Ele também assume a ordem que ficou
+   "lançando" por mais de 10 min (o comando morreu). Quando o chat começa, grava `chat_iniciou`.
+   Passado o prazo grava `chat_nao_iniciou` com `desistiu` e escreve no chat do criador "a ordem esta
+   digitada no chat X, falta enviar"; `hierarquia estado` mostra a mesma frase.
+3. **Aba do criador.** O vigia acha a aba também pelo terminal (`handle`), como já fazia a checagem
+   de chat morto; não se desliga mais por engano depois de o Orca reabrir.
+4. **Pasta de trabalho lenta.** Se o Orca responde que criar a pasta passou do limite, o comando solta
+   o despacho e a tarefa pendentes (abandonado e cancelada, sem mexer em pasta), espera o dobro (6 min)
+   e lança **uma** vez mais. Só se as duas falharem grava `lancamento_falhou` e avisa. O limite do
+   `git` dentro do Orca não é alterado por aqui: se continuar curto, é no ambiente que inicia o Orca.
 
 **(D) Vez para comando pesado.** `hierarquia vez -- <comando>`: um comando por vez na máquina inteira
 (trava em `~/.hierarquia-vez/`, fora de qualquer projeto). Quem chega depois espera, por ordem de

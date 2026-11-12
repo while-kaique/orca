@@ -38,7 +38,8 @@ do trabalho, ele entra no seu pacote: leia, ajuste o plano e entregue tudo junto
    em vez de todos editarem o mesmo. Uma só espera a outra quando depende do que a outra vai criar.
 6. **Confira** cada entrega (abaixo). Você não precisa vigiar: o comando escreve no seu chat **uma**
    mensagem quando todas as ordens do pedido terminaram ("PEDIDO FECHADO: ..."). Chat que fechou,
-   caiu ou ficou 20 min sem nada na tela conta como parado sozinho; baixa sua numa ordem:
+   caiu ou ficou 20 min sem nada na tela conta como parado sozinho. Ordem digitada e não enviada o
+   comando envia sozinho (o vigia insiste até 45 min); não mande tecla na mão. Baixa sua numa ordem:
    `hierarquia baixa --ordem ID --motivo "..."`.
 7. **Junte.** Traga para a **sua** branch a branch de cada executor aprovado (`git merge`), uma por
    vez. Conflito você resolve, ou manda um executor resolver. O PO não junta branch de executor.

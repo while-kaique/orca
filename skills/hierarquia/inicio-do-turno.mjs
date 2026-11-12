@@ -1,9 +1,10 @@
-// Confere se o chat novo começou a trabalhar e, se a ordem ficou parada na caixa de texto, envia uma vez.
+// Confere se o chat novo começou a trabalhar e, se a ordem ficou parada na caixa de texto, envia até ele aceitar.
 import { citar, esperar, orcaEmSegundoPlano } from './orca-lancador.mjs'
 import { decidirInicio, ondeEstaOTexto } from './regras.mjs'
 
 const INTERVALO_MS = 2000
-const PRAZO_FINAL_MS = 60000
+/** Máquina lenta: cada chamada ao Orca chega a levar 20 s, e o chat novo demora para ficar pronto. */
+const PRAZO_FINAL_MS = 4 * 60 * 1000
 
 async function atividadeDoWorker(dispatchId) {
   const resposta = await orcaEmSegundoPlano([
@@ -34,20 +35,32 @@ function enviarOQueEstaNaCaixa(handle) {
   ])
 }
 
-function motivoDoFracasso(vigia) {
+const hora = (ms) => new Date(ms).toLocaleTimeString('pt-BR')
+
+/** O que falta, dito sem rodeio: é o que o criador lê quando o chat não começou. */
+function motivoDoFracasso(vigia, chatId) {
+  const chat = chatId ?? 'do lancamento'
   if (vigia.onde === 'na_caixa') {
     return vigia.enviadaEm
-      ? 'a ordem estava parada na caixa de texto; o comando enviou e o chat continuou sem comecar'
-      : 'a ordem esta parada na caixa de texto e o comando nao conseguiu enviar'
+      ? `a ordem esta digitada no chat ${chat} e o comando ja enviou ${vigia.envios ?? 1}x sem ele comecar; falta enviar`
+      : `a ordem esta digitada no chat ${chat}, falta enviar (o comando nao conseguiu enviar)`
   }
-  return 'o Orca nao confirmou o inicio e a tela do chat nao mostra a ordem enviada'
+  return `o Orca nao confirmou o inicio e a tela do chat ${chat} nao mostra a ordem enviada`
 }
 
 /** `trecho` é o começo do texto enviado ao chat; `ligar` diz qual chat vigiar quando ele já existe. */
-export function criarVigia(trecho) {
-  let vigia = { naCaixaDesde: null, tentouEnviarEm: null, enviadaEm: null, comecouEm: null }
+export function criarVigia(trecho, { chatNovo = true } = {}) {
+  let vigia = {
+    chatNovo,
+    naCaixaDesde: null,
+    tentouEnviarEm: null,
+    enviadaEm: null,
+    comecouEm: null,
+    envios: 0
+  }
+  const horasDosEnvios = []
   let alvo = null
-  let registrado = false
+  let registrado = null
 
   async function passo() {
     if (!alvo || vigia.comecouEm) {
@@ -65,15 +78,17 @@ export function criarVigia(trecho) {
       const resposta = await enviarOQueEstaNaCaixa(alvo.handle).catch(() => null)
       if (resposta?.ok) {
         vigia = { ...vigia, enviadaEm: Date.now() }
+        horasDosEnvios.push(hora(vigia.enviadaEm))
       }
     }
   }
 
-  return {
-    ligar(dispatchId, handle) {
-      alvo = { dispatchId, handle }
+  const vigiaDoChat = {
+    ligar(dispatchId, handle, chatId) {
+      alvo = { dispatchId, handle, chatId }
     },
     passo,
+    comecou: () => Boolean(vigia.comecouEm),
     /** Um passo enquanto o Orca ainda espera: grava assim que o chat começa e devolve true para parar. */
     async vigiar(anotar) {
       await passo()
@@ -92,17 +107,20 @@ export function criarVigia(trecho) {
         await esperar(INTERVALO_MS)
       }
     },
-    /** Grava a verdade uma única vez: o chat começou (com o horário) ou não começou. */
-    registrar(anotar) {
-      if (!alvo || registrado) {
+    /** Grava a verdade uma única vez: o chat começou (com o horário) ou não começou. `desistiu`: o vigia largou. */
+    registrar(anotar, { desistiu = false } = {}) {
+      const verdade = vigia.comecouEm ? 'iniciou' : 'nao_iniciou'
+      // Um chat que não começou pode começar depois: a segunda verdade ainda se grava, a repetida não.
+      if (!alvo || registrado === 'iniciou' || (registrado === verdade && !desistiu)) {
         return
       }
-      registrado = true
+      registrado = verdade
       if (vigia.comecouEm) {
         anotar('chat_iniciou', {
           em: new Date(vigia.comecouEm).toISOString(),
           fonte: vigia.fonte,
-          enviadaPeloComando: Boolean(vigia.enviadaEm)
+          enviadaPeloComando: Boolean(vigia.enviadaEm),
+          horasDosEnvios
         })
         return
       }
@@ -110,21 +128,25 @@ export function criarVigia(trecho) {
         enviada: Boolean(vigia.enviadaEm),
         tentouEnviar: Boolean(vigia.tentouEnviarEm),
         naCaixa: vigia.onde === 'na_caixa',
-        motivo: motivoDoFracasso(vigia)
+        envios: vigia.envios,
+        horasDosEnvios,
+        ...(desistiu ? { desistiu: true } : {}),
+        motivo: motivoDoFracasso(vigia, alvo.chatId)
       })
     },
-    /** Última conferência, depois de o Orca responder: espera um pouco, grava a verdade e devolve a frase para a tela. */
-    async fechar(anotar) {
-      await this.esperar(PRAZO_FINAL_MS)
+    /** Última conferência, depois de o Orca responder: espera, grava a verdade e devolve a frase para a tela. */
+    async fechar(anotar, prazoMs = PRAZO_FINAL_MS) {
+      await this.esperar(prazoMs)
       this.registrar(anotar)
       return this.resumo()
     },
     resumo() {
+      const envios = horasDosEnvios.length > 0 ? ` Envios às ${horasDosEnvios.join(', ')}.` : ''
       if (vigia.comecouEm) {
-        const hora = new Date(vigia.comecouEm).toLocaleTimeString('pt-BR')
-        return `Chat começou às ${hora}${vigia.enviadaEm ? ' (a ordem estava parada na caixa; o comando enviou)' : ''}.`
+        return `Chat começou às ${hora(vigia.comecouEm)}${vigia.enviadaEm ? ' (a ordem estava parada na caixa; o comando enviou)' : ''}.${envios}`
       }
-      return `ATENÇÃO: o chat NÃO começou: ${motivoDoFracasso(vigia)}. Leia a tela dele antes de relançar.`
+      return `ATENÇÃO: o chat NÃO começou: ${motivoDoFracasso(vigia, alvo?.chatId)}.${envios} O vigia do criador continua tentando sozinho; o estado mostra o que falta.`
     }
   }
+  return vigiaDoChat
 }

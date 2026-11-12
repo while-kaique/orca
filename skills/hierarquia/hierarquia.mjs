@@ -2,7 +2,6 @@
 // Comando único da hierarquia PO > Planejador > Executor (spec 001).
 // Aplica as regras de regras.mjs, escreve o registro do projeto e chama o lançador do Orca.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
 import { isAbsolute, join, resolve } from 'node:path'
 import {
   decidirConferencia,
@@ -22,10 +21,13 @@ import {
   enviarCorrecao,
   escreverNoChat,
   garantirExecucao,
+  lancarComNovaTentativa,
   renomearAba,
   lancarWorker,
   manterAberto,
-  orca
+  orca,
+  pastaDemorouDemais,
+  soltarLancamentoSemChat
 } from './orca-lancador.mjs'
 import {
   pedidoDaCorrecao,
@@ -38,7 +40,7 @@ import { criarVigia } from './inicio-do-turno.mjs'
 import { opcoes } from './opcoes-da-linha.mjs'
 import { comandoEstado } from './estado-na-tela.mjs'
 import { fecharChats, ordensParaFechar } from './fechar-chats.mjs'
-import { foraDoGit } from './pasta-fora-do-git.mjs'
+import { foraDoGit, pastaDoGit } from './pasta-fora-do-git.mjs'
 import { decisaoDoKaique } from './decisao-do-kaique.mjs'
 import { destravarInicios } from './destravar-inicio.mjs'
 import { acharProjeto, anotar, caminhos, lerConfig, lerEventos, sair } from './registro.mjs'
@@ -48,6 +50,8 @@ import { garantirVigia, vigiar } from './vigia-do-criador.mjs'
 
 const AQUI = import.meta.dirname
 const ESPERA_DO_LANCAMENTO_MS = '180000'
+/** Segunda tentativa, quando o Orca desistiu da pasta de trabalho: espera o dobro. */
+const ESPERA_DA_SEGUNDA_TENTATIVA_MS = '360000'
 
 /** O chat é a aba: ela continua a mesma quando o Orca reabre; o terminal ganha outro identificador. */
 function quemSou() {
@@ -97,7 +101,7 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
   const titulo = tituloDaTarefa(ordem)
   // A etiqueta do fluxograma já diz o papel: a aba leva só o título da ordem.
   const tituloDaAba = ordem.campos.titulo ?? ordem.id
-  const args = [
+  const argsComEspera = (esperaMs) => [
     'orchestration',
     'worker-start',
     ...(souPo ? [] : ['--from', meuTerminal()]),
@@ -113,7 +117,7 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
     '--model',
     modelo,
     '--timeout-ms',
-    ESPERA_DO_LANCAMENTO_MS
+    esperaMs
   ]
   const registrar = (chat, situacao) =>
     anotar(projeto, 'chat_lancado', {
@@ -128,22 +132,34 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
   let abaVigiada = null
   const anotarInicio = (tipo, dados) =>
     anotar(projeto, tipo, { ordemId: ordem.id, chatId: abaVigiada, ...dados })
-  const { resposta, nascido, enganado } = await lancarWorker(args, titulo, {
-    aoNascer: (chat) => {
-      abaVigiada = chat.chatId
-      registrar(chat, 'esperando_o_orca')
-      void renomearAba(chat.handle, tituloDaAba)
-      vigia.ligar(chat.dispatchId, chat.handle)
-    },
-    aoEsperar: () => vigia.vigiar(anotarInicio)
-  })
+  const lancarUmaVez = (esperaMs) =>
+    lancarWorker(argsComEspera(esperaMs), titulo, {
+      aoNascer: (chat) => {
+        abaVigiada = chat.chatId
+        registrar(chat, 'esperando_o_orca')
+        void renomearAba(chat.handle, tituloDaAba)
+        vigia.ligar(chat.dispatchId, chat.handle, chat.chatId)
+      },
+      aoEsperar: () => vigia.vigiar(anotarInicio)
+    })
+  const lancamento = await lancarComNovaTentativa(
+    lancarUmaVez,
+    [ESPERA_DO_LANCAMENTO_MS, ESPERA_DA_SEGUNDA_TENTATIVA_MS],
+    souPo ? null : meuTerminal()
+  )
+  const { resposta, nascido, enganado } = lancamento
   if (enganado) {
     anotar(projeto, 'chat_encerrado', { chatId: enganado.chatId, motivo: 'aba reconhecida errada' })
   }
   const dados = resposta.result ?? {}
   const handle = dados.terminal
   if (!handle) {
-    const motivo = `O Orca não criou o chat. Resposta: ${JSON.stringify(resposta).slice(0, 600)}`
+    const sobras = nascido
+      ? 0
+      : await soltarLancamentoSemChat(resposta, souPo ? null : meuTerminal())
+    const motivo = pastaDemorouDemais(resposta)
+      ? `O Orca nao criou a pasta de trabalho em duas tentativas (3 min e 6 min): a maquina esta ocupada demais. Nada ficou pela metade (pastas ou branches sobrando no Orca: ${sobras}); o pedido da ordem continua em .hierarquia/ordens/${ordem.id}.md. Relance quando a maquina estiver livre. Resposta: ${JSON.stringify(resposta).slice(0, 400)}`
+      : `O Orca não criou o chat. Resposta: ${JSON.stringify(resposta).slice(0, 600)}`
     anotar(projeto, 'lancamento_falhou', { ordemId: ordem.id, chatId: nascido?.chatId, motivo })
     sair(motivo)
   }
@@ -163,7 +179,7 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
   manterAberto(dados.dispatchId)
   if (dados.state !== 'ready') {
     abaVigiada = chatId
-    vigia.ligar(dados.dispatchId, handle)
+    vigia.ligar(dados.dispatchId, handle, chatId)
     console.log(await vigia.fechar(anotarInicio))
   }
   return { chatId, dispatchId: dados.dispatchId }
@@ -444,8 +460,8 @@ ${op.motivo}
     }
     console.log(`Ordem ${op.ordem} devolvida ao chat ${ordem.chatId} com o motivo.`)
     if (devolvida.state !== 'ready') {
-      const vigia = criarVigia(trechoDoPedido(pedido))
-      vigia.ligar(devolvida.dispatchId, handleDoChat)
+      const vigia = criarVigia(trechoDoPedido(pedido), { chatNovo: false })
+      vigia.ligar(devolvida.dispatchId, handleDoChat, ordem.chatId)
       console.log(
         await vigia.fechar((tipo, dados) =>
           anotar(projeto, tipo, { ordemId: op.ordem, chatId: ordem.chatId, ...dados })
@@ -567,14 +583,6 @@ function esperarMeuRegistro(projeto, eu) {
     estado = montarEstado(lerEventos(projeto))
   }
   return estado
-}
-
-function pastaDoGit(pasta) {
-  return execFileSync('git', ['rev-parse', '--show-toplevel'], {
-    cwd: pasta,
-    encoding: 'utf8',
-    windowsHide: true
-  }).trim()
 }
 
 /** Ordens do chat que estão em espera e já cabem no teto. Marca a saída antes de lançar, para dois vigias não pegarem a mesma vaga. */

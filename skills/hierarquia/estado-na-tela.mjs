@@ -36,15 +36,17 @@ function situacaoDoLancamento(ordem) {
 }
 
 const SEM_INICIO = {
-  nao_enviada: 'ORDEM NAO ENVIADA (parada na caixa de texto do chat)',
-  nao_confirmado: 'inicio NAO confirmado (a tela do chat nao mostra a ordem enviada)',
-  pendente: 'lancando (inicio ainda nao confirmado)'
+  nao_enviada: (ordem) =>
+    `ORDEM NAO ENVIADA: digitada no chat ${ordem.chatId}, falta enviar${ordem.inicioDesistido ? ' (o vigia desistiu: envie a tecla Enter nesse chat)' : ' (o vigia do criador continua tentando)'}`,
+  nao_confirmado: (ordem) =>
+    `inicio NAO confirmado no chat ${ordem.chatId} (a tela dele nao mostra a ordem enviada)${ordem.inicioDesistido ? '; o vigia desistiu' : ''}`,
+  pendente: () => 'lancando (inicio ainda nao confirmado)'
 }
 
 /** `trabalhando` só vale para chat que comecou: sem a confirmação, a linha diz o que falta. */
 export function rotuloDaSituacao(ordem) {
   if (ordem.situacao === 'trabalhando' && ordem.inicio !== 'confirmado') {
-    return SEM_INICIO[ordem.inicio] ?? SEM_INICIO.pendente
+    return (SEM_INICIO[ordem.inicio] ?? SEM_INICIO.pendente)(ordem)
   }
   return ordem.situacao
 }
