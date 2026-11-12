@@ -1,4 +1,5 @@
-// O que `hierarquia estado` escreve na tela: uma linha por ordem e a Fila do Kaique.
+// O que `hierarquia estado` escreve na tela: o teto, as ordens agrupadas por pedido e a Fila do Kaique.
+import { ocupacao, pedidosNoEstado } from './regras.mjs'
 
 function situacaoDoLancamento(ordem) {
   if (ordem.lancamentoFalhou) {
@@ -21,23 +22,28 @@ export function rotuloDaSituacao(ordem) {
   return ordem.situacao
 }
 
+function linhaDoTeto(estado) {
+  const { planejadores, executores, teto, emEspera } = ocupacao(estado)
+  return `Teto: planejadores ${planejadores} de ${teto.planejadoresPorProjeto}, executores ${executores} de ${teto.executoresPorProjeto} trabalhando; esperando vaga: ${emEspera.length}`
+}
+
+/** Pedidos já terminados há tempo ficam numa linha só; os abertos mostram cada ordem. */
 export function imprimirEstado(projeto, estado, fila) {
   console.log(`Projeto: ${projeto}`)
   console.log(`PO: ${estado.po ?? '(nenhum)'}`)
-  for (const ordem of Object.values(estado.ordens)) {
-    const chat = ordem.chatId ? estado.chats[ordem.chatId] : null
-    const colunas = [
-      `- ${ordem.id}`,
-      `${ordem.papel}${chat ? ` (${chat.modelo})` : ''}`,
-      rotuloDaSituacao(ordem),
-      `pedido por ${ordem.de}`,
-      `chat ${ordem.chatId ?? '-'}${chat?.ativo === false ? ' (fechado)' : ''}`,
-      ordem.campos.titulo ?? ordem.campos.objetivo.slice(0, 60),
-      ordem.reprovacoes ? `reprovada ${ordem.reprovacoes}x` : '',
-      chat?.mexidoPeloKaique ? 'mexido pelo Kaique' : '',
-      situacaoDoLancamento(ordem)
-    ]
-    console.log(colunas.filter(Boolean).join(' | '))
+  console.log(linhaDoTeto(estado))
+  const pedidos = pedidosNoEstado(estado)
+  const fechados = pedidos.filter((p) => ['entregue', 'parado'].includes(p.situacao))
+  if (fechados.length > 0) {
+    console.log(
+      `Pedidos fechados (${fechados.length}): ${fechados.map((p) => `${p.pedido} ${p.situacao}`).join('; ')}`
+    )
+  }
+  for (const pedido of pedidos.filter((p) => !fechados.includes(p))) {
+    console.log(`Pedido ${pedido.pedido}: ${pedido.situacao}`)
+    for (const ordem of pedido.ordens) {
+      imprimirOrdem(estado, ordem)
+    }
   }
   console.log(`Fila do Kaique: ${fila.length}`)
   for (const item of fila) {
@@ -45,4 +51,26 @@ export function imprimirEstado(projeto, estado, fila) {
       `  * ${item.tipo} | ${item.ordemId ?? item.perguntaId} | ${item.resumo ?? item.texto ?? ''}`
     )
   }
+}
+
+function imprimirOrdem(estado, ordem) {
+  const chat = ordem.chatId ? estado.chats[ordem.chatId] : null
+  const colunas = [
+    `  - ${ordem.id}`,
+    `${ordem.papel}${chat ? ` (${chat.modelo})` : ''}`,
+    rotuloDaSituacao(ordem),
+    ordem.posicaoNaFila
+      ? `${ordem.posicaoNaFila}o na fila${ordem.prioridade ? ' (passa na frente)' : ''}`
+      : '',
+    ordem.situacao === 'parou' && ordem.motivoDaParada
+      ? `parada${ordem.paradaAutomatica ? ' sozinha' : ''}: ${ordem.motivoDaParada}`
+      : '',
+    `pedido por ${ordem.de}`,
+    `chat ${ordem.chatId ?? '-'}${chat?.ativo === false ? ' (fechado)' : ''}`,
+    ordem.campos.titulo ?? ordem.campos.objetivo.slice(0, 60),
+    ordem.reprovacoes ? `reprovada ${ordem.reprovacoes}x` : '',
+    chat?.mexidoPeloKaique ? 'mexido pelo Kaique' : '',
+    situacaoDoLancamento(ordem)
+  ]
+  console.log(colunas.filter(Boolean).join(' | '))
 }

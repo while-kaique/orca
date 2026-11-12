@@ -4,16 +4,19 @@ import { rotuloDaSituacao } from './estado-na-tela.mjs'
 import {
   acharTarefaNova,
   acharTerminalNovo,
+  chatsSemVida,
   decidirConferencia,
   decidirEntrega,
   decidirInicio,
   decidirOrdem,
   decidirPedidoDeOk,
+  decidirVez,
   destinoDaPergunta,
   filaDoKaique,
   montarEstado,
   ondeEstaOTexto,
   ordensLiberadasDaEspera,
+  pedidosParaAvisar,
   temOkDoKaique
 } from './regras.mjs'
 
@@ -115,7 +118,7 @@ test('terceiro planejador entra em espera', () => {
   )
 })
 
-test('quinto executor do mesmo planejador espera; o de outro planejador nao', () => {
+test('terceiro executor do projeto espera, mesmo pedido por outro planejador', () => {
   const eventos = comExecutores(
     [
       ...base(),
@@ -123,17 +126,17 @@ test('quinto executor do mesmo planejador espera; o de outro planejador nao', ()
       ev('chat_lancado', { ordemId: 'o-p2', chatId: 'P2', modelo: 'opus' })
     ],
     'P1',
-    4,
+    2,
     'E'
   )
   const estado = montarEstado(eventos)
   assert.equal(decidirOrdem(estado, { de: 'P1', para: 'executor', campos: CAMPOS }).acao, 'esperar')
-  assert.equal(decidirOrdem(estado, { de: 'P2', para: 'executor', campos: CAMPOS }).acao, 'criar')
+  assert.equal(decidirOrdem(estado, { de: 'P2', para: 'executor', campos: CAMPOS }).acao, 'esperar')
 })
 
-test('vaga que abre libera a ordem em espera mais antiga', () => {
+test('entrega solta a vaga, e a ordem que passa na frente sai antes da mais antiga', () => {
   const eventos = [
-    ...comExecutores(base(), 'P1', 4, 'E'),
+    ...comExecutores(base(), 'P1', 2, 'E'),
     ev('ordem_criada', {
       ordemId: 'o-fila1',
       de: 'P1',
@@ -146,13 +149,13 @@ test('vaga que abre libera a ordem em espera mais antiga', () => {
       de: 'P1',
       para: 'executor',
       campos: CAMPOS,
-      emEspera: true
+      emEspera: true,
+      prioridade: true
     })
   ]
   assert.deepEqual(ordensLiberadasDaEspera(montarEstado(eventos)), [])
   eventos.push(ev('entrega', { ordemId: 'o-E1', portao: 'plano', provas: ['prova.png'] }))
-  eventos.push(ev('conferencia', { ordemId: 'o-E1', por: 'P1', aprovada: true }))
-  assert.deepEqual(ordensLiberadasDaEspera(montarEstado(eventos)), ['o-fila1'])
+  assert.deepEqual(ordensLiberadasDaEspera(montarEstado(eventos)), ['o-fila2'])
 })
 
 test('entrega sem prova, ou com prova que nao existe, nao e entrega', () => {
@@ -322,7 +325,7 @@ test('o registro marca o chat em que o Kaique mexeu e o que parou sem entregar',
 })
 
 test('chat que terminou continua aberto; so fecha para dar lugar a outro', () => {
-  const eventos = comExecutores(base(), 'P1', 4, 'E')
+  const eventos = comExecutores(base(), 'P1', 2, 'E')
   eventos.push(ev('entrega', { ordemId: 'o-E2', portao: 'plano', provas: ['prova.png'] }))
   eventos.push(ev('conferencia', { ordemId: 'o-E2', por: 'P1', aprovada: true }))
   const estado = montarEstado(eventos)
@@ -335,7 +338,7 @@ test('chat que terminou continua aberto; so fecha para dar lugar a outro', () =>
 })
 
 test('com vaga sobrando nada e fechado, mesmo havendo chat terminado', () => {
-  const eventos = comExecutores(base(), 'P1', 2, 'E')
+  const eventos = comExecutores(base(), 'P1', 1, 'E')
   eventos.push(ev('entrega', { ordemId: 'o-E1', portao: 'plano', provas: ['prova.png'] }))
   eventos.push(ev('conferencia', { ordemId: 'o-E1', por: 'P1', aprovada: true }))
   assert.deepEqual(
@@ -488,5 +491,76 @@ test('estado nao mostra trabalhando para chat que nunca comecou', () => {
   assert.equal(
     rotulo([ev('lancamento_respondeu', { ordemId: 'o-1', situacaoDoLancamento: 'ready' })]),
     'trabalhando'
+  )
+})
+
+test('pedido so avisa quem criou quando todas as ordens dele terminam; outro pedido nao espera', () => {
+  const eventos = [
+    ev('po_criado', { chatId: 'PO' }),
+    ev('ordem_criada', { ordemId: 'o-1', de: 'PO', para: 'executor', campos: CAMPOS, pedido: 'X' }),
+    ev('chat_lancado', { ordemId: 'o-1', chatId: 'E1', modelo: 'sonnet' }),
+    ev('ordem_criada', { ordemId: 'o-2', de: 'PO', para: 'executor', campos: CAMPOS, pedido: 'X' }),
+    ev('chat_lancado', { ordemId: 'o-2', chatId: 'E2', modelo: 'sonnet' }),
+    ev('ordem_criada', {
+      ordemId: 'o-3',
+      de: 'PO',
+      para: 'planejador',
+      campos: CAMPOS,
+      pedido: 'J'
+    }),
+    ev('chat_lancado', { ordemId: 'o-3', chatId: 'P3', modelo: 'opus' }),
+    ev('ordem_criada', { ordemId: 'o-4', de: 'P3', para: 'executor', campos: CAMPOS }),
+    ev('chat_lancado', { ordemId: 'o-4', chatId: 'E4', modelo: 'sonnet' }),
+    ev('entrega', { ordemId: 'o-1', portao: 'produto', provas: ['ok.txt'] })
+  ]
+  assert.deepEqual(pedidosParaAvisar(montarEstado(eventos), 'PO'), [])
+  eventos.push(ev('parou_sem_entregar', { ordemId: 'o-2', motivo: 'a aba do chat foi fechada' }))
+  eventos.push(ev('entrega', { ordemId: 'o-3', portao: 'produto', provas: ['ok.txt'] }))
+  const avisar = pedidosParaAvisar(montarEstado(eventos), 'PO')
+  assert.deepEqual(
+    avisar.map((grupo) => grupo.pedido),
+    ['X']
+  )
+  eventos.push(
+    ev('pedido_fechado', { chatId: 'PO', pedido: 'X', assinatura: avisar[0].assinatura })
+  )
+  eventos.push(ev('entrega', { ordemId: 'o-4', portao: 'plano', provas: ['ok.txt'] }))
+  assert.deepEqual(
+    pedidosParaAvisar(montarEstado(eventos), 'PO').map((grupo) => grupo.pedido),
+    ['J']
+  )
+})
+
+test('chat sem aba, caido ou sem nada na tela passa a contar como parado; quem espera filha nao', () => {
+  const eventos = comExecutores(base(), 'P1', 3, 'E')
+  const estado = montarEstado(eventos)
+  const agora = 100 * 60000
+  const terminais = [
+    { tabId: 'P1', connected: true, lastOutputAt: 0 },
+    { tabId: 'E2', connected: false, lastOutputAt: agora },
+    { tabId: 'E3', connected: true, lastOutputAt: agora - 25 * 60000 }
+  ]
+  assert.deepEqual(
+    chatsSemVida(estado, terminais, agora, 20 * 60000).map((morto) => morto.ordemId),
+    ['o-E1', 'o-E2', 'o-E3']
+  )
+})
+
+test('a vez de quem morreu e solta e vai ao primeiro vivo da fila', () => {
+  const vivo = (pid) => pid !== 10 && pid !== 20
+  const decisao = decidirVez({
+    dono: { pid: 10 },
+    fila: [
+      { pid: 30, chegada: 3 },
+      { pid: 20, chegada: 1 },
+      { pid: 40, chegada: 2 }
+    ],
+    vivo
+  })
+  assert.equal(decisao.soltarDono, true)
+  assert.equal(decisao.proximo.pid, 40)
+  assert.equal(
+    decidirVez({ dono: { pid: 30 }, fila: [{ pid: 40, chegada: 1 }], vivo }).proximo,
+    null
   )
 })

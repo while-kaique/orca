@@ -1,6 +1,6 @@
 // Conversa com o Orca: lançar chat, manter aberto e avisar. Usado pelo comando `hierarquia`.
 import { execFile, execFileSync } from 'node:child_process'
-import { acharTarefaNova, acharTerminalNovo } from './regras.mjs'
+import { acharTarefaNova, acharTerminalNovo, ondeEstaOTexto } from './regras.mjs'
 
 /** O texto que vai para o Orca precisa ser ASCII puro: acento vira lixo na ordem. */
 export function semAcento(texto) {
@@ -121,6 +121,36 @@ export function avisarPo(po, texto) {
   } catch {
     // Sem o aviso, o PO ainda vê a decisão no próximo `hierarquia estado`.
   }
+}
+
+/**
+ * Escreve uma linha no chat como se alguém digitasse e enviasse; se ela ficar parada na caixa de
+ * texto, envia de novo uma vez. `%` sai porque o shell do Windows o trocaria.
+ */
+export async function escreverNoChat(handle, texto) {
+  const linha = semAcento(texto).replace(/%/gu, ' por cento')
+  const enviar = (conteudo) =>
+    orcaEmSegundoPlano([
+      'terminal',
+      'send',
+      '--terminal',
+      handle,
+      '--text',
+      citar(conteudo),
+      '--enter'
+    ])
+  const resposta = await enviar(linha)
+  if (!resposta.ok) {
+    return false
+  }
+  await esperar(4000)
+  const tela = (
+    await orcaEmSegundoPlano(['terminal', 'read', '--terminal', handle]).catch(() => null)
+  )?.result?.terminal?.tail
+  if (tela && ondeEstaOTexto(tela, linha.slice(0, 40)) === 'na_caixa') {
+    await enviar(' ')
+  }
+  return true
 }
 
 /** A aba em que o Orca abriu o chat recém-lançado; cada chamada ao Orca demora, então uma só quando basta. */
