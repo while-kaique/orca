@@ -278,8 +278,11 @@ junta branches de executores. Você olha o resultado, e para cada ponto que não
 (o que tem que ser verdade no produto), que volta ao mesmo planejador.
 
 - **Serve:** `hierarquia conferir --aprovar`. Depois `hierarquia pedir-ok`, com resumo e prova, para o Kaique.
-  Com o pacote validado, feche os chats daquele pedido: `hierarquia fechar --pedido NOME` (só fecha
-  chat que você criou e já terminou; nunca remove pasta nem branch).
+  **Os chats do pedido ficam abertos na entrega** (regra do Kaique, 12/11/2026): ele pode querer
+  olhar a conversa, perguntar algo ao chat ou mandar um ajuste. Só feche depois de ele confirmar que
+  aquele pedido terminou ("pode fechar", "finalizado"): `hierarquia fechar --pedido NOME` (só fecha
+  chat que você criou e já terminou; nunca remove pasta nem branch). Na mensagem de entrega, diga
+  quais chats ficaram abertos e pergunte se pode fechar. Validar o pacote **não** é a confirmação dele.
 - **Não serve:** `hierarquia conferir --reprovar --motivo "..."`. O motivo diz o que faltou em relação
   ao produto, não como consertar.
 - **Segunda reprovação da mesma entrega:** o caso sobe para você decidir. Refaça a ordem, troque

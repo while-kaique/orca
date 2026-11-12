@@ -50,8 +50,9 @@ do trabalho, ele entra no seu pacote: leia, ajuste o plano e entregue tudo junto
    `hierarquia vez -- <comando>`: um comando pesado por vez na máquina, os outros esperam.
 9. **Entregue uma vez só**, com `hierarquia entregar`, quando todos os seus executores terminaram e
    os passos 7 e 8 estão feitos. A entrega diz: a branch final, o que mudou no produto, onde está a
-   prova e o que ficou sem provar. Antes, feche os chats dos seus executores que terminaram:
-   `hierarquia fechar --terminados` (nunca remove pasta nem branch).
+   prova e o que ficou sem provar. **Não feche os chats dos seus executores**: eles ficam abertos
+   até o Kaique confirmar ao PO que o pedido terminou, e quem fecha é o PO. A exceção são os chats de
+   **teste** que você abriu: esses você fecha assim que o teste termina.
 
 Limite: o comando segura 2 executores trabalhando no projeto inteiro (somando os do outro planejador e
 os do PO). O que passar disso espera na fila e sai sozinho quando abre vaga.
