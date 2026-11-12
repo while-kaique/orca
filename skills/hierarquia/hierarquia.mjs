@@ -283,9 +283,7 @@ const comandos = {
     const estado = montarEstado(lerEventos(projeto))
     const eu = quemSou()
     if (estado.po && estado.po !== eu) {
-      sair(
-        `Este projeto já tem um PO aberto (${estado.po}). Só existe um PO por projeto; feche a aba dele para abrir outro.`
-      )
+      sair(`Já há um PO aberto neste projeto (${String(estado.po)}); feche a aba dele antes.`)
     }
     for (const [nome, inicial] of [
       [
@@ -565,10 +563,7 @@ ${op.motivo}
     if (!estado.chats[op.chat]?.ativo) {
       sair(`O chat ${op.chat ?? '(faltou --chat)'} não está aberto na hierarquia deste projeto.`, 0)
     }
-    anotar(projeto, 'chat_encerrado', {
-      chatId: op.chat,
-      motivo: op.motivo ?? 'aba fechada no Orca'
-    })
+    anotar(projeto, 'chat_encerrado', { chatId: op.chat, motivo: op.motivo ?? 'aba fechada' })
     console.log(`Chat ${op.chat} encerrado.`)
   },
 
