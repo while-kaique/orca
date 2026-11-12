@@ -69,7 +69,7 @@ function matarArvore(processo) {
  * Enquanto o vigia vive, um `check --wait` fica parado na caixa do criador: com alguém esperando, o
  * Orca não escreve "You have N messages" no chat dele. O que chega fica na caixa do vigia.
  */
-function segurarCaixa(aoChegar, aoErrar) {
+function segurarCaixa(caixa, aoChegar, aoErrar) {
   let processo = null
   let parado = false
   const comando = process.env.HIERARQUIA_ORCA ?? 'orca-dev'
@@ -79,7 +79,15 @@ function segurarCaixa(aoChegar, aoErrar) {
     }
     processo = execFile(
       comando,
-      ['orchestration', 'check', '--wait', '--timeout-ms', ESPERA_DO_CORREIO_MS, '--json'],
+      [
+        'orchestration',
+        'check',
+        ...caixa,
+        '--wait',
+        '--timeout-ms',
+        ESPERA_DO_CORREIO_MS,
+        '--json'
+      ],
       { encoding: 'utf8', shell: process.platform === 'win32', maxBuffer: 16 * 1024 * 1024 },
       (erro, saida) => {
         try {
@@ -132,28 +140,42 @@ export async function vigiar({ base, eu, lerEstado, anotar, lancarDaEspera }) {
   }
   const log = (texto) => appendFileSync(meus.log, `${new Date().toISOString()} ${texto}\n`, 'utf8')
   const handle = () => lerEstado().chats[eu]?.handle ?? process.env.ORCA_TERMINAL_HANDLE
-  const soltar = segurarCaixa(
-    (mensagem) => {
-      appendFileSync(meus.caixa, `${JSON.stringify(mensagem)}\n`, 'utf8')
-      if (!veioDeFilho(lerEstado(), eu, mensagem) && mensagem.type !== 'heartbeat') {
-        log(`repassa ${mensagem.id} de ${mensagem.from}`)
-        void escreverNoChat(
-          handle(),
-          `Mensagem de ${mensagem.from} (${mensagem.type}): ${mensagem.subject}. ${mensagem.body ?? ''}`.slice(
-            0,
-            700
-          )
+  const vistas = new Set()
+  const aoChegar = (mensagem) => {
+    if (vistas.has(mensagem.id)) {
+      return
+    }
+    vistas.add(mensagem.id)
+    appendFileSync(
+      meus.caixa,
+      `${JSON.stringify(mensagem)}
+`,
+      'utf8'
+    )
+    if (!veioDeFilho(lerEstado(), eu, mensagem) && mensagem.type !== 'heartbeat') {
+      log(`repassa ${mensagem.id} de ${mensagem.from}`)
+      void escreverNoChat(
+        handle(),
+        `Mensagem de ${mensagem.from} (${mensagem.type}): ${mensagem.subject}. ${mensagem.body ?? ''}`.slice(
+          0,
+          700
         )
-      }
-    },
-    (erro) => log(`caixa: ${erro}`)
+      )
+    }
+  }
+  // Duas caixas: a do chat (o que o criador dele manda) e a da Run que ele coordena (o que os filhos mandam).
+  const run = (await orcaEmSegundoPlano(['orchestration', 'run-current']).catch(() => null))?.result
+    ?.runId
+  const soltadores = [[], ...(run ? [['--run', run]] : [])].map((caixa) =>
+    segurarCaixa(caixa, aoChegar, (erro) => log(`caixa ${caixa.join(' ')}: ${erro}`))
   )
+  const soltar = () => soltadores.forEach((soltarUma) => soltarUma())
   const jaFechados = new Map(
     pedidosDoCriador(lerEstado(), eu)
       .filter((grupo) => grupo.terminado)
       .map((grupo) => [grupo.pedido, grupo.assinatura])
   )
-  log('vigia ligado')
+  log(`vigia ligado (caixas: chat${run ? ` e ${run}` : ''})`)
   let conferidoEm = 0
   try {
     for (;;) {

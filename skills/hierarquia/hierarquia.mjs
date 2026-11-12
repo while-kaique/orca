@@ -2,6 +2,7 @@
 // Comando único da hierarquia PO > Planejador > Executor (spec 001).
 // Aplica as regras de regras.mjs, escreve o registro do projeto e chama o lançador do Orca.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { isAbsolute, join, resolve } from 'node:path'
 import {
   decidirConferencia,
@@ -16,7 +17,6 @@ import {
 } from './regras.mjs'
 import {
   abaDoChat,
-  avisarPo,
   branchDoProjeto,
   citar,
   dormir,
@@ -38,6 +38,7 @@ import { criarVigia } from './inicio-do-turno.mjs'
 import { opcoes } from './opcoes-da-linha.mjs'
 import { imprimirEstado } from './estado-na-tela.mjs'
 import { foraDoGit } from './pasta-fora-do-git.mjs'
+import { decisaoDoKaique } from './decisao-do-kaique.mjs'
 import {
   acharProjeto,
   anotar,
@@ -94,10 +95,10 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
     garantirExecucao()
   }
   // 'current' seria a pasta de quem lança; o chat tem que nascer na pasta do projeto.
-  const pasta =
-    lerConfig(projeto).pastaDosChats === 'projeto'
-      ? citar(`path:${projeto.replaceAll('\\', '/')}`)
-      : 'new-child'
+  // Ordem leve pode nascer na pasta de quem criou: sem cópia nova, sem instalar dependências.
+  const pastaFixa =
+    ordem.pastaDoCriador ?? (lerConfig(projeto).pastaDosChats === 'projeto' ? projeto : null)
+  const pasta = pastaFixa ? citar(`path:${pastaFixa.replaceAll('\\', '/')}`) : 'new-child'
   const pedido = pedidoParaOrca(projeto, ordem.id, ordem.papel, ordem.campos)
   const titulo = tituloDaTarefa(ordem)
   const args = [
@@ -173,11 +174,20 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
 const comandos = {
   'criar-po'(op) {
     const projeto = resolve(op.projeto ?? process.cwd())
+    const eu = quemSou()
+    const ondeJaEsta = acharProjeto()
+    if (!op.teste && ondeJaEsta && resolve(ondeJaEsta) !== projeto) {
+      const papel = montarEstado(lerEventos(ondeJaEsta)).chats[eu]
+      if (papel?.ativo) {
+        sair(
+          `Este chat já é ${papel.papel} em ${ondeJaEsta}. Virar PO de outro registro só para teste, com --teste: os chats criados lá aparecem como "Livre" no fluxograma.`
+        )
+      }
+    }
     const { base, ordens, registro } = caminhos(projeto)
     mkdirSync(ordens, { recursive: true })
     foraDoGit(projeto)
     const estado = montarEstado(lerEventos(projeto))
-    const eu = quemSou()
     if (estado.po && estado.po !== eu) {
       sair(`Já há um PO aberto neste projeto (${String(estado.po)}); feche a aba dele antes.`)
     }
@@ -233,6 +243,7 @@ const comandos = {
         campos,
         pedido: pedidoDaOrdemNova(estado, eu, op.pedido ?? campos.pedido) ?? ordemId,
         prioridade: Boolean(op['na-frente']),
+        ...(op['na-pasta-do-criador'] ? { pastaDoCriador: pastaDoGit(process.cwd()) } : {}),
         emEspera: decisao.acao === 'esperar'
       })
     } finally {
@@ -554,31 +565,11 @@ ${op.motivo}
   }
 }
 
-function decisaoDoKaique(op, tipo) {
-  const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
-  const estado = montarEstado(lerEventos(projeto))
-  const chat = process.env.ORCA_TAB_ID
-  if (chat && estado.chats[chat]) {
-    sair('Só o Kaique dá OK ou devolve. Um chat da hierarquia não decide o próprio trabalho.')
-  }
-  if (estado.ordens[op.ordem]?.situacao !== 'esperando_kaique') {
-    sair(`A ordem ${op.ordem} não está esperando o Kaique.`)
-  }
-  if (tipo !== 'ok' && String(op.motivo ?? '').trim() === '') {
-    sair('Devolver exige o motivo: --motivo "..."')
-  }
-  anotar(projeto, tipo, { ordemId: op.ordem, ...(op.motivo ? { motivo: op.motivo } : {}) })
-  avisarPo(
-    estado.chats[estado.po]?.handle,
-    tipo === 'ok'
-      ? `O Kaique deu OK na ordem ${op.ordem}. Rode hierarquia estado e siga: agora pode juntar ou publicar essa entrega.`
-      : `O Kaique DEVOLVEU a ordem ${op.ordem}. Motivo: ${op.motivo}. Rode hierarquia estado e decida o proximo passo.`
-  )
-  console.log(
-    tipo === 'ok'
-      ? `OK do Kaique registrado para ${op.ordem}.`
-      : `Ordem ${op.ordem} devolvida ao PO.`
-  )
+function pastaDoGit(pasta) {
+  return execFileSync('git', ['rev-parse', '--show-toplevel'], {
+    cwd: pasta,
+    encoding: 'utf8'
+  }).trim()
 }
 
 /** Ordens do chat que estão em espera e já cabem no teto. Marca a saída antes de lançar, para dois vigias não pegarem a mesma vaga. */
@@ -622,7 +613,14 @@ if (!comandos[nome]) {
 const separador = argumentos.indexOf('--')
 const resto = separador === -1 ? argumentos : argumentos.slice(0, separador)
 const op = opcoes(resto)
-op.comando = separador === -1 ? '' : argumentos.slice(separador + 1).join(' ')
+// O comando volta a ser uma linha de shell: argumento com espaço ou símbolo vai entre aspas.
+op.comando =
+  separador === -1
+    ? ''
+    : argumentos
+        .slice(separador + 1)
+        .map((arg) => (/[\s"&|<>^()]/u.test(arg) ? `"${arg.replaceAll('"', '\\"')}"` : arg))
+        .join(' ')
 if (nome !== 'criar-po' && nome !== 'vez') {
   reconectar(op)
 }

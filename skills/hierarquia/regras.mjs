@@ -67,6 +67,7 @@ export function montarEstado(eventos) {
           situacao: ev.emEspera ? 'em_espera' : 'trabalhando',
           pedido: ev.pedido ?? ev.ordemId,
           prioridade: Boolean(ev.prioridade),
+          pastaDoCriador: ev.pastaDoCriador ?? null,
           chegada: Object.keys(estado.ordens).length,
           chatId: null,
           reprovacoes: 0,

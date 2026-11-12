@@ -5,7 +5,16 @@ export function opcoes(argv) {
     const item = argv[i]
     if (!item.startsWith('--')) {
       saida._.push(item)
-    } else if (['--aprovar', '--reprovar', '--na-frente', '--json'].includes(item)) {
+    } else if (
+      [
+        '--aprovar',
+        '--reprovar',
+        '--na-frente',
+        '--na-pasta-do-criador',
+        '--teste',
+        '--json'
+      ].includes(item)
+    ) {
       saida[item.slice(2)] = true
     } else if (item === '--prova') {
       saida.prova.push(argv[++i])
