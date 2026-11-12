@@ -265,6 +265,10 @@ lançar, confira que a ordem responde, sem ele precisar perguntar:
   lugar automático das coisas) pede prova **com o estado guardado de antes da mudança**, no programa
   de verdade. Em 12/11 o lugar automático dos cards mudou e os deslocamentos guardados de antes
   jogaram o PO para o lado errado.
+- **Teste nunca carrega a máquina do Kaique:** toda ordem que pede reproduzir lentidão ou travamento diz
+  que é proibido ocupar processador, memória ou disco de propósito; a demora é simulada dentro do próprio
+  comando. Em 12/11 a ordem dizia "se precisar, force a lentidão", o executor ocupou os 16 núcleos por
+  260 s e o Orca em uso caiu.
 - **Mudança em tela pede o pior caso:** print com o texto mais comprido, o número mais alto e todos os
   enfeites juntos, em cada tipo de card ou tela que a mudança toca. Em 12/11 a etiqueta de modelo e o
   estado "aguardando equipe" passaram cada um no seu print e, juntos no card do PO, vazaram da borda.
