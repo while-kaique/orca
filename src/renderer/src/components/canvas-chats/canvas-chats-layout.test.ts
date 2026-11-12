@@ -19,7 +19,7 @@ const chat = (key: string, extras = 0, parentKey: string | null = null) => ({
   parentKey,
   model: null,
   transcriptPath: null,
-  hierarchy: null,
+  hierarchy: { role: 'po' as const, order: null, toCheck: 0, touchedByUser: false },
   status: 'idle' as const,
   lines: [],
   agents: [],
@@ -121,6 +121,7 @@ it('lists everything below a chat so it can be dragged as one piece', () => {
   expect(chatDescendants(chats, 'po').map((c) => c.key)).toEqual(['plan', 'exec'])
   expect(chatDescendants(chats, 'other')).toEqual([])
 })
+const free = (c: CanvasChat): CanvasChat => ({ ...c, hierarchy: null })
 const role = (c: CanvasChat, r: 'po' | 'planejador' | 'executor'): CanvasChat => ({
   ...c,
   hierarchy: { role: r, order: null, toCheck: 0, touchedByUser: false }
@@ -149,4 +150,62 @@ it('does not push a row down for what hangs off a chat with nothing below it', (
     wide
   )
   expect(boxes.plan.y).toBe(boxes.po.y + 230 + 80)
+})
+it('puts free chats side by side above the project, level, and leaves the hierarchy where it was', () => {
+  const hierarchy = [
+    role(chat('po'), 'po'),
+    role(chat('plan', 0, 'po'), 'planejador'),
+    role(chat('exec', 0, 'plan'), 'executor')
+  ]
+  const before = layoutCanvas([project('p', hierarchy)], wide).boxes
+  const { boxes } = layoutCanvas(
+    [project('p', [...hierarchy, free(chat('f1')), free(chat('f2'))])],
+    wide
+  )
+  // The block grew upward by one chat (230) and the 80 gap: the project card moved down by 310.
+  expect(boxes['project:p'].y - before['project:p'].y).toBe(310)
+  for (const key of ['po', 'plan', 'exec']) {
+    expect(boxes[key].y - before[key].y).toBe(310)
+    // The block may widen for the free row, which re-centers the hierarchy as one piece.
+    expect(boxes[key].x - boxes.po.x).toBe(before[key].x - before.po.x)
+  }
+  expect(boxes.f1.y + 230 + 80).toBe(boxes['project:p'].y)
+  expect(boxes.f2.y).toBe(boxes.f1.y)
+  expect(boxes.f2.x - boxes.f1.x).toBe(340 + 52)
+})
+it('puts every chat above a project that has no PO and nothing below it', () => {
+  const { boxes } = layoutCanvas(
+    [project('p', [free(chat('a')), free(chat('b')), free(chat('c'))])],
+    wide
+  )
+  expect(boxes.a.y).toBe(boxes['project:p'].y - 80 - 230)
+  expect(boxes.c.x).toBe(boxes.a.x + 2 * (340 + 52))
+  expect(boxes['project:p'].x).toBe(boxes.a.x)
+  expect(boxes['project:p'].y).toBe(boxes.a.y + 230 + 80)
+})
+it('keeps the chips that hang above a free chat inside the block, not on the project', () => {
+  const { boxes } = layoutCanvas([project('p', [free(chat('a', 2))])], wide)
+  // Chips (8 + 30) sit above the chat, so the chat starts 38 below the block top.
+  expect(boxes.a.y).toBe(38)
+  expect(boxes['project:p'].y).toBe(38 + 230 + 80)
+})
+it('does not let a project below overlap the free chats of the project above it', () => {
+  const { boxes } = layoutCanvas(
+    [
+      project('top', [role(chat('t'), 'po'), free(chat('tf'))]),
+      project('low', [role(chat('l'), 'po'), free(chat('lf'))])
+    ],
+    { w: 700, h: 2400 }
+  )
+  expect(boxes['project:low'].y).toBeGreaterThan(boxes.t.y)
+  expect(boxes.lf.y).toBeGreaterThanOrEqual(boxes.t.y + 230)
+})
+it('does not drag the chats below a hierarchy chat together with a free chat', () => {
+  const chats = [
+    role(chat('po'), 'po'),
+    free(chat('f', 0, 'po')),
+    role(chat('plan', 0, 'po'), 'planejador')
+  ]
+  expect(chatDescendants(chats, 'po').map((c) => c.key)).toEqual(['plan'])
+  expect(chatDescendants(chats, 'f')).toEqual([])
 })

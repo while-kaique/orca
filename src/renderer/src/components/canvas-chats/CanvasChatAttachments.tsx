@@ -7,6 +7,7 @@ import { chatVisualBox } from './canvas-chat-shape'
 import { ExtraNode } from './CanvasChatExtras'
 import {
   CANVAS_ATTACHMENTS_ROW,
+  isFreeChat,
   type CanvasAgent,
   type CanvasBox,
   type CanvasChat,
@@ -117,6 +118,8 @@ export function CanvasChatAttachments({
     return null
   }
   const visual = chatVisualBox(chat, box)
+  // A free chat sits above its project: its chips stack upward so they never land on the project.
+  const above = isFreeChat(chat)
   const open = shown.find(({ kind }) => kind === openKind)
   const expand = (extra: CanvasExtra): void => {
     setOpenKind(null)
@@ -125,10 +128,12 @@ export function CanvasChatAttachments({
   return (
     <div
       ref={rootRef}
-      className={`cc-node cc-chips${open ? ' cc-chips-open' : ''}`}
+      className={`cc-node cc-chips${open ? ' cc-chips-open' : ''}${above ? ' cc-chips-above' : ''}`}
       style={{
         left: visual.x,
-        top: visual.y + visual.h + CANVAS_ATTACHMENTS_ROW.gap,
+        top: above
+          ? visual.y - CANVAS_ATTACHMENTS_ROW.gap - CANVAS_ATTACHMENTS_ROW.h
+          : visual.y + visual.h + CANVAS_ATTACHMENTS_ROW.gap,
         width: visual.w,
         height: CANVAS_ATTACHMENTS_ROW.h
       }}
