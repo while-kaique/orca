@@ -1,4 +1,5 @@
 import type { AppState } from '@/store/types'
+import type { LaunchRegistration } from './canvas-chat-launch-mask'
 import type { AgentStatusEntry } from '../../../../shared/agent-status/contracts/agent-status-types'
 import type { CanvasHierarchySnapshot } from '../../../../shared/canvas-hierarchy'
 import {
@@ -12,7 +13,7 @@ import {
   worktree
 } from './canvas-chats-fixture-scenario'
 
-export type LaunchScenarioKind = 'iniciando' | 'funcoes' | 'esperando' | 'problema'
+export type LaunchScenarioKind = 'iniciando' | 'funcoes' | 'esperando' | 'problema' | 'semPedido'
 
 const LAUNCH_TAB = 'po-novo'
 const LAUNCH_TEXT = 'Voce e o PO deste projeto. Rode: hierarquia criar-po e aguarde o briefing.'
@@ -21,7 +22,7 @@ const LAUNCH_TEXT = 'Voce e o PO deste projeto. Rode: hierarquia criar-po e agua
 export function launchScenario(kind: LaunchScenarioKind): {
   store: Partial<AppState>
   hierarchy: CanvasHierarchySnapshot[]
-  record: { tabId: string; worktreeId: string; launchText: string }
+  record: LaunchRegistration
 } {
   const paneKey = `${LAUNCH_TAB}:${LEAF}`
   const running = kind !== 'iniciando'
@@ -83,6 +84,17 @@ export function launchScenario(kind: LaunchScenarioKind): {
         fila: []
       }
     ],
-    record: { tabId: LAUNCH_TAB, worktreeId: WORKTREE, launchText: LAUNCH_TEXT }
+    record: {
+      tabId: LAUNCH_TAB,
+      worktreeId: WORKTREE,
+      launchText: LAUNCH_TEXT,
+      // The mask learns these from live agent states; a fixture has none, so it starts from them.
+      seen:
+        kind === 'semPedido'
+          ? { runningSince: Date.now() - 125_000 }
+          : kind === 'esperando' || kind === 'problema'
+            ? { sawWorking: true }
+            : undefined
+    }
   }
 }

@@ -278,3 +278,5 @@ export const carregandoFuncoes = launchMaskFixture('funcoes')
 export const carregandoEsperando = launchMaskFixture('esperando')
 /** The first turn ended and the chat never registered as PO: after the grace period the mask turns into the problem screen. */
 export const carregandoProblema = launchMaskFixture('problema', 7000)
+/** The agent is up but idle for over 2 minutes and never got the launch request. */
+export const carregandoSemPedido = launchMaskFixture('semPedido', 1500)

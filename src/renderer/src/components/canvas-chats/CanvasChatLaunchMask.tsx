@@ -43,6 +43,11 @@ function reasonLabel(reason: LaunchProblemReason): string {
         'fork.canvas.launch.reasonNeverStarted',
         'O agente não começou a rodar em 2 minutos.'
       )
+    case 'no-request':
+      return translate(
+        'fork.canvas.launch.reasonNoRequest',
+        'O chat abriu mas não recebeu o pedido de início.'
+      )
   }
 }
 

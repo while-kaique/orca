@@ -4,7 +4,7 @@ import type { WorktreeStatus } from '@/lib/worktree-status'
 import type { CanvasHierarchyRole } from '../../../../shared/canvas-hierarchy'
 
 export type LaunchStep = 1 | 2 | 3
-export type LaunchProblemReason = 'terminal' | 'agent' | 'registry' | 'never-started'
+export type LaunchProblemReason = 'terminal' | 'agent' | 'registry' | 'never-started' | 'no-request'
 
 export type LaunchProblem = { step: LaunchStep; reason: LaunchProblemReason }
 
@@ -15,7 +15,11 @@ export type LaunchRecord = {
   since: number
   launchText: string
   hadTerminal: boolean
-  /** When the first turn finished while the chat was still not registered as PO. */
+  /** The agent was "working" at least once since the launch: only a "done" after that ends the first turn. */
+  sawWorking: boolean
+  /** When the agent first reported any state: the clock of the "launch request never arrived" failure. */
+  runningSince: number | null
+  /** When the first turn (a "done" after "working") finished while the chat was still not registered as PO. */
   turnEndedAt: number | null
   problem: LaunchProblem | null
 }
@@ -32,6 +36,7 @@ export type LaunchFacts = {
 }
 
 export const LAUNCH_NEVER_STARTED_MS = 120_000
+export const LAUNCH_NO_REQUEST_MS = 120_000
 // Two reads of estado.json (3 s apart) that still miss the PO: one read alone can catch the file mid-write.
 export const LAUNCH_REGISTRY_GRACE_MS = 6_500
 const PROMPT_MATCH_CHARS = 60
@@ -51,24 +56,46 @@ const subscribe = (listener: () => void): (() => void) => {
   return () => listeners.delete(listener)
 }
 
-/** Drops the record of a tab that was closed. */
-function watchClosedTabs(): void {
+/**
+ * Keeps the record up to date from the store itself, so the facts survive the flowchart not being on
+ * screen: drops the record of a closed tab, and notes the first agent state and the first "working".
+ */
+function watchLaunchTabs(): void {
   if (watchingTabs) {
     return
   }
   watchingTabs = true
   useAppStore.subscribe((state, previous) => {
-    if (records.size === 0 || state.tabsByWorktree === previous.tabsByWorktree) {
+    if (records.size === 0) {
       return
     }
     let changed = false
-    for (const record of records.values()) {
-      const stillOpen = (state.tabsByWorktree[record.worktreeId] ?? []).some(
-        (tab) => tab.id === record.tabId
-      )
-      if (!stillOpen) {
-        records.delete(record.tabId)
-        changed = true
+    if (state.tabsByWorktree !== previous.tabsByWorktree) {
+      for (const record of records.values()) {
+        const stillOpen = (state.tabsByWorktree[record.worktreeId] ?? []).some(
+          (tab) => tab.id === record.tabId
+        )
+        if (!stillOpen) {
+          records.delete(record.tabId)
+          changed = true
+        }
+      }
+    }
+    if (state.agentStatusByPaneKey !== previous.agentStatusByPaneKey) {
+      const entries = Object.values(state.agentStatusByPaneKey)
+      for (const record of records.values()) {
+        const own = entries.filter((entry) => entry.tabId === record.tabId)
+        const next = { ...record }
+        if (own.length > 0 && next.runningSince === null) {
+          next.runningSince = Date.now()
+        }
+        if (own.some((entry) => entry.state === 'working')) {
+          next.sawWorking = true
+        }
+        if (next.runningSince !== record.runningSince || next.sawWorking !== record.sawWorking) {
+          records.set(record.tabId, next)
+          changed = true
+        }
       }
     }
     if (changed) {
@@ -77,19 +104,27 @@ function watchClosedTabs(): void {
   })
 }
 
-export function registerLaunchRecord(args: {
+export type LaunchRegistration = {
   tabId: string
   worktreeId: string
   launchText: string
-}): void {
+  /** Fixtures only: start the record as if these facts had already been seen. */
+  seen?: Partial<Pick<LaunchRecord, 'sawWorking' | 'runningSince'>>
+}
+
+export function registerLaunchRecord(args: LaunchRegistration): void {
+  const { seen, ...base } = args
   records.set(args.tabId, {
-    ...args,
+    ...base,
     since: Date.now(),
     hadTerminal: false,
+    sawWorking: false,
+    runningSince: null,
     turnEndedAt: null,
-    problem: null
+    problem: null,
+    ...seen
   })
-  watchClosedTabs()
+  watchLaunchTabs()
   emit()
 }
 
@@ -115,6 +150,10 @@ function launchEnded(record: LaunchRecord, lastPrompt: string | undefined): bool
   return Boolean(lastPrompt) && normalized(lastPrompt ?? '') !== normalized(record.launchText)
 }
 
+/** An early "done" (agent idle before it handled the launch text) is not a finished turn: it needs a "working" first. */
+export const isFirstTurnDone = (record: LaunchRecord, status: WorktreeStatus): boolean =>
+  status === 'done' && record.sawWorking
+
 const isRunning = (status: WorktreeStatus): boolean =>
   status === 'working' ||
   status === 'monitoring' ||
@@ -129,7 +168,8 @@ export function launchMaskView(record: LaunchRecord, facts: LaunchFacts): Launch
     return { kind: 'problem', problem: record.problem }
   }
   const { status, role, hasTerminal, now } = facts
-  const turnDone = record.turnEndedAt !== null || status === 'done'
+  const worked = record.sawWorking || status === 'working'
+  const turnDone = record.turnEndedAt !== null || (status === 'done' && worked)
   const step: LaunchStep = role === 'po' && turnDone ? 3 : isRunning(status) ? 2 : 1
   const problem = (reason: LaunchProblemReason): LaunchMaskView => ({
     kind: 'problem',
@@ -148,6 +188,14 @@ export function launchMaskView(record: LaunchRecord, facts: LaunchFacts): Launch
     now - record.turnEndedAt >= LAUNCH_REGISTRY_GRACE_MS
   ) {
     return problem('registry')
+  }
+  if (
+    step === 2 &&
+    !worked &&
+    record.runningSince !== null &&
+    now - record.runningSince >= LAUNCH_NO_REQUEST_MS
+  ) {
+    return problem('no-request')
   }
   if (step === 1 && now - record.since > LAUNCH_NEVER_STARTED_MS) {
     return problem('never-started')
@@ -192,8 +240,14 @@ export function useLaunchFactsKeeper(
     }
   }, [tabId, hasTerminal])
   useEffect(() => {
-    if (status === 'done' && records.get(tabId)?.turnEndedAt === null) {
+    const record = records.get(tabId)
+    if (record && record.turnEndedAt === null && isFirstTurnDone(record, status)) {
       updateLaunchRecord(tabId, { turnEndedAt: Date.now() })
+    }
+  }, [tabId, status])
+  useEffect(() => {
+    if (status === 'working') {
+      updateLaunchRecord(tabId, { sawWorking: true })
     }
   }, [tabId, status])
   useEffect(() => {

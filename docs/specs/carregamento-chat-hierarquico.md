@@ -52,12 +52,21 @@ Todos os sinais já existem. O estado do chat vem das funções da barra lateral
 campo cru do status do agente. O papel vem do `estado.json` que o fluxograma já lê
 (`chat.hierarchy`, montado em `canvas-chat-hierarchy.ts`).
 
-| Etapa                      | Começa quando                                              | Termina quando                                                                                                  |
-| -------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 1. `Iniciando...`          | a aba nasce com registro de lançamento                     | o estado da barra lateral sai de "parado" pela primeira vez (o Claude recebeu o prompt e começou a rodar)       |
-| 2. `Carregando funções...` | fim da etapa 1                                             | o chat aparece no `estado.json` com papel **PO** **e** o primeiro turno terminou (estado da barra = "terminou") |
-| 3. `Esperando um pedido`   | fim da etapa 2                                             | chega o primeiro pedido do Kaique                                                                               |
-| fim da máscara             | o último prompt do chat deixa de ser o texto do lançamento | —                                                                                                               |
+| Etapa                      | Começa quando                                              | Termina quando                                                                                            |
+| -------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| 1. `Iniciando...`          | a aba nasce com registro de lançamento                     | o estado da barra lateral sai de "parado" pela primeira vez (o Claude recebeu o prompt e começou a rodar) |
+| 2. `Carregando funções...` | fim da etapa 1                                             | o chat aparece no `estado.json` com papel **PO** **e** o primeiro turno válido terminou (ver abaixo)      |
+| 3. `Esperando um pedido`   | fim da etapa 2                                             | chega o primeiro pedido do Kaique                                                                         |
+| fim da máscara             | o último prompt do chat deixa de ser o texto do lançamento | —                                                                                                         |
+
+**Primeiro turno válido (correção o-016, decisão do PO).** No fluxo real o estado da barra faz
+"terminou" cerca de 18 s depois do lançamento (o Claude está ocioso, ainda não tratou o prompt),
+depois "trabalhando" (~26 s), o PO entra no `estado.json` (33 a 47 s) e só então vem o "terminou"
+de verdade (~63 s). Portanto **"primeiro turno terminou" vale só para um "terminou" que vem
+DEPOIS de o chat ter estado "trabalhando" desde o lançamento**. Um "terminou" sem "trabalhando"
+antes não conta: nem para passar para a etapa 3, nem para a falha "não se registrou como PO". O
+"trabalhando" é anotado pelo registro de lançamento a partir do estado do agente na memória do
+Orca, então também vale se o fluxograma não estava na tela naquele instante.
 
 Confirmo a sugestão do PO, com dois ajustes:
 
@@ -83,12 +92,13 @@ mostra o terminal de verdade para investigar.
 
 Título fixo: **`Deu problema ao abrir o PO`**. Embaixo, `Parou em: <nome da etapa>` e o motivo:
 
-| Falha                          | Sinal                                                                                                                | Motivo na tela                                           |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| Terminal morreu                | a aba tinha terminal e ficou sem nenhum (`ptyIdsByTabId` da aba vazio), com a aba ainda aberta                       | `O terminal do chat fechou.`                             |
-| Agente parou com erro          | estado da barra = "falhou" ou "interrompido" durante as etapas 1 ou 2                                                | `O agente parou com erro antes de terminar de subir.`    |
-| `criar-po` falhou ou não rodou | primeiro turno terminou e, depois de 2 leituras seguidas do `estado.json` (cerca de 6 s), o chat não aparece como PO | `O chat terminou de subir mas não se registrou como PO.` |
-| Nunca começou                  | etapa 1 dura mais de **120 s**                                                                                       | `O agente não começou a rodar em 2 minutos.`             |
+| Falha                          | Sinal                                                                                                                                                                | Motivo na tela                                           |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Terminal morreu                | a aba tinha terminal e ficou sem nenhum (`ptyIdsByTabId` da aba vazio), com a aba ainda aberta                                                                       | `O terminal do chat fechou.`                             |
+| Agente parou com erro          | estado da barra = "falhou" ou "interrompido" durante as etapas 1 ou 2                                                                                                | `O agente parou com erro antes de terminar de subir.`    |
+| `criar-po` falhou ou não rodou | primeiro turno **válido** terminou ("terminou" depois de "trabalhando") e, depois de 2 leituras seguidas do `estado.json` (cerca de 6 s), o chat não aparece como PO | `O chat terminou de subir mas não se registrou como PO.` |
+| Pedido de início não chegou    | etapa 2 por **120 s** sem o chat nunca ter entrado em "trabalhando" (o agente subiu, mas a ordem não foi enviada)                                                    | `O chat abriu mas não recebeu o pedido de início.`       |
+| Nunca começou                  | etapa 1 dura mais de **120 s**                                                                                                                                       | `O agente não começou a rodar em 2 minutos.`             |
 
 Última linha, sempre: `Abra o chat para ver o que aconteceu.`
 
@@ -112,9 +122,13 @@ daria falso alarme.
 - **Lista das etapas:** três linhas. Passada: ícone ✓ (lucide `Check`) e texto apagado. Atual:
   o girador do `ChatRestoreLoading` (etapas 1 e 2) ou um ponto azul fixo (etapa 3, que é
   espera, não trabalho) e texto em destaque. Futura: círculo vazio e texto apagado.
-- **Visual de base:** o mesmo do `ChatRestoreLoading` ("Restaurando o chat…", em
-  `terminal-pane/SessionRestoredBanner.tsx`): fundo opaco, centralizado, girador de 22 px,
-  texto 14 px forte e 12 px apagado. Reaproveita a animação `chat-restore-spin`.
+- **Visual de base:** o do `ChatRestoreLoading` ("Restaurando o chat…", em
+  `terminal-pane/SessionRestoredBanner.tsx`): fundo opaco, centralizado; reaproveita a animação
+  `chat-restore-spin`. **Correção o-016:** as cores são **fixas**, as mesmas do card do
+  fluxograma (fundo `#141417`, texto `#e6e6ee`, apagado `#b4b4bf`), iguais nos temas claro e
+  escuro, porque o fluxograma é sempre escuro (antes a máscara usava `--background` e ficava
+  branca no tema claro). Todas as linhas (título, etapas, etapa da falha, motivo e dica) têm o
+  tamanho do texto do corpo do card (`13px * --cc-inv`), para ler de relance.
 - **Cor do card:** borda e brilho em `var(--color-blue-600)`, o azul sólido da etiqueta do PO
   (commit 370c71c522). Enquanto a máscara está ativa, o anel amarelo de "trabalhando", a
   respiração verde de "terminou" e o tracejado de "visto" ficam desligados nesse card. O azul é
@@ -127,7 +141,7 @@ daria falso alarme.
   textos usam três pontos normais (`...`), exatamente como o Kaique escreveu.
 - **CSS** num bloco próprio no fim de `canvas-chats.css`, com o comentário
   `/* máscara de carregamento do chat hierárquico (o-011) */`. Só `var(--color-blue-600)`,
-  `--cc-wait`, `--foreground`, `--muted-foreground` e `--background`.
+  `--cc-wait` e as cores fixas do card acima.
 
 ## 6. Requisitos
 
