@@ -169,17 +169,23 @@ export const SCENARIO_STORE: Partial<AppState> = {
 const hierarchyOf = (folder: string, chats: readonly Chat[]): CanvasHierarchySnapshot => ({
   folder,
   chats: Object.fromEntries(
-    chats.map((chat) => [
-      chat.tab,
-      {
-        id: chat.tab,
-        papel: chat.role,
-        pai: chat.parent,
-        ordemId: chat.order ? `o-${chat.tab}` : null,
-        ativo: true,
-        mexidoPeloKaique: false
-      }
-    ])
+    chats.flatMap((chat) =>
+      chat.role
+        ? [
+            [
+              chat.tab,
+              {
+                id: chat.tab,
+                papel: chat.role,
+                pai: chat.parent,
+                ordemId: chat.order ? `o-${chat.tab}` : null,
+                ativo: true,
+                mexidoPeloKaique: false
+              }
+            ] as const
+          ]
+        : []
+    )
   ),
   ordens: Object.fromEntries(
     chats
@@ -209,6 +215,11 @@ export const SCENARIO_HIERARCHY: CanvasHierarchySnapshot[] = [
     CHATS.filter((chat) => chat.direct)
   )
 ]
+
+/** Claude's status record has no model; the flowchart reads it from each chat's transcript. */
+export const SCENARIO_MODELS: Record<string, string> = Object.fromEntries(
+  CHATS.map((chat) => [transcript(chat.tab), chat.model])
+)
 
 export const SCENARIO_CONTEXT: CanvasContextTokens = Object.fromEntries(
   CHATS.map((chat) => [transcript(chat.tab), chat.tokens])

@@ -69,6 +69,7 @@ export function montarEstado(eventos) {
         ordem.dispatchId = ev.dispatchId
         ordem.pasta = ev.pasta
         ordem.situacao = 'trabalhando'
+        ordem.lancamento = ev.situacaoDoLancamento
         estado.chats[ev.chatId] = {
           id: ev.chatId,
           handle: ev.handle ?? null,
@@ -78,6 +79,17 @@ export function montarEstado(eventos) {
           ordemId: ordem.id,
           ativo: true,
           mexidoPeloKaique: false
+        }
+        break
+      case 'lancamento_respondeu':
+        ordem.pasta = ev.pasta ?? ordem.pasta
+        ordem.lancamento = ev.situacaoDoLancamento
+        break
+      case 'lancamento_falhou':
+        ordem.situacao = 'parou'
+        ordem.lancamentoFalhou = ev.motivo
+        if (ev.chatId && estado.chats[ev.chatId]) {
+          estado.chats[ev.chatId].ativo = false
         }
         break
       case 'entrega_recusada':

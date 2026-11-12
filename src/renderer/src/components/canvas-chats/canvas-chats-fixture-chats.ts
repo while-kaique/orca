@@ -4,8 +4,9 @@ import type { AgentStatusEntry } from '../../../../shared/agent-status/contracts
 export type Chat = {
   tab: string
   title: string
-  role: 'po' | 'planejador' | 'executor'
+  role: 'po' | 'planejador' | 'executor' | null
   parent: string | null
+  model: string
   state: AgentStatusEntry['state']
   prompt: string
   reply: string
@@ -19,6 +20,7 @@ export type Chat = {
 export const CHATS: Chat[] = [
   {
     tab: 'po',
+    model: 'claude-fable-5-2',
     title: 'Mestre de Banners',
     role: 'po',
     parent: null,
@@ -29,7 +31,19 @@ export const CHATS: Chat[] = [
     agents: ['revisor de layout', 'pesquisa de referências']
   },
   {
+    tab: 'livre',
+    model: 'claude-sonnet-5-5',
+    title: 'Conversa solta',
+    role: null,
+    parent: null,
+    state: 'done',
+    prompt: 'me explica essa mensagem de erro',
+    reply: 'É um erro de rede; tente de novo em alguns minutos.',
+    tokens: 42_000
+  },
+  {
     tab: 'dpo',
+    model: 'claude-fable-5-2',
     title: 'Mestre do Painel',
     role: 'po',
     parent: null,
@@ -41,6 +55,7 @@ export const CHATS: Chat[] = [
   },
   {
     tab: 'dex',
+    model: 'claude-sonnet-5-5',
     title: 'Consertador',
     role: 'executor',
     parent: 'dpo',
@@ -53,6 +68,7 @@ export const CHATS: Chat[] = [
   },
   {
     tab: 'pl1',
+    model: 'claude-opus-5-5',
     title: 'Tela de status',
     role: 'planejador',
     parent: 'po',
@@ -65,6 +81,7 @@ export const CHATS: Chat[] = [
   },
   {
     tab: 'pl2',
+    model: 'claude-opus-5-5',
     title: 'Pagamentos',
     role: 'planejador',
     parent: 'po',
@@ -76,6 +93,7 @@ export const CHATS: Chat[] = [
   },
   {
     tab: 'ex1',
+    model: 'claude-sonnet-5-5',
     title: 'Mestre UI/UX',
     role: 'executor',
     parent: 'pl1',
@@ -87,6 +105,7 @@ export const CHATS: Chat[] = [
   },
   {
     tab: 'ex2',
+    model: 'claude-sonnet-5-5',
     title: 'Validador',
     role: 'executor',
     parent: 'pl1',
@@ -98,6 +117,7 @@ export const CHATS: Chat[] = [
   },
   {
     tab: 'ex3',
+    model: 'claude-haiku-5-5',
     title: 'Debugger',
     role: 'executor',
     parent: 'pl2',
@@ -109,6 +129,7 @@ export const CHATS: Chat[] = [
   },
   {
     tab: 'ex4',
+    model: 'claude-sonnet-5-5',
     title: 'Criador de Testes',
     role: 'executor',
     parent: 'pl2',

@@ -304,6 +304,8 @@
   filter: drop-shadow(0 0 12px color-mix(in srgb, var(--k) 55%, transparent));
 }
 .cc-crest-body b,
+.cc-crest-body .cc-role,
+.cc-crest-body .cc-model,
 .cc-crest-body .cc-context {
   position: relative;
 }
@@ -365,12 +367,30 @@
 .cc-role {
   flex: none;
   padding: calc(1px * var(--cc-inv)) calc(6px * var(--cc-inv));
+  border: 1px solid transparent;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--cc-pc, #5d5d66) 30%, #1d1d22);
   font: 700 calc(10px * var(--cc-inv)) system-ui;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #ececf3;
+}
+/* one blue, three strengths: PO solid, planner tinted, executor outlined */
+.cc-role[data-role='po'] {
+  background: var(--color-blue-600);
+  color: #fff;
+}
+.cc-role[data-role='planejador'] {
+  background: color-mix(in srgb, var(--color-blue-500) 32%, #1d1d22);
+  border-color: var(--color-blue-500);
+  color: var(--color-blue-300);
+}
+.cc-role[data-role='executor'] {
+  border-color: var(--color-blue-800);
+  color: var(--color-blue-300);
+}
+/* outside the hierarchy: no blue, dashed, reads as loose */
+.cc-role[data-role='free'] {
+  border: 1px dashed #6b6b78;
+  color: #b4b4bf;
 }
 .cc-gate {
   flex: none;
@@ -463,14 +483,15 @@
 .cc-queue-error {
   color: var(--cc-wait);
 }
-/* model the chat runs on: neutral pill, the family only changes the weight */
+/* model the chat runs on now: light round chip, so it never reads as the blue role label or grey text */
 .cc-model {
   flex: none;
-  padding: calc(1px * var(--cc-inv)) calc(6px * var(--cc-inv));
-  border: 1px solid #3b3b44;
+  padding: calc(1px * var(--cc-inv)) calc(8px * var(--cc-inv));
+  border: 1px solid color-mix(in srgb, #ececf3 55%, transparent);
   border-radius: 999px;
-  font: 500 calc(10.5px * var(--cc-inv)) system-ui;
-  color: #b4b4bf;
+  background: color-mix(in srgb, #ececf3 14%, transparent);
+  font: 600 calc(10.5px * var(--cc-inv)) system-ui;
+  color: #ececf3;
 }
 /* context meter: how full the chat's context is, 0 to 1M tokens */
 .cc-context {
@@ -508,12 +529,6 @@
 .cc-model[data-family='fable'],
 .cc-model[data-family='mythos'] {
   font-weight: 700;
-  color: #ececf3;
-  border-color: #6b6b78;
-}
-.cc-model[data-family='sonnet'],
-.cc-model[data-family='haiku'] {
-  color: #8d8d99;
 }
 /* a chat created by another chat: a stronger neutral line (the project color stays on the project card) */
 .cc-line-created {
