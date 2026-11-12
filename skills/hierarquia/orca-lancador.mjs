@@ -126,6 +126,18 @@ export function avisarPo(po, texto) {
   }
 }
 
+/** A aba nasce como "worker-task_...": com o título da ordem, quem olha o fluxograma sabe o que ela é. */
+export function renomearAba(handle, titulo) {
+  return orcaEmSegundoPlano([
+    'terminal',
+    'rename',
+    '--terminal',
+    handle,
+    '--title',
+    citar(semAcento(titulo))
+  ]).catch(() => null)
+}
+
 /**
  * Escreve uma linha no chat como se alguém digitasse e enviasse; se ela ficar parada na caixa de
  * texto, envia de novo uma vez. `%` sai porque o shell do Windows o trocaria.

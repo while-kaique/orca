@@ -22,6 +22,7 @@ import {
   enviarCorrecao,
   escreverNoChat,
   garantirExecucao,
+  renomearAba,
   lancarWorker,
   manterAberto,
   orca
@@ -129,6 +130,7 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
     aoNascer: (chat) => {
       abaVigiada = chat.chatId
       registrar(chat, 'esperando_o_orca')
+      void renomearAba(chat.handle, titulo)
       vigia.ligar(chat.dispatchId, chat.handle)
     },
     aoEsperar: () => vigia.vigiar(anotarInicio)
@@ -154,6 +156,7 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
   } else {
     const { dispatchId, taskId } = dados
     registrar({ chatId, handle, pasta: pastaDoChat, dispatchId, taskId }, dados.state)
+    void renomearAba(handle, titulo)
   }
   manterAberto(dados.dispatchId)
   if (dados.state !== 'ready') {
