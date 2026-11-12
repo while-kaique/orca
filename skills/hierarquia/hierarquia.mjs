@@ -95,6 +95,8 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
   const pasta = pastaFixa ? citar(`path:${pastaFixa.replaceAll('\\', '/')}`) : 'new-child'
   const pedido = pedidoParaOrca(projeto, ordem.id, ordem.papel, ordem.campos)
   const titulo = tituloDaTarefa(ordem)
+  // A etiqueta do fluxograma já diz o papel: a aba leva só o título da ordem.
+  const tituloDaAba = ordem.campos.titulo ?? ordem.id
   const args = [
     'orchestration',
     'worker-start',
@@ -130,7 +132,7 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
     aoNascer: (chat) => {
       abaVigiada = chat.chatId
       registrar(chat, 'esperando_o_orca')
-      void renomearAba(chat.handle, titulo)
+      void renomearAba(chat.handle, tituloDaAba)
       vigia.ligar(chat.dispatchId, chat.handle)
     },
     aoEsperar: () => vigia.vigiar(anotarInicio)
@@ -156,7 +158,7 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
   } else {
     const { dispatchId, taskId } = dados
     registrar({ chatId, handle, pasta: pastaDoChat, dispatchId, taskId }, dados.state)
-    void renomearAba(handle, titulo)
+    void renomearAba(handle, tituloDaAba)
   }
   manterAberto(dados.dispatchId)
   if (dados.state !== 'ready') {
