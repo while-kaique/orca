@@ -1,5 +1,5 @@
 // Conversa com o Orca: lançar chat, manter aberto e avisar. Usado pelo comando `hierarquia`.
-import { execFileSync } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
 
 /** O texto que vai para o Orca precisa ser ASCII puro: acento vira lixo na ordem. */
 export function semAcento(texto) {
@@ -10,16 +10,28 @@ export function semAcento(texto) {
     .replace(/"/gu, "'")
 }
 
+function opcoesDoProcesso() {
+  return {
+    encoding: 'utf8',
+    // No Windows o comando é um .cmd, que só abre pelo shell.
+    shell: process.platform === 'win32',
+    maxBuffer: 64 * 1024 * 1024
+  }
+}
+
+function lerResposta(saida) {
+  const util = String(saida)
+    .split('\n')
+    .filter((linha) => !linha.includes('_keepalive'))
+    .join('\n')
+  return JSON.parse(util.slice(util.indexOf('{')))
+}
+
 export function orca(args) {
   const comando = process.env.HIERARQUIA_ORCA ?? 'orca-dev'
-  // No Windows o comando é um .cmd, que só abre pelo shell.
   let saida
   try {
-    saida = execFileSync(comando, [...args, '--json'], {
-      encoding: 'utf8',
-      shell: process.platform === 'win32',
-      maxBuffer: 64 * 1024 * 1024
-    })
+    saida = execFileSync(comando, [...args, '--json'], opcoesDoProcesso())
   } catch (erro) {
     // O Orca sai com código 1 também quando só não confirmou o início do turno: a resposta vem igual.
     if (!String(erro.stdout ?? '').includes('{')) {
@@ -27,11 +39,24 @@ export function orca(args) {
     }
     saida = String(erro.stdout)
   }
-  const util = saida
-    .split('\n')
-    .filter((linha) => !linha.includes('_keepalive'))
-    .join('\n')
-  return JSON.parse(util.slice(util.indexOf('{')))
+  return lerResposta(saida)
+}
+
+function orcaEmSegundoPlano(args) {
+  const comando = process.env.HIERARQUIA_ORCA ?? 'orca-dev'
+  return new Promise((resolver, rejeitar) => {
+    execFile(comando, [...args, '--json'], opcoesDoProcesso(), (erro, saida) => {
+      if (erro && !String(saida ?? '').includes('{')) {
+        rejeitar(erro)
+        return
+      }
+      try {
+        resolver(lerResposta(saida))
+      } catch (falha) {
+        rejeitar(falha)
+      }
+    })
+  })
 }
 
 export function dormir(ms) {
@@ -95,4 +120,97 @@ export function avisarPo(po, texto) {
   } catch {
     // Sem o aviso, o PO ainda vê a decisão no próximo `hierarquia estado`.
   }
+}
+
+/** A aba em que o Orca abriu o chat recém-lançado; cada chamada ao Orca demora, então uma só quando basta. */
+export async function abaDoChat(dispatchId, handle) {
+  try {
+    const aba = (await orcaEmSegundoPlano(['terminal', 'show', '--terminal', handle])).result
+      ?.terminal?.tabId
+    if (aba) {
+      return aba
+    }
+    const visto = (
+      await orcaEmSegundoPlano(['orchestration', 'worker-show', '--dispatch', dispatchId])
+    ).result
+    const painel = visto?.terminal?.recordedPaneKey ?? visto?.dispatch?.assigneePaneKey
+    return painel ? String(painel).split(':')[0] : null
+  } catch {
+    return null
+  }
+}
+
+const esperar = (ms) => new Promise((pronto) => setTimeout(pronto, ms))
+
+async function workersRecentes() {
+  const lista = await orcaEmSegundoPlano(['orchestration', 'worker-list', '--limit', '10'])
+  return lista.result?.workers ?? []
+}
+
+/**
+ * O worker novo é o que não existia antes e cuja tarefa carrega o marcador desta ordem.
+ * As três consultas saem juntas: cada chamada ao Orca demora, então a aba já vem na mesma rodada.
+ */
+async function workerDaOrdem(antes, marcador) {
+  const [workers, tarefas, terminais] = await Promise.all([
+    workersRecentes(),
+    orcaEmSegundoPlano(['orchestration', 'task-list', '--brief']),
+    orcaEmSegundoPlano(['terminal', 'list']).catch(() => null)
+  ])
+  const worker = workers.find(
+    (w) =>
+      w.terminal &&
+      !antes.has(w.dispatchId) &&
+      (tarefas.result?.tasks ?? []).some(
+        (t) => t.id === w.taskId && JSON.stringify(t).includes(marcador)
+      )
+  )
+  if (!worker) {
+    return null
+  }
+  const doTerminal = (terminais?.result?.terminals ?? []).find((t) => t.handle === worker.terminal)
+  const chatId = doTerminal?.tabId ?? (await abaDoChat(worker.dispatchId, worker.terminal))
+  return chatId ? { ...worker, chatId } : null
+}
+
+/**
+ * Roda o worker-start (que espera até 3 min o turno começar) e, enquanto ele espera, chama
+ * `aoNascer` assim que o chat existe, para o registro nascer junto com a aba.
+ */
+export async function lancarWorker(args, marcador, aoNascer) {
+  let antes = null
+  try {
+    antes = new Set((await workersRecentes()).map((w) => w.dispatchId))
+  } catch {
+    // Sem a lista não dá para reconhecer o chat cedo: o registro sai quando o Orca responder.
+  }
+  let respondeu = false
+  const lancamento = orcaEmSegundoPlano(args)
+  lancamento.then(
+    () => (respondeu = true),
+    () => (respondeu = true)
+  )
+  let nascido = null
+  while (antes && !respondeu && !nascido) {
+    try {
+      const worker = await workerDaOrdem(antes, marcador)
+      if (worker && !respondeu) {
+        nascido = {
+          chatId: worker.chatId,
+          handle: worker.terminal,
+          dispatchId: worker.dispatchId,
+          taskId: worker.taskId,
+          pasta: String(worker.workspace ?? '').split('::')[1] ?? null
+        }
+        aoNascer(nascido)
+      }
+    } catch {
+      // Tenta de novo no próximo ciclo; se nunca achar, o registro sai quando o Orca responder.
+    }
+    await esperar(300)
+  }
+  const resposta = await lancamento.catch((erro) => ({
+    erro: String(erro.message ?? erro).slice(0, 300)
+  }))
+  return { resposta, nascido }
 }

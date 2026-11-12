@@ -3,6 +3,7 @@ import type {
   CanvasHierarchyDecisionResult,
   CanvasHierarchySnapshot
 } from '../../shared/canvas-hierarchy'
+import type { CanvasChatModels } from '../../shared/canvas-chat-transcript-model'
 import type { CanvasContextTokens } from '../../shared/canvas-context-tokens'
 import { ipcRenderer } from 'electron'
 import type { BaseRefDefaultResult, BaseRefSearchResult } from '../../shared/repo-types'
@@ -56,6 +57,8 @@ export const reposApi = {
     ipcRenderer.invoke('repos:readCanvasHierarchy', folders),
   readCanvasContextTokens: (transcriptPaths: string[]): Promise<CanvasContextTokens> =>
     ipcRenderer.invoke('repos:readCanvasContextTokens', transcriptPaths),
+  readCanvasChatModels: (transcriptPaths: string[]): Promise<CanvasChatModels> =>
+    ipcRenderer.invoke('repos:readCanvasChatModels', transcriptPaths),
   readCanvasImage: (request: {
     path: string
     size: 'thumb' | 'full'

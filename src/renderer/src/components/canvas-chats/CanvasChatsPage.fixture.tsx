@@ -1,12 +1,14 @@
 import { defineFixture } from '../../component-fixtures/component-fixture'
 import type { AppState } from '@/store/types'
 import type { CanvasHierarchySnapshot } from '../../../../shared/canvas-hierarchy'
+import type { CanvasChatModels } from '../../../../shared/canvas-chat-transcript-model'
 import type { CanvasContextTokens } from '../../../../shared/canvas-context-tokens'
 import CanvasChatsPage from './CanvasChatsPage'
 import { noteCanvasChatArtifacts } from './canvas-chat-artifacts'
 import {
   SCENARIO_CONTEXT,
   SCENARIO_HIERARCHY,
+  SCENARIO_MODELS,
   SCENARIO_STORE,
   SCENARIO_TERMINAL_TEXT,
   scenarioHierarchyWithParents,
@@ -23,6 +25,7 @@ type Capture = {
   store: Partial<AppState>
   hierarchy: CanvasHierarchySnapshot[]
   contextTokens: CanvasContextTokens
+  chatModels?: CanvasChatModels
 }
 
 function isCapture(value: unknown): value is Capture {
@@ -57,6 +60,7 @@ const board = (): React.JSX.Element => (
 function scenarioSetupWith(hierarchy: typeof SCENARIO_HIERARCHY): void {
   window.api.repos.readCanvasHierarchy = () => Promise.resolve(hierarchy)
   window.api.repos.readCanvasContextTokens = () => Promise.resolve(SCENARIO_CONTEXT)
+  window.api.repos.readCanvasChatModels = () => Promise.resolve(SCENARIO_MODELS)
   stubPictures()
   for (const [tab, text] of Object.entries(SCENARIO_TERMINAL_TEXT)) {
     noteCanvasChatArtifacts(tab, text)
@@ -220,6 +224,7 @@ export const real = defineFixture({
   setup: () => {
     window.api.repos.readCanvasHierarchy = () => Promise.resolve(capture.hierarchy)
     window.api.repos.readCanvasContextTokens = () => Promise.resolve(capture.contextTokens)
+    window.api.repos.readCanvasChatModels = () => Promise.resolve(capture.chatModels ?? {})
     stubPictures()
   },
   // The first fit can run before the board is measured; Reorganizar fits everything in view.

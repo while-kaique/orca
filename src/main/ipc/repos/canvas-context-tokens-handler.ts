@@ -6,6 +6,10 @@ import {
   contextTokensFromTranscriptTail,
   type CanvasContextTokens
 } from '../../../shared/canvas-context-tokens'
+import {
+  modelFromTranscriptTail,
+  type CanvasChatModels
+} from '../../../shared/canvas-chat-transcript-model'
 import { isTrustedBrowserRenderer } from '../browser/browser-renderer-trust'
 
 // Fork: the flowchart's context meter reads each chat's Claude transcript instead of a status line.
@@ -53,6 +57,21 @@ export async function readCanvasContextTokens(
   return tokens
 }
 
+export async function readCanvasChatModels(paths: readonly string[]): Promise<CanvasChatModels> {
+  const models: CanvasChatModels = {}
+  const wanted = [...new Set(paths)].filter(isClaudeTranscript).slice(0, MAX_TRANSCRIPTS)
+  await Promise.all(
+    wanted.map(async (path) => {
+      const tail = await readTail(path)
+      const model = tail === null ? null : modelFromTranscriptTail(tail)
+      if (model !== null) {
+        models[path] = model
+      }
+    })
+  )
+  return models
+}
+
 export function registerCanvasContextTokensHandler(): void {
   ipcMain.removeHandler('repos:readCanvasContextTokens')
   ipcMain.handle('repos:readCanvasContextTokens', (event, paths: unknown) =>
@@ -60,6 +79,14 @@ export function registerCanvasContextTokensHandler(): void {
     Array.isArray(paths) &&
     paths.every((path) => typeof path === 'string')
       ? readCanvasContextTokens(paths)
+      : Promise.resolve({})
+  )
+  ipcMain.removeHandler('repos:readCanvasChatModels')
+  ipcMain.handle('repos:readCanvasChatModels', (event, paths: unknown) =>
+    isTrustedBrowserRenderer(event.sender) &&
+    Array.isArray(paths) &&
+    paths.every((path) => typeof path === 'string')
+      ? readCanvasChatModels(paths)
       : Promise.resolve({})
   )
 }

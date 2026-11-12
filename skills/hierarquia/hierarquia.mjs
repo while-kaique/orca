@@ -15,15 +15,19 @@ import {
   ordensLiberadasDaEspera
 } from './regras.mjs'
 import {
+  abaDoChat,
   avisarPo,
   branchDoProjeto,
   citar,
   dormir,
   garantirExecucao,
+  lancarWorker,
   manterAberto,
   orca,
   semAcento
 } from './orca-lancador.mjs'
+import { marcadorDaOrdem, pedidoParaOrca, textoDaOrdem } from './pedido-da-ordem.mjs'
+import { imprimirEstado } from './estado-na-tela.mjs'
 import { foraDoGit } from './pasta-fora-do-git.mjs'
 
 const AQUI = import.meta.dirname
@@ -170,49 +174,7 @@ function reconectar(op) {
   }
 }
 
-function textoDaOrdem(ordemId, papel, campos) {
-  const criterios = campos.criterios.map((item, i) => `${i + 1}. ${item}`).join('\n')
-  return [
-    `# Ordem ${ordemId} (para ${papel})`,
-    '',
-    campos.titulo ? `**Título:** ${campos.titulo}\n` : '',
-    `## Objetivo\n${campos.objetivo}\n`,
-    `## Por quê\n${campos.porque}\n`,
-    `## Critérios de aceite\n${criterios}\n`,
-    `## Limites\n${campos.limites}\n`,
-    `## Território\n${campos.territorio}\n`
-  ].join('\n')
-}
-
-function pedidoParaOrca(projeto, ordemId, papel, campos) {
-  const papelArquivo = join(AQUI, 'papeis', `${papel}.md`)
-  const ordemArquivo = join(caminhos(projeto).ordens, `${ordemId}.md`)
-  return semAcento(
-    [
-      `PAPEL: ${papel} na hierarquia de chats do projeto ${projeto}.`,
-      `Antes de qualquer coisa leia o seu papel em ${papelArquivo} e a sua ordem em ${ordemArquivo}.`,
-      `Target: ${campos.territorio}.`,
-      'Change: cumprir o objetivo descrito no arquivo da ordem.',
-      'Constraints: os limites escritos na ordem e as proibicoes do seu papel.',
-      'Ownership: somente o territorio escrito na ordem.',
-      `Observable acceptance: produza a prova pedida nos criterios, rode: hierarquia entregar --ordem ${ordemId} --prova CAMINHO_DA_PROVA (uma opcao --prova por arquivo), e so depois envie worker_done como manda o seu preambulo.`
-    ].join(' ')
-  )
-}
-
-/** A aba em que o Orca abriu o chat recém-lançado. */
-function abaDoChat(dispatchId, handle) {
-  try {
-    const visto = orca(['orchestration', 'worker-show', '--dispatch', dispatchId]).result ?? {}
-    const painel = visto.terminal?.recordedPaneKey ?? visto.dispatch?.assigneePaneKey
-    const aba = () => orca(['terminal', 'show', '--terminal', handle]).result?.terminal?.tabId
-    return painel ? String(painel).split(':')[0] : (aba() ?? null)
-  } catch {
-    return null
-  }
-}
-
-function lancar(projeto, estado, ordem, modelo, fechar) {
+async function lancar(projeto, estado, ordem, modelo, fechar) {
   const eu = quemSou()
   if (fechar) {
     const antigo = Object.values(estado.ordens).find((item) => item.chatId === fechar)
@@ -230,7 +192,7 @@ function lancar(projeto, estado, ordem, modelo, fechar) {
     lerConfig(projeto).pastaDosChats === 'projeto'
       ? citar(`path:${projeto.replaceAll('\\', '/')}`)
       : 'new-child'
-  const resposta = orca([
+  const args = [
     'orchestration',
     'worker-start',
     ...(souPo ? [] : ['--from', meuTerminal()]),
@@ -247,23 +209,40 @@ function lancar(projeto, estado, ordem, modelo, fechar) {
     modelo,
     '--timeout-ms',
     ESPERA_DO_LANCAMENTO_MS
-  ])
+  ]
+  const registrar = (chat, situacao) =>
+    anotar(projeto, 'chat_lancado', {
+      ordemId: ordem.id,
+      ...chat,
+      pasta: chat.pasta ?? projeto,
+      modelo,
+      situacaoDoLancamento: situacao
+    })
+  // O registro nasce junto com a aba: o fluxograma só sabe o papel e o criador depois dele.
+  const { resposta, nascido } = await lancarWorker(
+    args,
+    marcadorDaOrdem(ordem.id, ordem.papel),
+    (chat) => registrar(chat, 'esperando_o_orca')
+  )
   const dados = resposta.result ?? {}
   const handle = dados.terminal
   if (!handle) {
-    sair(`O Orca não criou o chat. Resposta: ${JSON.stringify(resposta).slice(0, 600)}`)
+    const motivo = `O Orca não criou o chat. Resposta: ${JSON.stringify(resposta).slice(0, 600)}`
+    anotar(projeto, 'lancamento_falhou', { ordemId: ordem.id, chatId: nascido?.chatId, motivo })
+    sair(motivo)
   }
-  const chatId = abaDoChat(dados.dispatchId, handle) ?? handle
-  anotar(projeto, 'chat_lancado', {
-    ordemId: ordem.id,
-    chatId,
-    handle,
-    pasta: String(dados.workspace ?? '').split('::')[1] ?? projeto,
-    modelo,
-    dispatchId: dados.dispatchId,
-    taskId: dados.taskId,
-    situacaoDoLancamento: dados.state
-  })
+  const pastaDoChat = String(dados.workspace ?? '').split('::')[1] ?? projeto
+  const chatId = nascido?.chatId ?? (await abaDoChat(dados.dispatchId, handle)) ?? handle
+  if (nascido) {
+    anotar(projeto, 'lancamento_respondeu', {
+      ordemId: ordem.id,
+      pasta: pastaDoChat,
+      situacaoDoLancamento: dados.state
+    })
+  } else {
+    const { dispatchId, taskId } = dados
+    registrar({ chatId, handle, pasta: pastaDoChat, dispatchId, taskId }, dados.state)
+  }
   manterAberto(dados.dispatchId)
   if (dados.state !== 'ready') {
     console.log(
@@ -305,7 +284,7 @@ const comandos = {
     )
   },
 
-  ordem(op) {
+  async ordem(op) {
     const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
     if (!op.para || !op.arquivo) {
       sair('Uso: hierarquia ordem --para planejador|executor --arquivo ordem.json')
@@ -338,7 +317,7 @@ const comandos = {
       return
     }
     const novo = montarEstado(lerEventos(projeto))
-    const { chatId, dispatchId } = lancar(
+    const { chatId, dispatchId } = await lancar(
       projeto,
       novo,
       novo.ordens[ordemId],
@@ -350,7 +329,7 @@ const comandos = {
     )
   },
 
-  'lancar-espera'(op) {
+  async 'lancar-espera'(op) {
     const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
     const eu = quemSou()
     let estado = montarEstado(lerEventos(projeto))
@@ -362,7 +341,7 @@ const comandos = {
       if (decisao.acao !== 'criar') {
         continue
       }
-      const { chatId } = lancar(projeto, estado, ordem, decisao.modelo, decisao.fechar)
+      const { chatId } = await lancar(projeto, estado, ordem, decisao.modelo, decisao.fechar)
       console.log(`Ordem ${ordemId} saiu da espera: chat ${chatId}.`)
     }
     if (minhas.length === 0) {
@@ -405,7 +384,7 @@ const comandos = {
     )
   },
 
-  conferir(op) {
+  async conferir(op) {
     const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
     const estado = montarEstado(lerEventos(projeto))
     const eu = quemSou()
@@ -501,7 +480,7 @@ ${op.motivo}
         `Não consegui devolver ao mesmo chat: ${String(erro.stdout || erro.message).slice(0, 400)}`
       )
       const atual = montarEstado(lerEventos(projeto))
-      const { chatId } = lancar(
+      const { chatId } = await lancar(
         projeto,
         atual,
         atual.ordens[op.ordem],
@@ -575,29 +554,7 @@ ${op.motivo}
       console.log(JSON.stringify({ estado, fila: filaDoKaique(estado) }, null, 2))
       return
     }
-    console.log(`Projeto: ${projeto}`)
-    console.log(`PO: ${estado.po ?? '(nenhum)'}`)
-    for (const ordem of Object.values(estado.ordens)) {
-      const chat = ordem.chatId ? estado.chats[ordem.chatId] : null
-      const colunas = [
-        `- ${ordem.id}`,
-        `${ordem.papel}${chat ? ` (${chat.modelo})` : ''}`,
-        ordem.situacao,
-        `pedido por ${ordem.de}`,
-        `chat ${ordem.chatId ?? '-'}${chat?.ativo === false ? ' (fechado)' : ''}`,
-        ordem.campos.titulo ?? ordem.campos.objetivo.slice(0, 60),
-        ordem.reprovacoes ? `reprovada ${ordem.reprovacoes}x` : '',
-        chat?.mexidoPeloKaique ? 'mexido pelo Kaique' : ''
-      ]
-      console.log(colunas.filter(Boolean).join(' | '))
-    }
-    const fila = filaDoKaique(estado)
-    console.log(`Fila do Kaique: ${fila.length}`)
-    for (const item of fila) {
-      console.log(
-        `  * ${item.tipo} | ${item.ordemId ?? item.perguntaId} | ${item.resumo ?? item.texto ?? ''}`
-      )
-    }
+    imprimirEstado(projeto, estado, filaDoKaique(estado))
   }
 }
 
@@ -636,4 +593,4 @@ const op = opcoes(resto)
 if (nome !== 'criar-po') {
   reconectar(op)
 }
-comandos[nome](op)
+await comandos[nome](op)
