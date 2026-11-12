@@ -45,6 +45,7 @@ export const reposApi = {
   nameCanvasExecutor: (request: {
     cwd: string
     text: string
+    role?: 'executor' | 'planejador'
   }): Promise<{ kind: 'ok'; summary: string } | { kind: 'error'; error: string }> =>
     ipcRenderer.invoke('repos:nameCanvasExecutor', request),
   captureCanvasPagePreview: (

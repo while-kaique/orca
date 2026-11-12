@@ -290,7 +290,7 @@ export function ChatNode({
         <div className="cc-head-row">
           <span className="cc-dot" />
           <CanvasChatRole chat={chat} />
-          <b>{chat.title}</b>
+          <b>{chat.hierarchy?.role === 'planejador' ? executorName : chat.title}</b>
           {open ? (
             <>
               <button

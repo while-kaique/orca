@@ -1,5 +1,22 @@
 # Onde paramos — fork do Orca "PC como mesa"
 
+## 12/11/2026 — PO só abre chat com plano aprovado + consertos do comando `hierarquia`
+
+- **Regra nova do PO** (`skills/hierarquia/papeis/po.md`, "Antes de abrir qualquer chat"): registrar o
+  pedido, tirar as dúvidas de escopo, apresentar o plano (frentes e quantos chats) e esperar o OK do
+  Kaique. Só então lança, um chat por vez. A frase que abre o chat do PO (`launch-pc-desk-chat.ts`) diz o mesmo.
+- **Comando `hierarquia` com o Orca atual:** a resposta do Orca mudou de formato (`runId`, `terminal`,
+  `workspace`; a aba vem de `terminal show`). `orca-lancador.mjs` e `hierarquia.mjs` foram adaptados.
+- **Cópia de trabalho do chat novo** nasce da branch em que o projeto está (`--base-branch`); antes nascia
+  do Orca oficial, sem o fluxograma. **Ainda não testado com um lançamento de verdade.**
+- **Atalho para o Git Bash:** `%APPDATA%\orca-fork\cli\bin\hierarquia` (sem extensão), ao lado do `.cmd`.
+  Sem ele o chat novo dava "hierarquia: command not found".
+- **Nome do planejador:** o Haiku dá um nome de até 4 palavras (executor continua com até 2), mostrado no
+  card (`canvas-chat-executor-name.ts`, IPC `repos:nameCanvasExecutor` com `role`).
+- **Aberto:** chats lançados pelo PO apareceram ao lado dele no fluxograma, não embaixo (causa não
+  confirmada; ver `.hierarquia/PRODUTO.md`). Pedidos pendentes (máscara de carregamento, cor da etiqueta
+  de papel, etiqueta de modelo) estão no `PRODUTO.md`, sem começar.
+
 ## 11/11/2026 (noite) — Ver o fluxograma sem reiniciar + formatos por papel
 
 **Vistoria (usar SEMPRE antes de dizer "pronto" em mudança de tela):**

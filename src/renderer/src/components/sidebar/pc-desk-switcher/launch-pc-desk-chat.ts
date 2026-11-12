@@ -15,7 +15,7 @@ export type PcDeskChatMode = 'hierarquico' | 'livre'
 const PO_LAUNCH = {
   agentArgs: '--model fable',
   prompt:
-    'Voce e o PO deste projeto. Rode: hierarquia criar-po, leia o seu papel e os arquivos que ele indicar, e aguarde o briefing do Kaique. Nao crie chats nem mexa no projeto antes disso.'
+    'Voce e o PO deste projeto. Rode: hierarquia criar-po, leia o seu papel e os arquivos que ele indicar, e aguarde o briefing do Kaique. Nao crie chats nem mexa no projeto antes disso, e nunca abra um chat sem um plano que ele aprovou.'
 }
 
 /** Opens one more agent chat in the workspace — a new process, so it has its own memory and row. */

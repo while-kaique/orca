@@ -16,6 +16,7 @@ import {
 } from './regras.mjs'
 import {
   avisarPo,
+  branchDoProjeto,
   citar,
   dormir,
   garantirExecucao,
@@ -199,11 +200,12 @@ function pedidoParaOrca(projeto, ordemId, papel, campos) {
 }
 
 /** A aba em que o Orca abriu o chat recém-lançado. */
-function abaDoChat(dispatchId) {
+function abaDoChat(dispatchId, handle) {
   try {
     const visto = orca(['orchestration', 'worker-show', '--dispatch', dispatchId]).result ?? {}
     const painel = visto.terminal?.recordedPaneKey ?? visto.dispatch?.assigneePaneKey
-    return painel ? String(painel).split(':')[0] : null
+    const aba = () => orca(['terminal', 'show', '--terminal', handle]).result?.terminal?.tabId
+    return painel ? String(painel).split(':')[0] : (aba() ?? null)
   } catch {
     return null
   }
@@ -237,6 +239,7 @@ function lancar(projeto, estado, ordem, modelo, fechar) {
     citar(semAcento(`${ordem.papel}: ${ordem.campos.titulo ?? ordem.id}`).slice(0, 70)),
     '--worktree',
     pasta,
+    ...(pasta === 'new-child' ? ['--base-branch', citar(branchDoProjeto(projeto))] : []),
     '--agent',
     'claude',
     '--model',
@@ -245,19 +248,16 @@ function lancar(projeto, estado, ordem, modelo, fechar) {
     ESPERA_DO_LANCAMENTO_MS
   ])
   const dados = resposta.result ?? {}
-  const terminal = (dados.effects ?? []).find(
-    (efeito) => efeito.kind === 'terminal' && efeito.role === 'agent'
-  )
-  if (!terminal) {
+  const handle = dados.terminal
+  if (!handle) {
     sair(`O Orca não criou o chat. Resposta: ${JSON.stringify(resposta).slice(0, 600)}`)
   }
-  const copia = (dados.effects ?? []).find((efeito) => efeito.kind === 'worktree')
-  const chatId = abaDoChat(dados.dispatchId) ?? terminal.id
+  const chatId = abaDoChat(dados.dispatchId, handle) ?? handle
   anotar(projeto, 'chat_lancado', {
     ordemId: ordem.id,
     chatId,
-    handle: terminal.id,
-    pasta: String(copia?.id ?? '').split('::')[1] ?? projeto,
+    handle,
+    pasta: String(dados.workspace ?? '').split('::')[1] ?? projeto,
     modelo,
     dispatchId: dados.dispatchId,
     taskId: dados.taskId,

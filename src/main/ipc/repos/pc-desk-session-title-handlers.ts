@@ -125,20 +125,27 @@ async function askHaikuOneLine(
 
 const EXECUTOR_NAME_MAX_INPUT = 1500
 
-/** Fork: a one or two word job title for an executor chat, shown on its round flowchart card. */
+/** Fork: a short job title for an executor (two words) or planner (four) chat, shown on its flowchart card. */
 export async function nameCanvasExecutor(request: {
   cwd: string
   text: string
+  role?: 'executor' | 'planejador'
 }): Promise<{ kind: 'ok'; summary: string } | { kind: 'error'; error: string }> {
   const text = request.text.trim().slice(0, EXECUTOR_NAME_MAX_INPUT)
   if (!text) {
     return { kind: 'error', error: 'empty' }
   }
+  const planner = request.role === 'planejador'
   const prompt = [
-    'Abaixo está a ordem dada a um executor, um assistente de código que cumpre uma tarefa.',
-    'Dê a ele um título de função em português, de UMA ou DUAS palavras, épico porém claro,',
-    'que diga o propósito dele. Exemplos do tom: Mestre UI/UX · Debugger · Implementador ·',
-    'Corretor · Validador · Criador de Testes.',
+    planner
+      ? 'Abaixo está a ordem dada a um planejador, um assistente que planeja e divide uma frente de trabalho.'
+      : 'Abaixo está a ordem dada a um executor, um assistente de código que cumpre uma tarefa.',
+    planner
+      ? 'Dê a ele um título em português de NO MÁXIMO QUATRO palavras, claro, que diga o que ele planeja.'
+      : 'Dê a ele um título de função em português, de UMA ou DUAS palavras, épico porém claro,',
+    planner
+      ? 'Exemplos do tom: Máscara de Carregamento · Etiquetas de Papel · Limpeza das Checagens.'
+      : 'que diga o propósito dele. Exemplos do tom: Mestre UI/UX · Debugger · Implementador · Corretor · Validador · Criador de Testes.',
     'Responda só o título, sem aspas, sem ponto, sem explicação.',
     '',
     '<ordem>',
@@ -154,8 +161,10 @@ export function registerPcDeskSessionTitleHandlers(): void {
     summarizeCanvasReply(request)
   )
   ipcMain.removeHandler('repos:nameCanvasExecutor')
-  ipcMain.handle('repos:nameCanvasExecutor', (_event, request: { cwd: string; text: string }) =>
-    nameCanvasExecutor(request)
+  ipcMain.handle(
+    'repos:nameCanvasExecutor',
+    (_event, request: { cwd: string; text: string; role?: 'executor' | 'planejador' }) =>
+      nameCanvasExecutor(request)
   )
   ipcMain.removeHandler('repos:setPcDeskSmartTitles')
   ipcMain.handle('repos:setPcDeskSmartTitles', (_event, enabled: unknown) => {

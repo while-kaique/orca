@@ -42,10 +42,20 @@ export function citar(texto) {
   return process.platform === 'win32' ? `"${texto}"` : texto
 }
 
+/** A branch em que o projeto está: é dela que a cópia de um chat novo tem que nascer. */
+export function branchDoProjeto(projeto) {
+  return execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+    cwd: projeto,
+    encoding: 'utf8'
+  }).trim()
+}
+
 export function garantirExecucao() {
-  const atual = orca(['orchestration', 'run-current']).result?.run
+  // O Orca novo devolve runId direto; o antigo devolvia run.id.
+  const idDe = (resposta) => resposta.result?.runId ?? resposta.result?.run?.id
+  const atual = idDe(orca(['orchestration', 'run-current']))
   if (atual) {
-    return atual.id
+    return atual
   }
   const nova = orca([
     'orchestration',
@@ -53,7 +63,7 @@ export function garantirExecucao() {
     '--objective',
     citar('Hierarquia de chats do projeto')
   ])
-  return nova.result.run.id
+  return idDe(nova)
 }
 
 /** FR-21: o Orca fecha o terminal de quem já entregou; a retenção é o que o mantém aberto. */

@@ -113,6 +113,7 @@ export type RepositoryApi = {
   nameCanvasExecutor: (request: {
     cwd: string
     text: string
+    role?: 'executor' | 'planejador'
   }) => Promise<{ kind: 'ok'; summary: string } | { kind: 'error'; error: string }>
   /** Fork-only: still picture of a chat's localhost page or claude.ai artifact, for its flowchart card. */
   captureCanvasPagePreview: (
