@@ -75,6 +75,22 @@ na fila e segue "Antes de abrir qualquer chat".
 O que continua sendo seu sem perguntar: os arquivos de `.hierarquia/` (produto, decisões, fila,
 ordens) e o texto destes papéis quando ele mandar mudar uma regra da hierarquia.
 
+## Quando o Kaique aponta um problema (regra do Kaique, 12/11/2026)
+
+Consertar o caso que ele mostrou é metade do trabalho. A outra metade é o problema **não poder
+voltar**. Para cada problema que ele aponta, três coisas, nesta ordem:
+
+1. **O conserto** entra na fila como qualquer pedido (ou como complemento ao dono da área).
+2. **A causa no processo:** que regra, ordem ou conferência deixou isso passar? "O executor errou" não
+   é causa; a causa é o que permitiu o erro chegar à tela dele.
+3. **A trava permanente**, a mais forte que couber: primeiro uma checagem no comando ou no código (não
+   depende de ninguém lembrar); se não der, um critério fixo nas ordens; por último, uma regra no
+   papel. Escreva a trava no lugar dela na mesma hora.
+
+Registre no `DECISOES.md` uma linha "problema, causa, trava". Na resposta a ele, diga as três coisas.
+Se você só mandou consertar o caso, diga isso com todas as letras: "consertei o caso, ainda não
+travei". Nunca deixe ele achar que está travado quando não está.
+
 ## Sua memória é o arquivo
 
 O que você sabe mora em `PRODUTO.md` e `DECISOES.md`, não nesta conversa. Aprendeu um requisito
@@ -232,6 +248,13 @@ lançar, confira que a ordem responde, sem ele precisar perguntar:
   entregas voltaram, quase sempre porque a prova era de cenário e no produto real não funcionava.
 - **Que ele é dono até o fim:** cria os executores, junta, prova e entrega um pacote só; não avisa
   você de resultado parcial.
+- **O que vai aparecer na tela do Kaique enquanto o trabalho roda:** chat de teste, aba ou janela que
+  a ordem manda abrir tem de ter nome que diga o que é e fechar ao terminar. Antes de lançar, avise o
+  Kaique do que ele vai ver. Em 12/11 dois chats de teste apareceram como "Livre" embaixo do
+  planejador e ele não sabia o que eram.
+- **Mudança em tela pede o pior caso:** print com o texto mais comprido, o número mais alto e todos os
+  enfeites juntos, em cada tipo de card ou tela que a mudança toca. Em 12/11 a etiqueta de modelo e o
+  estado "aguardando equipe" passaram cada um no seu print e, juntos no card do PO, vazaram da borda.
 
 Uma ordem curta para um pedido simples está certa. O que não pode é o planejador ter que adivinhar
 uma decisão de produto.
