@@ -1,18 +1,25 @@
+import { useAppStore } from '@/store'
+import { i18n } from '@/i18n/i18n'
 import { defineFixture } from '../../component-fixtures/component-fixture'
 import type { AppState } from '@/store/types'
+import { getDefaultSettings } from '../../../../shared/constants'
 import type { CanvasHierarchySnapshot } from '../../../../shared/canvas-hierarchy'
 import type { CanvasChatModels } from '../../../../shared/canvas-chat-transcript-model'
 import type { CanvasContextTokens } from '../../../../shared/canvas-context-tokens'
 import CanvasChatsPage from './CanvasChatsPage'
 import { noteCanvasChatArtifacts } from './canvas-chat-artifacts'
+import { registerLaunchRecord } from './canvas-chat-launch-mask'
 import {
   SCENARIO_CONTEXT,
   SCENARIO_HIERARCHY,
   SCENARIO_MODELS,
   SCENARIO_STORE,
   SCENARIO_TERMINAL_TEXT,
-  scenarioPicture
+  scenarioHierarchyWithParents,
+  scenarioPicture,
+  scenarioStoreWithStates
 } from './canvas-chats-fixture-scenario'
+import { launchScenario, type LaunchScenarioKind } from './canvas-chat-launch-fixture-scenario'
 
 /**
  * Fork: the flowchart drawn from a copy of the real app state, so layout and colors can be checked
@@ -55,8 +62,8 @@ const board = (): React.JSX.Element => (
   </div>
 )
 
-function scenarioSetup(): void {
-  window.api.repos.readCanvasHierarchy = () => Promise.resolve(SCENARIO_HIERARCHY)
+function scenarioSetupWith(hierarchy: typeof SCENARIO_HIERARCHY): void {
+  window.api.repos.readCanvasHierarchy = () => Promise.resolve(hierarchy)
   window.api.repos.readCanvasContextTokens = () => Promise.resolve(SCENARIO_CONTEXT)
   window.api.repos.readCanvasChatModels = () => Promise.resolve(SCENARIO_MODELS)
   stubPictures()
@@ -64,6 +71,8 @@ function scenarioSetup(): void {
     noteCanvasChatArtifacts(tab, text)
   }
 }
+
+const scenarioSetup = (): void => scenarioSetupWith(SCENARIO_HIERARCHY)
 
 /** The full hierarchy (PO, two planners, four executors) with every kind of attachment. */
 export const exemplo = defineFixture({
@@ -103,10 +112,10 @@ export const exemploEstados = defineFixture({
     frame.querySelector<HTMLButtonElement>('.cc-tidy')?.click()
     await wait(700)
     const states: Record<string, string> = {
-      po: 'seen',
+      po: 'team',
       pl1: 'working',
-      pl2: 'unseen',
-      ex1: 'working',
+      pl2: 'seen',
+      ex1: 'team',
       ex2: 'unseen',
       ex3: 'waiting',
       ex4: 'monitoring',
@@ -118,6 +127,50 @@ export const exemploEstados = defineFixture({
     }
     await wait(200)
   },
+  render: board
+})
+
+const ALL_DONE = {
+  po: 'done',
+  pl1: 'done',
+  pl2: 'done',
+  ex1: 'done',
+  ex2: 'done',
+  ex3: 'done',
+  ex4: 'done'
+} as const
+const TEAM_PARENTS = { ex1: 'po' }
+
+async function tidyBoard(frame: HTMLElement): Promise<void> {
+  await wait(400)
+  frame.querySelector<HTMLButtonElement>('.cc-tidy')?.click()
+  await wait(700)
+}
+
+/** The PO created an executor straight, and it is working: the PO waits on its team. */
+export const equipePo = defineFixture({
+  width: 1280,
+  store: scenarioStoreWithStates({ ...ALL_DONE, ex1: 'working' }),
+  setup: () => scenarioSetupWith(scenarioHierarchyWithParents(TEAM_PARENTS)),
+  interact: tidyBoard,
+  render: board
+})
+
+/** Planner 1's two executors work: the planner and the PO above it wait on the team. */
+export const equipePlanejador = defineFixture({
+  width: 1280,
+  store: scenarioStoreWithStates({ ...ALL_DONE, ex1: 'working', ex2: 'working' }),
+  setup: scenarioSetup,
+  interact: tidyBoard,
+  render: board
+})
+
+/** Same board with every executor stopped: nobody waits on a team. */
+export const equipeParada = defineFixture({
+  width: 1280,
+  store: scenarioStoreWithStates(ALL_DONE),
+  setup: scenarioSetup,
+  interact: tidyBoard,
   render: board
 })
 
@@ -174,17 +227,56 @@ export const exemploEspiar = defineFixture({
 
 export const real = defineFixture({
   width: 1280,
-  store: capture.store,
+  // The captured tabs carry titles in the app's language (Portuguese), which the flowchart compares against the UI language.
+  store: { ...capture.store, settings: { ...getDefaultSettings('C:/fixture'), uiLanguage: 'pt' } },
   setup: () => {
     window.api.repos.readCanvasHierarchy = () => Promise.resolve(capture.hierarchy)
     window.api.repos.readCanvasContextTokens = () => Promise.resolve(capture.contextTokens)
     window.api.repos.readCanvasChatModels = () => Promise.resolve(capture.chatModels ?? {})
     stubPictures()
   },
-  // The first fit can run before the board is measured; Reorganizar fits everything in view.
+  // The language loads after the first render: wait for it, then rebuild the board from the same tabs.
   interact: async (frame) => {
+    for (let waited = 0; i18n.language !== 'pt' && waited < 5000; waited += 100) {
+      await wait(100)
+    }
+    useAppStore.setState((state) => ({ tabsByWorktree: { ...state.tabsByWorktree } }))
+    await wait(300)
+    // The first fit can run before the board is measured; Reorganizar fits everything in view.
     frame.querySelector<HTMLButtonElement>('.cc-tidy')?.click()
     await wait(700)
   },
   render: board
 })
+
+/** A PO just launched: the mask covers its card at the given point of the start-up. */
+function launchMaskFixture(
+  kind: LaunchScenarioKind,
+  settleMs = 0
+): ReturnType<typeof defineFixture> {
+  const scenario = launchScenario(kind)
+  return defineFixture({
+    width: 1280,
+    store: scenario.store,
+    setup: () => {
+      window.api.repos.readCanvasHierarchy = () => Promise.resolve(scenario.hierarchy)
+      window.api.repos.readCanvasContextTokens = () => Promise.resolve({})
+      stubPictures()
+      registerLaunchRecord(scenario.record)
+    },
+    interact: async (frame) => {
+      await wait(400)
+      frame.querySelector<HTMLButtonElement>('.cc-tidy')?.click()
+      await wait(700 + settleMs)
+    },
+    render: board
+  })
+}
+
+export const carregandoIniciando = launchMaskFixture('iniciando')
+export const carregandoFuncoes = launchMaskFixture('funcoes')
+export const carregandoEsperando = launchMaskFixture('esperando')
+/** The first turn ended and the chat never registered as PO: after the grace period the mask turns into the problem screen. */
+export const carregandoProblema = launchMaskFixture('problema', 7000)
+/** The agent is up but idle for over 2 minutes and never got the launch request. */
+export const carregandoSemPedido = launchMaskFixture('semPedido', 1500)

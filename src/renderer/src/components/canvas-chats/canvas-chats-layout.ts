@@ -3,7 +3,15 @@ import { chatFootprintHeight } from './canvas-chat-shape'
 
 /** Border states drawn on the flowchart (fork spec: idle gray, working yellow, unseen green, seen dashed green, waiting red). */
 /** 'monitoring' = the turn ended but background agents/tasks are still running. */
-export type CanvasChatStatus = 'idle' | 'working' | 'monitoring' | 'unseen' | 'seen' | 'waiting'
+/** 'team' = the chat is idle and waits for chats it created that are still working. */
+export type CanvasChatStatus =
+  | 'idle'
+  | 'working'
+  | 'monitoring'
+  | 'unseen'
+  | 'seen'
+  | 'waiting'
+  | 'team'
 
 export type CanvasAgent = {
   id: string
@@ -50,6 +58,8 @@ export type CanvasChat = {
   /** Role and delivery state, when the project keeps a chat hierarchy. */
   hierarchy: CanvasChatHierarchy | null
   status: CanvasChatStatus
+  /** A chat it created (directly or further down) is working while this one is idle. */
+  awaitingTeam?: boolean
   lines: { role: 'user' | 'agent' | 'ask'; text: string }[]
   agents: CanvasAgent[]
   /** Localhost servers this chat's terminal started, and claude.ai artifacts it printed. */
