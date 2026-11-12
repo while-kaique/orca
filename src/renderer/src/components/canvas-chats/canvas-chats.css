@@ -243,6 +243,14 @@
 .cc-chat.cc-shape-crest::before {
   display: none;
 }
+/* the state animations and the link-drag glow paint the card's box: the hexagon draws its own glow */
+.cc-board .cc-chat.cc-shape-crest {
+  animation: none;
+  box-shadow: none;
+}
+.cc-board .cc-chat.cc-shape-crest.cc-link-target .cc-crest-outline polygon {
+  stroke: #2f8cff;
+}
 .cc-shape-crest > :not(.cc-crest-body, .cc-xwrap, .cc-edge, .cc-confirm) {
   display: none;
 }

@@ -1,7 +1,9 @@
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import type { AppState } from '@/store/types'
+import type { TerminalTab } from '../../../../shared/workspace-layout/terminal-tab-types'
 import { selectWorktreesByRepo } from '@/store/workspace-record-selectors'
 import { pcDeskWorkspaceSessionTitle } from '../../../../shared/pc-desk-session-title'
 import { parseAgentStatusPaneIdentity } from '../../../../shared/agent-status/identity/agent-status-worktree-attribution'
@@ -108,6 +110,25 @@ function subagentStatus(state: string): { status: CanvasChatStatus; blocked: boo
   return { status: 'seen', blocked: false }
 }
 
+/**
+ * The terminal Orca opens on its own to run the workspace's setup script: titled by the same
+ * translation Orca names it with, never launched an agent, never reported agent status, and
+ * sitting beside another tab. A lone tab, an agent chat or a sleeping chat never matches.
+ */
+function isSetupPreparationTab(
+  state: CanvasInputs,
+  tab: TerminalTab,
+  worktreeTabs: readonly TerminalTab[]
+): boolean {
+  return (
+    worktreeTabs.length > 1 &&
+    tab.customTitle?.trim() === translate('worktree.setupTerminalTitle', 'Setup') &&
+    !tab.launchAgent &&
+    !latestEntry(state, tab.id) &&
+    !sleepingRecord(state, tab.id)
+  )
+}
+
 /** Same chats as the PC-desk sidebar: every open chat tab of every workspace, grouped by project. */
 export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
   const projects: CanvasProject[] = []
@@ -119,7 +140,11 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
       if (worktree.isArchived) {
         continue
       }
-      for (const tab of state.tabsByWorktree[worktree.id] ?? []) {
+      const worktreeTabs = state.tabsByWorktree[worktree.id] ?? []
+      for (const tab of worktreeTabs) {
+        if (isSetupPreparationTab(state, tab, worktreeTabs)) {
+          continue
+        }
         const latest = latestEntry(state, tab.id)
         const entry = latest?.entry
         if (latest) {
