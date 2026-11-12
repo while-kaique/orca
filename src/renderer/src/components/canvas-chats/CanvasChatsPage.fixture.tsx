@@ -1,5 +1,8 @@
+import { useAppStore } from '@/store'
+import { i18n } from '@/i18n/i18n'
 import { defineFixture } from '../../component-fixtures/component-fixture'
 import type { AppState } from '@/store/types'
+import { getDefaultSettings } from '../../../../shared/constants'
 import type { CanvasHierarchySnapshot } from '../../../../shared/canvas-hierarchy'
 import type { CanvasChatModels } from '../../../../shared/canvas-chat-transcript-model'
 import type { CanvasContextTokens } from '../../../../shared/canvas-context-tokens'
@@ -224,15 +227,22 @@ export const exemploEspiar = defineFixture({
 
 export const real = defineFixture({
   width: 1280,
-  store: capture.store,
+  // The captured tabs carry titles in the app's language (Portuguese), which the flowchart compares against the UI language.
+  store: { ...capture.store, settings: { ...getDefaultSettings('C:/fixture'), uiLanguage: 'pt' } },
   setup: () => {
     window.api.repos.readCanvasHierarchy = () => Promise.resolve(capture.hierarchy)
     window.api.repos.readCanvasContextTokens = () => Promise.resolve(capture.contextTokens)
     window.api.repos.readCanvasChatModels = () => Promise.resolve(capture.chatModels ?? {})
     stubPictures()
   },
-  // The first fit can run before the board is measured; Reorganizar fits everything in view.
+  // The language loads after the first render: wait for it, then rebuild the board from the same tabs.
   interact: async (frame) => {
+    for (let waited = 0; i18n.language !== 'pt' && waited < 5000; waited += 100) {
+      await wait(100)
+    }
+    useAppStore.setState((state) => ({ tabsByWorktree: { ...state.tabsByWorktree } }))
+    await wait(300)
+    // The first fit can run before the board is measured; Reorganizar fits everything in view.
     frame.querySelector<HTMLButtonElement>('.cc-tidy')?.click()
     await wait(700)
   },

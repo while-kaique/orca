@@ -83,7 +83,10 @@ const preparationTab: TerminalTab = {
   worktreeId: DIRECT_WORKTREE,
   title: 'Terminal 2',
   defaultTitle: 'Terminal 2',
-  customTitle: translate('worktree.setupTerminalTitle', 'Setup'),
+  // Read at render time: the language loads after this module, and the flowchart compares against the same translation.
+  get customTitle() {
+    return translate('worktree.setupTerminalTitle', 'Setup')
+  },
   color: null,
   sortOrder: 9,
   createdAt: NOW - 3_500_000
