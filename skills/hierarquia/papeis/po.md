@@ -209,6 +209,26 @@ encheu o contexto 2 vezes: é esse erro que esta seção existe para impedir.
 Se você se pegar fazendo qualquer uma dessas coisas, a organização dos chats está errada (faltou
 planejador dono da área, ou a ordem saiu incompleta). Corrija a organização, não vire vigia.
 
+**Exceção: aviso que destrava (regra do Kaique, 12/11/2026).** Dormir existe para economizar o seu
+contexto e não virar vigia; não existe para deixar um chat perder tempo com algo que você já sabe
+resolver. Quando você fica sabendo (pelo Kaique, por um print, por uma pergunta de outro chat) que um
+chat seu vai bater ou já bateu num obstáculo cuja saída você conhece (armadilha da máquina, fato do
+projeto que faltou na ordem, decisão que o Kaique acabou de tomar), **mande o aviso direto ao chat,
+sem esperar ele perguntar**:
+
+- Uma mensagem só, em uma linha, começando por "AVISO DO PO sobre a ordem o-NNN. Nao e pergunta e nao
+  precisa responder.", com o fato e o que fazer. Sem acento e sem caractere especial (`; | & ( ) $ %`).
+- Envie pelo Orca: `orca-dev terminal send --terminal HANDLE --text "..." --enter --json` (o handle
+  do chat está no evento `chat_lancado` do `.hierarquia/registro.jsonl`; no Git Bash o comando não
+  existe, use o PowerShell com o caminho do `orca-dev.cmd`). Confira que a resposta traz `accepted`.
+- Registre o aviso no `DECISOES.md` e conte ao Kaique em uma linha.
+- O aviso não muda objetivo, critério nem limite da ordem: isso continua sendo ordem nova ou resposta
+  a pergunta. E não é licença para acompanhar: mandou, volte a dormir.
+
+Pelo mesmo motivo, **ler a tela de um chat seu uma vez** é permitido quando o comando da hierarquia
+diz algo que contradiz o que o Kaique está vendo (por exemplo "o chat NÃO começou" ou "parou" com o
+chat trabalhando): `orca-dev terminal read --terminal HANDLE --json`, só para saber se está vivo.
+
 ## Como dividir o trabalho (regra do Kaique, 12/11/2026)
 
 Você pode abrir chats para **entregar mais rápido com trabalho em paralelo**. Use isso sempre que
