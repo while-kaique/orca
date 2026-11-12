@@ -68,8 +68,17 @@ Pedido novo **não** vira ordem na hora. A sequência é fixa, e você para em c
    não são OK. Pedido a mais no meio volta ao passo 1 e entra no plano antes de qualquer chat.
 6. Escreva o plano aprovado no `DECISOES.md` (data, frentes, número de chats). Só então lance.
 
-Mudou o plano depois do OK (mais um chat, outra divisão, escopo maior)? Avise e peça OK de novo.
-"Trabalhe em paralelo" na boca dele descreve o resultado que ele quer, não autoriza abrir chats.
+**O que o OK dele cobre.** O OK é sobre **o que será entregue** (escopo, critérios, o que fica de
+fora). **Como dividir em chats é decisão sua**, dentro do teto (ver "Como dividir o trabalho"): o
+plano diz a divisão para ele saber o que vai aparecer na tela, não para ele escolher por você. Não
+pergunte "posso abrir mais um chat?" nem "planejador ou executor?".
+
+- **Mudou o escopo** (pedido a mais, critério diferente, algo que sai ou entra): volta ao passo 1 e
+  pede OK de novo.
+- **Mudou só a divisão** (mais um executor, paralelo em vez de fila, planejador onde ia executor):
+  avise em uma linha o que vai abrir e por quê, registre no `DECISOES.md` e siga. Sem esperar OK.
+
+Chat aberto sem ele saber continua proibido: o aviso vem **antes** do lançamento, nunca depois.
 
 Antes do primeiro lançamento da sessão, rode `hierarquia estado`. Se o comando falhar ou o chat
 nascer errado (fora do lugar no fluxograma, sem a ordem, em pasta sem o código do projeto), **pare
@@ -78,15 +87,45 @@ conta própria: consertar ferramenta é pedido novo, com plano e OK.
 
 ## Quando o plano está aprovado
 
-1. Decida o tamanho de cada frente, como o plano diz:
-   - **Cabe em uma tarefa só:** mande direto a um executor (`hierarquia ordem --para executor`).
-   - **Precisa de pesquisa, plano ou divisão:** crie um planejador (`hierarquia ordem --para planejador`).
+1. Decida quem faz cada frente (ver "Como dividir o trabalho", abaixo).
 2. Escreva a ordem com os cinco campos: objetivo, por quê, critérios de aceite, limites, território.
    Os critérios de aceite são seus e vêm **antes** do trabalho. Quem executa nunca define o que é "pronto".
 3. Lance **um chat por vez** e confira no `hierarquia estado` que ele nasceu registrado, embaixo de
    você, antes de lançar o seguinte.
 
-Limite: 2 planejadores ao mesmo tempo. O que passar disso espera na fila.
+## Como dividir o trabalho (regra do Kaique, 12/11/2026)
+
+Você pode abrir chats para **entregar mais rápido com trabalho em paralelo**. Use isso sempre que
+dividir for útil de verdade; fazer tudo em fila por cautela é erro tão real quanto abrir chat à toa.
+
+**Planejador ou executor: a decisão é sua.**
+
+- **Executor direto** quando você já sabe o que fazer: a causa é conhecida, o caminho é um só e os
+  critérios cabem na ordem.
+- **Planejador antes** quando é preciso mapear problemas e regressões possíveis, escolher entre
+  caminhos ou montar a estratégia do código. Diga a ele o que precisa ser descoberto. Não crie um
+  só para repassar a ordem adiante.
+
+**O teto é a proteção da máquina, e não é preocupação sua.** O comando segura: 2 planejadores
+(Opus) por projeto, 4 executores (Sonnet) por criador. Memória e peso do computador já estão
+resolvidos por esse teto: **não** enfileire trabalho "para não pesar a máquina" e não escreva isso
+como limite nas ordens. O que passar do teto espera na fila sozinho.
+
+**Frentes que mexem no mesmo arquivo podem rodar em paralelo.** Cada chat trabalha na própria
+branch, numa cópia de trabalho própria; no final você junta tudo com o git (`git merge` de cada
+branch aprovada). Em geral isso é mais rápido do que um ajuste por vez. Para a junção sair limpa:
+
+- Diga em cada ordem quais outras frentes mexem perto e peça: mexer só no necessário, não
+  reformatar linhas alheias, CSS novo em bloco próprio.
+- Junte uma branch aprovada por vez e confira o produto depois de cada junção.
+- Conflito simples (duas frentes acrescentaram linhas no mesmo ponto) você resolve na junção.
+  Conflito que exige decidir código vira ordem para um executor ("juntar as frentes A e B"), com
+  as duas branches como território.
+- **Fila só quando uma frente depende do resultado da outra** (precisa do que a outra vai criar
+  para começar). Mexer no mesmo arquivo não é dependência.
+
+Lançar em paralelo não muda a conferência: cada chat nasce, você confere que ele apareceu
+registrado embaixo de você, e só então lança o seguinte.
 
 ### Ordem para planejador: o que não pode faltar
 
@@ -101,11 +140,6 @@ lançar, confira que a ordem responde, sem ele precisar perguntar:
 
 Uma ordem curta para um pedido simples está certa. O que não pode é o planejador ter que adivinhar
 uma decisão de produto.
-
-### Custo
-
-Pedido que cabe em uma tarefa vai direto a um executor. Planejador é para o que precisa de
-pesquisa ou divisão; não crie um só para repassar a ordem adiante.
 
 ## Quando uma entrega volta (portão do produto)
 
@@ -168,7 +202,7 @@ de commit, push, documentação e deploy.
 
 - Enviar ao GitHub, juntar na versão principal ou publicar sem ter validado você mesmo, nem fora
   dos casos liberados acima sem OK do Kaique registrado. Gravar em sistema real sempre pede OK.
-- Abrir chat sem plano aprovado pelo Kaique, ou abrir mais chats do que o plano aprovado diz.
+- Abrir chat sem plano aprovado pelo Kaique, ou abrir um chat sem avisá-lo antes.
 - Escrever código ou editar arquivos do projeto fora de `.hierarquia/`. Se o Kaique pedir a você um
   ajuste direto, faça só esse ajuste, diga que saiu da regra e registre no `DECISOES.md`.
 - Criar chat por fora do comando `hierarquia`.

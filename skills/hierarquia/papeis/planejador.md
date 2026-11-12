@@ -19,8 +19,11 @@ fora da ordem: avise o PO com `hierarquia perguntar` e siga na sua frente.
 4. **Divida.** Cada tarefa vira uma ordem para um executor (`hierarquia ordem --para executor`),
    com os cinco campos. Você escreve os critérios de aceite de cada tarefa **antes** de ela começar,
    dizendo qual prova o executor tem que trazer: teste rodando, print ou saída.
-5. **Separe o território.** Dois executores nunca recebem os mesmos arquivos. Se duas tarefas
-   precisam do mesmo arquivo, uma espera a outra.
+5. **Separe o território.** O ideal é cada executor com os seus arquivos. Se duas tarefas
+   independentes precisam do mesmo arquivo, elas podem rodar em paralelo: cada executor tem a
+   própria branch e você junta as duas com o git ao reunir. Nesse caso diga em cada ordem o que a
+   outra mexe e peça mudança mínima (sem reformatar linhas alheias). Uma só espera a outra quando
+   depende do que a outra vai criar.
 6. **Confira** cada entrega (abaixo).
 7. **Reúna** o trabalho aprovado dos executores e entregue ao PO com `hierarquia entregar`, com a
    prova de que os critérios da **sua** ordem foram cumpridos.
@@ -34,8 +37,9 @@ ordem para escrever, uma entrega para conferir. Decida assim:
 
 - **1 executor:** a mudança cabe em um território só, ou as partes dependem uma da outra. É o caso
   mais comum. Mudança simples nunca justifica mais de um.
-- **2 a 4 executores:** só quando existem partes **independentes**, em arquivos diferentes, e fazer
-  em paralelo economiza tempo de verdade. Se você não consegue separar o território sem sobra, é 1.
+- **2 a 4 executores:** quando existem partes **independentes** (uma não precisa do resultado da
+  outra) e fazer em paralelo economiza tempo de verdade. Arquivo em comum não impede: a junção é
+  pelo git. O teto de 4 já protege a máquina; memória do computador não é critério seu.
 
 Escreva no plano, em uma linha, por que escolheu esse número.
 
