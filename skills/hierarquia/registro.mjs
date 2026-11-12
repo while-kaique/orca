@@ -10,6 +10,11 @@ export function sair(mensagem, codigo = 1) {
 }
 
 /** A pasta do projeto é a que tem `.hierarquia/`; cópias de trabalho do git apontam para a principal. */
+/** Só conta como projeto a pasta cujo `.hierarquia/` tem registro: uma `.hierarquia` vazia na pasta do usuário enganava a busca. */
+function temRegistro(pasta) {
+  return existsSync(join(pasta, '.hierarquia', 'registro.jsonl'))
+}
+
 export function acharProjeto(explicito) {
   if (explicito) {
     return resolve(explicito)
@@ -19,7 +24,7 @@ export function acharProjeto(explicito) {
   }
   let pasta = process.cwd()
   for (;;) {
-    if (existsSync(join(pasta, '.hierarquia'))) {
+    if (temRegistro(pasta)) {
       return pasta
     }
     const acima = dirname(pasta)
@@ -34,7 +39,7 @@ export function acharProjeto(explicito) {
       windowsHide: true
     }).trim()
     const principal = dirname(comum)
-    if (existsSync(join(principal, '.hierarquia'))) {
+    if (temRegistro(principal)) {
       return principal
     }
   } catch {

@@ -9,7 +9,7 @@ import { criarSeNaoExiste, lerJson, processoVivo } from './trava.mjs'
 const INTERVALO_MS = 500
 
 function pastaDaVez() {
-  const pasta = process.env.HIERARQUIA_VEZ ?? join(homedir(), '.hierarquia', 'vez')
+  const pasta = process.env.HIERARQUIA_VEZ ?? join(homedir(), '.hierarquia-vez')
   mkdirSync(join(pasta, 'fila'), { recursive: true })
   return pasta
 }
