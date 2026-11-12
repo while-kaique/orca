@@ -1645,11 +1645,11 @@
   --background: #141417;
   --foreground: #e6e6ee;
   --muted-foreground: #b4b4bf;
-  --cc-launch-text: calc(13px * var(--cc-inv));
+  --cc-launch-text: calc(15px * var(--cc-inv));
   background: #141417;
   color: #e6e6ee;
   border-radius: inherit;
-  gap: 10px;
+  gap: 8px;
   padding: 0 14px;
   text-align: center;
 }
@@ -1657,7 +1657,7 @@
 .cc-chat .cc-launch b,
 .cc-chat .cc-launch small {
   font-size: var(--cc-launch-text);
-  line-height: 1.35;
+  line-height: 1.3;
 }
 .cc-chat .cc-launch b {
   font-weight: 700;

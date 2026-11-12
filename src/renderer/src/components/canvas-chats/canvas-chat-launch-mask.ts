@@ -15,7 +15,7 @@ export type LaunchRecord = {
   since: number
   launchText: string
   hadTerminal: boolean
-  /** The agent was "working" at least once since the launch: only a "done" after that ends the first turn. */
+  /** The agent was "working" on the launch text at least once: only a "done" after that ends the first turn. */
   sawWorking: boolean
   /** When the agent first reported any state: the clock of the "launch request never arrived" failure. */
   runningSince: number | null
@@ -40,6 +40,9 @@ export const LAUNCH_NO_REQUEST_MS = 120_000
 // Two reads of estado.json (3 s apart) that still miss the PO: one read alone can catch the file mid-write.
 export const LAUNCH_REGISTRY_GRACE_MS = 6_500
 const PROMPT_MATCH_CHARS = 60
+
+const normalized = (text: string): string =>
+  text.replace(/\s+/g, ' ').trim().slice(0, PROMPT_MATCH_CHARS)
 
 const records = new Map<string, LaunchRecord>()
 const listeners = new Set<() => void>()
@@ -89,7 +92,14 @@ function watchLaunchTabs(): void {
         if (own.length > 0 && next.runningSince === null) {
           next.runningSince = Date.now()
         }
-        if (own.some((entry) => entry.state === 'working')) {
+        // Only a "working" that carries the launch text counts: the agent also blips "working" with no prompt while it boots.
+        if (
+          own.some(
+            (entry) =>
+              entry.state === 'working' &&
+              normalized(entry.prompt ?? '') === normalized(record.launchText)
+          )
+        ) {
           next.sawWorking = true
         }
         if (next.runningSince !== record.runningSince || next.sawWorking !== record.sawWorking) {
@@ -142,9 +152,6 @@ function updateLaunchRecord(tabId: string, patch: Partial<LaunchRecord>): void {
   }
 }
 
-const normalized = (text: string): string =>
-  text.replace(/\s+/g, ' ').trim().slice(0, PROMPT_MATCH_CHARS)
-
 /** The first request from the user arrived when the chat's last prompt is no longer the launch text. */
 function launchEnded(record: LaunchRecord, lastPrompt: string | undefined): boolean {
   return Boolean(lastPrompt) && normalized(lastPrompt ?? '') !== normalized(record.launchText)
@@ -168,7 +175,7 @@ export function launchMaskView(record: LaunchRecord, facts: LaunchFacts): Launch
     return { kind: 'problem', problem: record.problem }
   }
   const { status, role, hasTerminal, now } = facts
-  const worked = record.sawWorking || status === 'working'
+  const worked = record.sawWorking
   const turnDone = record.turnEndedAt !== null || (status === 'done' && worked)
   const step: LaunchStep = role === 'po' && turnDone ? 3 : isRunning(status) ? 2 : 1
   const problem = (reason: LaunchProblemReason): LaunchMaskView => ({
@@ -246,8 +253,9 @@ export function useLaunchFactsKeeper(
     }
   }, [tabId, status])
   useEffect(() => {
-    if (status === 'working') {
-      updateLaunchRecord(tabId, { sawWorking: true })
+    // The agent went back to work: the turn that ended was not the last one.
+    if (status === 'working' && records.get(tabId)?.turnEndedAt) {
+      updateLaunchRecord(tabId, { turnEndedAt: null })
     }
   }, [tabId, status])
   useEffect(() => {
