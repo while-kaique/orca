@@ -16,8 +16,8 @@ por uma máscara azul que diz em que ponto o PO está subindo:
 
 As três etapas aparecem sempre listadas, uma embaixo da outra: a que já passou tem um ✓, a
 atual fica em destaque e a que falta fica apagada. O card inteiro fica com o azul da etiqueta
-do PO enquanto isso. Quando o primeiro pedido do Kaique chega ao chat, a máscara some e o card
-vira um card normal.
+do PO enquanto isso. Quando o primeiro pedido do Kaique chega ao chat, **ou quando ele abre o card
+do PO já pronto (etapa 3)**, a máscara some e o card vira um card normal (o-031).
 
 Se o chat travar ao subir, a máscara para numa **tela de problema** em vermelho, que diz em que
 etapa parou e por quê, e fica ali até o Kaique agir. Nada tenta de novo sozinho.
@@ -52,12 +52,12 @@ Todos os sinais já existem. O estado do chat vem das funções da barra lateral
 campo cru do status do agente. O papel vem do `estado.json` que o fluxograma já lê
 (`chat.hierarchy`, montado em `canvas-chat-hierarchy.ts`).
 
-| Etapa                      | Começa quando                                              | Termina quando                                                                                            |
-| -------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| 1. `Iniciando...`          | a aba nasce com registro de lançamento                     | o estado da barra lateral sai de "parado" pela primeira vez (o Claude recebeu o prompt e começou a rodar) |
-| 2. `Carregando funções...` | fim da etapa 1                                             | o chat aparece no `estado.json` com papel **PO** **e** o primeiro turno válido terminou (ver abaixo)      |
-| 3. `Esperando um pedido`   | fim da etapa 2                                             | chega o primeiro pedido do Kaique                                                                         |
-| fim da máscara             | o último prompt do chat deixa de ser o texto do lançamento | —                                                                                                         |
+| Etapa                      | Começa quando                                                                                                       | Termina quando                                                                                            |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| 1. `Iniciando...`          | a aba nasce com registro de lançamento                                                                              | o estado da barra lateral sai de "parado" pela primeira vez (o Claude recebeu o prompt e começou a rodar) |
+| 2. `Carregando funções...` | fim da etapa 1                                                                                                      | o chat aparece no `estado.json` com papel **PO** **e** o primeiro turno válido terminou (ver abaixo)      |
+| 3. `Esperando um pedido`   | fim da etapa 2                                                                                                      | chega o primeiro pedido do Kaique                                                                         |
+| fim da máscara             | o último prompt do chat deixa de ser o texto do lançamento, **ou** o Kaique abre o card com o PO na etapa 3 (o-031) | —                                                                                                         |
 
 **Primeiro turno válido (correção o-016, decisão do PO).** No fluxo real o agente faz isto
 depois do lançamento: "terminou" (~10 a 18 s, ocioso, ainda sem prompt), às vezes um
@@ -138,7 +138,12 @@ daria falso alarme.
   respiração verde de "terminou" e o tracejado de "visto" ficam desligados nesse card. O azul é
   outro tom do roxo de "em segundo plano" (`#8b8cf6`) e vem sempre com a lista de etapas, então
   não se confunde com nenhum estado (confere-se lado a lado com o cenário `exemploEstados`).
-- **Card aberto (clicado):** mostra o terminal de verdade, sem máscara. Só a borda azul fica.
+- **Card aberto (clicado):** mostra o terminal de verdade, sem máscara. Só a borda azul fica. **o-031:**
+  se o PO já está na etapa 3 quando o card é aberto, o registro de lançamento é apagado na hora e a
+  máscara não volta ao fechar o card. Aberto antes da etapa 3, a máscara continua valendo e volta ao
+  fechar. Problema (tela vermelha) nunca é apagado por abrir o card.
+- **Lugar no desenho (o-031):** um PO que ainda está nascendo já ocupa o lugar do PO, embaixo do
+  projeto, desde o primeiro instante (não é "livre" só porque ainda não tem papel).
 - **Espiada ao passar o mouse:** desligada enquanto a máscara está ativa, para o card não
   trocar a máscara pelo terminal.
 - **Textos** passam por `translate('fork.canvas.launch...', ...)` como o resto do card. Os três

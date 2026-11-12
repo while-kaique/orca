@@ -58,6 +58,8 @@ export type CanvasChat = {
   /** Role and delivery state, when the project keeps a chat hierarchy. */
   hierarchy: CanvasChatHierarchy | null
   status: CanvasChatStatus
+  /** A PO being launched: it has no role yet but already takes the PO's place under the project. */
+  launching?: boolean
   /** A chat it created (directly or further down) is working while this one is idle. */
   awaitingTeam?: boolean
   lines: { role: 'user' | 'agent' | 'ask'; text: string }[]
@@ -105,8 +107,8 @@ const ROW_GAP = PROJECT_GAP - HEADER_OVERHANG
 // A squarer grid may cost up to 15% of zoom.
 const SQUARE_GRID_TOLERANCE = 0.85
 
-/** A chat outside the hierarchy: it sits above its project, never under it. */
-export const isFreeChat = (chat: CanvasChat): boolean => chat.hierarchy === null
+/** A chat outside the hierarchy: it sits above its project, never under it. A PO being launched is not free. */
+export const isFreeChat = (chat: CanvasChat): boolean => chat.hierarchy === null && !chat.launching
 
 export type ChatTree = { chat: CanvasChat; children: ChatTree[] }
 type Block = {
@@ -180,6 +182,15 @@ export function chatDescendants(chats: readonly CanvasChat[], key: string): Canv
   }
   return out
 }
+
+/** Changes when a chat comes or goes, moves under another, or crosses between free and hierarchy: the layout must be redone. */
+export const canvasStructureKey = (projects: readonly CanvasProject[]): string =>
+  projects
+    .map(
+      (p) =>
+        `${p.id}:${p.chats.map((c) => `${c.key}/${c.parentKey ?? ''}/${c.agents.length}/${c.extras.length}/${isFreeChat(c) ? 'f' : 't'}`).join(',')}`
+    )
+    .join('|')
 
 /** Project in the middle: hierarchy chats below it (each chat's own chats under it, agents under each chat), free chats side by side above it with their agents stacked above; blocks wrap into rows that best fit the viewport. */
 export function layoutCanvas(

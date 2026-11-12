@@ -11,6 +11,7 @@ import { parseAgentStatusPaneIdentity } from '../../../../shared/agent-status/id
 import { useCanvasProjects } from './canvas-chats-data'
 import { useCanvasContextTokensRefresh } from './canvas-chat-context-tokens'
 import {
+  canvasStructureKey,
   chatDescendants,
   layoutCanvas,
   type CanvasBox,
@@ -23,11 +24,11 @@ import { ChatNode, ProjectNode, STATUS_LABEL } from './CanvasChatsNodes'
 import { CanvasChatAttachments, CanvasImagePreview } from './CanvasChatAttachments'
 import { finishActiveCanvasVoice, useCanvasListenMode } from './canvas-voice-preference'
 import {
-  applyCanvasOffsets,
+  type CanvasZone,
   clearCanvasOffsets,
   readCanvasOffsets,
   setCanvasOffsets,
-  useCanvasOffsets
+  useCanvasPlacement
 } from './canvas-chats-offsets'
 import { useCanvasCordLayer } from './use-canvas-cord-layer'
 import { CanvasWebPreview } from './CanvasChatExtras'
@@ -73,22 +74,20 @@ export default function CanvasChatsPage(): React.JSX.Element {
 
   // Layout is recomputed on demand (first load / Reorganizar) so cards don't jump while you look at them.
   const [layoutVersion, setLayoutVersion] = useState(0)
-  const structureKey = projects
-    .map(
-      (p) =>
-        `${p.id}:${p.chats.map((c) => `${c.key}/${c.parentKey ?? ''}/${c.agents.length}/${c.extras.length}`).join(',')}`
-    )
-    .join('|')
+  const structureKey = canvasStructureKey(projects)
   const layout = useMemo(
     () => layoutCanvas(projects, viewport),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [structureKey, layoutVersion, viewport.w > 0]
   )
-  const offsets = useCanvasOffsets()
-  const boxes = useMemo(() => applyCanvasOffsets(layout.boxes, offsets), [layout, offsets])
+  const { boxes, zones } = useCanvasPlacement(layout.boxes, projects)
   const justDraggedRef = useRef(false)
   /** Drag a group of cards; a press without movement stays a click. */
-  const startCardDrag = (keys: readonly string[], e: React.PointerEvent): void => {
+  const startCardDrag = (
+    keys: readonly string[],
+    e: React.PointerEvent,
+    stampZones?: ReadonlyMap<string, CanvasZone>
+  ): void => {
     if (e.button !== 0) {
       return
     }
@@ -104,7 +103,13 @@ export default function CanvasChatsPage(): React.JSX.Element {
       }
       moved = true
       justDraggedRef.current = true
-      setCanvasOffsets(start, keys, (ev.clientX - sx) / view.s, (ev.clientY - sy) / view.s)
+      setCanvasOffsets(
+        start,
+        keys,
+        (ev.clientX - sx) / view.s,
+        (ev.clientY - sy) / view.s,
+        stampZones
+      )
     }
     const up = (): void => {
       window.removeEventListener('pointermove', move)
@@ -348,7 +353,8 @@ export default function CanvasChatsPage(): React.JSX.Element {
                             c.key,
                             ...c.agents.map((a) => a.id)
                           ]),
-                          e
+                          e,
+                          zones
                         )
                       }
                       openSize={openSize}

@@ -21,6 +21,7 @@ import { runningChildWork } from './canvas-chat-child-work'
 import type { CanvasChatLatestEntry } from './canvas-chat-lineage'
 import { linkProjectChats, useCanvasHierarchy } from './canvas-chat-hierarchy'
 import { canWaitForTeam, markChatsAwaitingTeam } from './canvas-chat-team-wait'
+import { isLaunchingChat, useLaunchRecordsVersion } from './canvas-chat-launch-mask'
 import { projectColor, projectInitials } from './canvas-project-badge'
 import { getWorkspacePortsByWorktreeId } from '@/lib/workspace-ports/workspace-port-groups'
 import { useCanvasArtifactLinks, type CanvasArtifactLinks } from './canvas-chat-artifacts'
@@ -192,6 +193,7 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
           model: entry?.model?.trim() || null,
           transcriptPath: (entry ?? asleep)?.providerSession?.transcriptPath ?? null,
           hierarchy: null,
+          launching: isLaunchingChat(tab.id, prompt),
           // Agents never ask the user directly: a stuck agent turns its chat red.
           status: agents.some((a) => a.blocked) ? 'waiting' : status,
           lines,
@@ -252,9 +254,11 @@ export function useCanvasProjects(): CanvasProject[] {
     [inputs.worktreesByRepo]
   )
   const hierarchy = useCanvasHierarchy(folders)
+  const launchVersion = useLaunchRecordsVersion()
   return useMemo(
     () => buildCanvasProjects({ ...inputs, artifactLinks, hierarchy }),
-    [inputs, artifactLinks, hierarchy]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [inputs, artifactLinks, hierarchy, launchVersion]
   )
 }
 

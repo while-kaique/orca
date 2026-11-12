@@ -48,7 +48,10 @@ const records = new Map<string, LaunchRecord>()
 const listeners = new Set<() => void>()
 let watchingTabs = false
 
+let recordsVersion = 0
+
 const emit = (): void => {
+  recordsVersion++
   for (const listener of listeners) {
     listener()
   }
@@ -136,6 +139,28 @@ export function registerLaunchRecord(args: LaunchRegistration): void {
   })
   watchLaunchTabs()
   emit()
+}
+
+/** The user opened a PO that is ready ("Esperando um pedido"): the mask has done its job. */
+export function endLaunchRecord(tabId: string): void {
+  if (records.delete(tabId)) {
+    emit()
+  }
+}
+
+/** True while the mask is still due for this chat, so the flowchart already draws it where the PO goes. */
+export function isLaunchingChat(tabId: string, lastPrompt: string | undefined): boolean {
+  const record = records.get(tabId)
+  return record !== undefined && !launchEnded(record, lastPrompt)
+}
+
+/** Changes whenever a launch record is added, changed or removed. */
+export function useLaunchRecordsVersion(): number {
+  return useSyncExternalStore(
+    subscribe,
+    () => recordsVersion,
+    () => 0
+  )
 }
 
 function updateLaunchRecord(tabId: string, patch: Partial<LaunchRecord>): void {

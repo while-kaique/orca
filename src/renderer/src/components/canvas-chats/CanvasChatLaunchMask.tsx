@@ -4,6 +4,7 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { useWorktreeActivityStatus } from '../sidebar/workspace-card/activity/use-worktree-activity-status'
 import {
+  endLaunchRecord,
   launchMaskView,
   useLaunchFactsKeeper,
   type LaunchFacts,
@@ -81,6 +82,13 @@ export function CanvasChatLaunchMask({
   }
   const view = launchMaskView(record, facts)
   useLaunchFactsKeeper(chat.tabId, view, facts)
+  // A ready PO the user opened needs no mask: opening it is the user's first look at it.
+  const readyAndOpen = open && view.kind === 'steps' && view.step === 3
+  useEffect(() => {
+    if (readyAndOpen) {
+      endLaunchRecord(chat.tabId)
+    }
+  }, [readyAndOpen, chat.tabId])
   if (open) {
     return null
   }
