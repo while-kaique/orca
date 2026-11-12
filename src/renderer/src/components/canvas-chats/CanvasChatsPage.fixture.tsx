@@ -9,7 +9,9 @@ import {
   SCENARIO_HIERARCHY,
   SCENARIO_STORE,
   SCENARIO_TERMINAL_TEXT,
-  scenarioPicture
+  scenarioHierarchyWithParents,
+  scenarioPicture,
+  scenarioStoreWithStates
 } from './canvas-chats-fixture-scenario'
 
 /**
@@ -52,14 +54,16 @@ const board = (): React.JSX.Element => (
   </div>
 )
 
-function scenarioSetup(): void {
-  window.api.repos.readCanvasHierarchy = () => Promise.resolve(SCENARIO_HIERARCHY)
+function scenarioSetupWith(hierarchy: typeof SCENARIO_HIERARCHY): void {
+  window.api.repos.readCanvasHierarchy = () => Promise.resolve(hierarchy)
   window.api.repos.readCanvasContextTokens = () => Promise.resolve(SCENARIO_CONTEXT)
   stubPictures()
   for (const [tab, text] of Object.entries(SCENARIO_TERMINAL_TEXT)) {
     noteCanvasChatArtifacts(tab, text)
   }
 }
+
+const scenarioSetup = (): void => scenarioSetupWith(SCENARIO_HIERARCHY)
 
 /** The full hierarchy (PO, two planners, four executors) with every kind of attachment. */
 export const exemplo = defineFixture({
@@ -99,10 +103,10 @@ export const exemploEstados = defineFixture({
     frame.querySelector<HTMLButtonElement>('.cc-tidy')?.click()
     await wait(700)
     const states: Record<string, string> = {
-      po: 'seen',
+      po: 'team',
       pl1: 'working',
-      pl2: 'unseen',
-      ex1: 'working',
+      pl2: 'seen',
+      ex1: 'team',
       ex2: 'unseen',
       ex3: 'waiting',
       ex4: 'monitoring'
@@ -112,6 +116,50 @@ export const exemploEstados = defineFixture({
     }
     await wait(200)
   },
+  render: board
+})
+
+const ALL_DONE = {
+  po: 'done',
+  pl1: 'done',
+  pl2: 'done',
+  ex1: 'done',
+  ex2: 'done',
+  ex3: 'done',
+  ex4: 'done'
+} as const
+const TEAM_PARENTS = { ex1: 'po' }
+
+async function tidyBoard(frame: HTMLElement): Promise<void> {
+  await wait(400)
+  frame.querySelector<HTMLButtonElement>('.cc-tidy')?.click()
+  await wait(700)
+}
+
+/** The PO created an executor straight, and it is working: the PO waits on its team. */
+export const equipePo = defineFixture({
+  width: 1280,
+  store: scenarioStoreWithStates({ ...ALL_DONE, ex1: 'working' }),
+  setup: () => scenarioSetupWith(scenarioHierarchyWithParents(TEAM_PARENTS)),
+  interact: tidyBoard,
+  render: board
+})
+
+/** Planner 1's two executors work: the planner and the PO above it wait on the team. */
+export const equipePlanejador = defineFixture({
+  width: 1280,
+  store: scenarioStoreWithStates({ ...ALL_DONE, ex1: 'working', ex2: 'working' }),
+  setup: scenarioSetup,
+  interact: tidyBoard,
+  render: board
+})
+
+/** Same board with every executor stopped: nobody waits on a team. */
+export const equipeParada = defineFixture({
+  width: 1280,
+  store: scenarioStoreWithStates(ALL_DONE),
+  setup: scenarioSetup,
+  interact: tidyBoard,
   render: board
 })
 

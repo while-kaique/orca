@@ -18,6 +18,7 @@ import type {
 import { runningChildWork } from './canvas-chat-child-work'
 import type { CanvasChatLatestEntry } from './canvas-chat-lineage'
 import { linkProjectChats, useCanvasHierarchy } from './canvas-chat-hierarchy'
+import { canWaitForTeam, markChatsAwaitingTeam } from './canvas-chat-team-wait'
 import { projectColor, projectInitials } from './canvas-project-badge'
 import { getWorkspacePortsByWorktreeId } from '@/lib/workspace-ports/workspace-port-groups'
 import { useCanvasArtifactLinks, type CanvasArtifactLinks } from './canvas-chat-artifacts'
@@ -190,6 +191,7 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
     }
     const folders = (state.worktreesByRepo[repo.id] ?? []).map((w) => w.path)
     const queue = linkProjectChats(chats, latestByChat, state.hierarchy, folders)
+    markChatsAwaitingTeam(chats)
     if (chats.length > 0) {
       projects.push({
         id: repo.id,
@@ -250,8 +252,9 @@ export function useCanvasChatStatus(chat: CanvasChat): CanvasChatStatus {
   if (sidebarStatus === 'monitoring') {
     return 'monitoring'
   }
+  let status: CanvasChatStatus = 'idle'
   if (sidebarStatus === 'done' || sidebarStatus === 'failed' || sidebarStatus === 'interrupted') {
-    return unseen ? 'unseen' : 'seen'
+    status = unseen ? 'unseen' : 'seen'
   }
-  return 'idle'
+  return chat.awaitingTeam && canWaitForTeam(status) ? 'team' : status
 }

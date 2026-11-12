@@ -31,7 +31,8 @@ export const STATUS_LABEL: Record<CanvasChat['status'], string> = {
   monitoring: translate('fork.canvas.statusMonitoring', 'em segundo plano'),
   unseen: translate('fork.canvas.statusUnseen', 'terminou'),
   seen: translate('fork.canvas.statusSeen', 'visto'),
-  waiting: translate('fork.canvas.statusWaiting', 'precisa de você')
+  waiting: translate('fork.canvas.statusWaiting', 'precisa de você'),
+  team: translate('fork.canvas.statusTeam', 'aguardando equipe')
 }
 
 export function ProjectNode({

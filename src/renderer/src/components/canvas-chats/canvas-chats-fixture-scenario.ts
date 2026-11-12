@@ -224,6 +224,43 @@ export const SCENARIO_STORE: Partial<AppState> = {
   }
 }
 
+/** The same project with other states: lets a fixture show who works and who waits. */
+export function scenarioStoreWithStates(
+  states: Record<string, AgentStatusEntry['state']>
+): Partial<AppState> {
+  // Fresh timestamps: the app ignores a state that is older than its freshness window.
+  const now = Date.now()
+  return {
+    ...SCENARIO_STORE,
+    agentStatusByPaneKey: Object.fromEntries(
+      Object.entries(statuses).map(([paneKey, entry]) => [
+        paneKey,
+        {
+          ...entry,
+          state: states[paneKey.split(':')[0]] ?? entry.state,
+          updatedAt: now,
+          stateStartedAt: now - 120_000
+        }
+      ])
+    )
+  }
+}
+
+/** The same chats with other creators (tab -> creator tab), e.g. an executor created straight by the PO. */
+export function scenarioHierarchyWithParents(
+  parents: Record<string, string>
+): CanvasHierarchySnapshot[] {
+  return SCENARIO_HIERARCHY.map((snapshot) => ({
+    ...snapshot,
+    chats: Object.fromEntries(
+      Object.entries(snapshot.chats).map(([tab, chat]) => [
+        tab,
+        { ...chat, pai: parents[tab] ?? chat.pai }
+      ])
+    )
+  }))
+}
+
 export const SCENARIO_HIERARCHY: CanvasHierarchySnapshot[] = [
   {
     folder: FOLDER,
