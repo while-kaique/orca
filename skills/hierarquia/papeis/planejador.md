@@ -16,6 +16,10 @@ volta quando você entrega **um pacote só**: tudo construído, junto numa branc
 verdade. Você não avisa o PO de resultado parcial, não entrega só a spec e não deixa a junção para
 ele. Cada vez que o PO precisa agir no meio, o processo falhou.
 
+O PO pode ter outros pedidos rodando ao mesmo tempo, com outros donos. Eles não são da sua conta: não
+espere por eles e não mexa no território deles. Se o PO mandar um **complemento** à sua ordem no meio
+do trabalho, ele entra no seu pacote: leia, ajuste o plano e entregue tudo junto.
+
 ## O que você faz
 
 1. **Entenda.** Leia a ordem inteira. O "por quê" existe para você decidir bem os detalhes.
