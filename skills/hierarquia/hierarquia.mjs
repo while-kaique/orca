@@ -336,16 +336,7 @@ const comandos = {
   entregar(op) {
     const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
     const eu = quemSou()
-    // O chat pode terminar antes de o lançador anotar quem ele é: espera a anotação chegar.
-    let estado = montarEstado(lerEventos(projeto))
-    for (
-      let i = 0;
-      i < 60 && estado.ordens[op.ordem] && estado.ordens[op.ordem].chatId !== eu;
-      i++
-    ) {
-      dormir(2000)
-      estado = montarEstado(lerEventos(projeto))
-    }
+    const estado = esperarMeuRegistro(projeto, eu)
     const provas = op.prova.map((caminho) => {
       const completo = isAbsolute(caminho) ? caminho : resolve(caminho)
       return { caminho: completo, existe: existsSync(completo) }
@@ -471,6 +462,7 @@ ${op.motivo}
     let estado
     let para
     let perguntaId
+    esperarMeuRegistro(projeto, eu)
     try {
       estado = montarEstado(lerEventos(projeto))
       para = destinoDaPergunta(estado, eu) ?? sair('Este chat está fora da hierarquia do projeto.')
@@ -563,6 +555,16 @@ ${op.motivo}
     }
     imprimirEstado(projeto, estado, filaDoKaique(estado))
   }
+}
+
+/** O chat pode começar a trabalhar antes de o lançador anotar quem ele é: espera a anotação, até 2 min. */
+function esperarMeuRegistro(projeto, eu) {
+  let estado = montarEstado(lerEventos(projeto))
+  for (let i = 0; i < 60 && !estado.chats[eu]; i++) {
+    dormir(2000)
+    estado = montarEstado(lerEventos(projeto))
+  }
+  return estado
 }
 
 function pastaDoGit(pasta) {

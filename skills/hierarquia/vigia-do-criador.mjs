@@ -129,6 +129,26 @@ function veioDeFilho(estado, eu, mensagem) {
   )
 }
 
+/** Avisos que o Orca escreve sozinho quando um chat filho para: o vigia cuida deles (chat morto, aviso por pedido). */
+const AVISOS_AUTOMATICOS = [
+  'Worker stopped',
+  'Worker exited',
+  'Worker is waiting on a prompt',
+  'Agent exited',
+  'Setup '
+]
+
+/** Fica com o vigia: entrega, sinal de vida e aviso automático de um filho. O resto acorda o criador. */
+function precisaDoCriador(estado, eu, mensagem) {
+  if (!veioDeFilho(estado, eu, mensagem)) {
+    return mensagem.type !== 'heartbeat'
+  }
+  if (['worker_done', 'heartbeat', 'status'].includes(mensagem.type)) {
+    return false
+  }
+  return !AVISOS_AUTOMATICOS.some((inicio) => String(mensagem.subject ?? '').startsWith(inicio))
+}
+
 /**
  * O laço do vigia. `deps`: lerEstado(), anotar(tipo, dados), lancarDaEspera() e o chat dono (`eu`).
  * Termina quando todo pedido do criador fechou e virou mensagem, ou quando a aba dele some.
@@ -160,7 +180,7 @@ export async function vigiar({ base, eu, lerEstado, anotar, lancarDaEspera }) {
 `,
       'utf8'
     )
-    if (!veioDeFilho(lerEstado(), eu, mensagem) && mensagem.type !== 'heartbeat') {
+    if (precisaDoCriador(lerEstado(), eu, mensagem)) {
       log(`repassa ${mensagem.id} de ${mensagem.from}`)
       void escreverNoChat(
         handle(),
