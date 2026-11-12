@@ -24,6 +24,7 @@ import {
   orca,
   semAcento
 } from './orca-lancador.mjs'
+import { foraDoGit } from './pasta-fora-do-git.mjs'
 
 const AQUI = import.meta.dirname
 const ESPERA_DO_LANCAMENTO_MS = '180000'
@@ -273,28 +274,6 @@ function lancar(projeto, estado, ordem, modelo, fechar) {
   return { chatId, dispatchId: dados.dispatchId }
 }
 
-/** `.hierarquia/` é do PO, não do produto: fica fora do git do projeto, sem mexer no .gitignore dele. */
-function foraDoGit(projeto) {
-  let pasta = projeto
-  while (!existsSync(join(pasta, '.git'))) {
-    const acima = dirname(pasta)
-    if (acima === pasta) {
-      return
-    }
-    pasta = acima
-  }
-  try {
-    const exclude = join(pasta, '.git', 'info', 'exclude')
-    const atual = existsSync(exclude) ? readFileSync(exclude, 'utf8') : ''
-    if (!/^\/?\.hierarquia\/?\s*$/m.test(atual)) {
-      const quebra = atual && !atual.endsWith('\n') ? '\n' : ''
-      appendFileSync(exclude, `${quebra}.hierarquia/\n`, 'utf8')
-    }
-  } catch {
-    // `.git` é arquivo (cópia de trabalho) ou sem permissão: o PO avisa se aparecer no git status.
-  }
-}
-
 const comandos = {
   'criar-po'(op) {
     const projeto = resolve(op.projeto ?? process.cwd())
@@ -303,8 +282,10 @@ const comandos = {
     foraDoGit(projeto)
     const estado = montarEstado(lerEventos(projeto))
     const eu = quemSou()
-    if (estado.po && estado.chats[estado.po].ativo && estado.po !== eu) {
-      sair(`Este projeto já tem um PO (${estado.po}). Só existe um PO por projeto.`)
+    if (estado.po && estado.po !== eu) {
+      sair(
+        `Este projeto já tem um PO aberto (${estado.po}). Só existe um PO por projeto; feche a aba dele para abrir outro.`
+      )
     }
     for (const [nome, inicial] of [
       [
@@ -569,6 +550,26 @@ ${op.motivo}
   },
   devolver(op) {
     decisaoDoKaique(op, 'devolvido_pelo_kaique')
+  },
+
+  /** O Orca roda isto quando a aba do chat fecha: PO fechado deixa o projeto sem PO. */
+  encerrar(op) {
+    const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
+    const estado = montarEstado(lerEventos(projeto))
+    const autor = process.env.ORCA_TAB_ID
+    if (autor && estado.chats[autor]) {
+      sair(
+        'Um chat da hierarquia não encerra chat por aqui: quem encerra é o Orca, ao fechar a aba.'
+      )
+    }
+    if (!estado.chats[op.chat]?.ativo) {
+      sair(`O chat ${op.chat ?? '(faltou --chat)'} não está aberto na hierarquia deste projeto.`, 0)
+    }
+    anotar(projeto, 'chat_encerrado', {
+      chatId: op.chat,
+      motivo: op.motivo ?? 'aba fechada no Orca'
+    })
+    console.log(`Chat ${op.chat} encerrado.`)
   },
 
   estado(op) {

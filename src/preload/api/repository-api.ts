@@ -132,6 +132,8 @@ export type RepositoryApi = {
   decideCanvasHierarchyOrder: (
     decision: CanvasHierarchyDecision
   ) => Promise<CanvasHierarchyDecisionResult>
+  /** Fork-only: tells the hierarchy a chat's tab closed, so a closed PO stops counting. */
+  closeCanvasHierarchyChat: (tabId: string, folders: string[]) => Promise<void>
   /** Fork-only: lets main name phone workspace rows like the PC-desk sidebar. */
   setPcDeskSmartTitles: (enabled: boolean) => Promise<void>
   onCloneProgress: (callback: (data: { phase: string; percent: number }) => void) => () => void

@@ -34,6 +34,7 @@ const ArtifactsPage = lazy(() => import('../components/artifacts/ArtifactsPage')
 const WorkspaceSpacePage = lazy(() => import('../components/workspace-space/WorkspaceSpacePage'))
 const MobilePage = lazy(() => import('../components/mobile/MobilePage'))
 // Fork: chat flowchart (same chats as the terminal view, drawn as a board).
+import { useCanvasHierarchyClosedTabWatch } from '../components/canvas-chats/canvas-hierarchy-closed-tab-watch'
 const CanvasChatsPage = lazy(() => import('../components/canvas-chats/CanvasChatsPage'))
 const Terminal = lazy(() => import('../components/Terminal'))
 
@@ -118,6 +119,7 @@ export function AppWorkspaceShell(props: {
   floatingWorkspace: FloatingWorkspacePanelState
 }): React.JSX.Element {
   const { layout, floatingWorkspace } = props
+  useCanvasHierarchyClosedTabWatch()
   const titlebarLeftControls = <TitlebarLeftControls layout={layout} />
   const titlebarMainStrip = <TitlebarMainStrip layout={layout} />
   // Keep scroll memory above sidebar view remounts to preserve list position.

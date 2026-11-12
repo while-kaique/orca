@@ -13,7 +13,7 @@ import { isTrustedBrowserRenderer } from '../browser/browser-renderer-trust'
 // Fork: the flowchart shows each project's chat hierarchy from the file the `hierarquia` command writes.
 
 const MAX_FOLDERS = 200
-const DECISION_TIMEOUT_MS = 30_000
+const COMMAND_TIMEOUT_MS = 30_000
 
 async function readSnapshot(folder: string): Promise<CanvasHierarchySnapshot | null> {
   try {
@@ -46,29 +46,17 @@ function hierarchyCommandPath(): string | null {
   return candidates.find((candidate) => existsSync(candidate)) ?? null
 }
 
-/** The user's OK or send-back: the command applies the rules, so a chat cannot approve itself. */
-export function decideCanvasHierarchyOrder(
-  decision: CanvasHierarchyDecision
-): Promise<CanvasHierarchyDecisionResult> {
+function runHierarchyCommand(args: string[]): Promise<CanvasHierarchyDecisionResult> {
   const command = hierarchyCommandPath()
   if (!command) {
     return Promise.resolve({ kind: 'error', error: 'hierarquia command not found' })
   }
-  const args = [
-    command,
-    decision.decisao === 'ok' ? 'ok' : 'devolver',
-    '--ordem',
-    decision.ordemId,
-    '--projeto',
-    decision.folder,
-    ...(decision.motivo ? ['--motivo', decision.motivo] : [])
-  ]
   return new Promise((resolve) => {
     execFile(
       process.execPath,
-      args,
+      [command, ...args],
       {
-        timeout: DECISION_TIMEOUT_MS,
+        timeout: COMMAND_TIMEOUT_MS,
         windowsHide: true,
         // Electron runs the script as plain Node; no chat identity, so the command sees the user.
         env: {
@@ -84,6 +72,32 @@ export function decideCanvasHierarchyOrder(
         )
     )
   })
+}
+
+/** The user's OK or send-back: the command applies the rules, so a chat cannot approve itself. */
+export function decideCanvasHierarchyOrder(
+  decision: CanvasHierarchyDecision
+): Promise<CanvasHierarchyDecisionResult> {
+  return runHierarchyCommand([
+    decision.decisao === 'ok' ? 'ok' : 'devolver',
+    '--ordem',
+    decision.ordemId,
+    '--projeto',
+    decision.folder,
+    ...(decision.motivo ? ['--motivo', decision.motivo] : [])
+  ])
+}
+
+/** A closed tab ends its chat in the hierarchy: a project's PO only counts while its tab is open. */
+export async function closeCanvasHierarchyChat(
+  tabId: string,
+  folders: readonly string[]
+): Promise<void> {
+  for (const snapshot of await readCanvasHierarchy(folders)) {
+    if (snapshot.chats[tabId]?.ativo) {
+      await runHierarchyCommand(['encerrar', '--chat', tabId, '--projeto', snapshot.folder])
+    }
+  }
 }
 
 function isDecision(value: unknown): value is CanvasHierarchyDecision {
@@ -113,5 +127,16 @@ export function registerCanvasHierarchyHandlers(): void {
       isTrustedBrowserRenderer(event.sender) && isDecision(decision)
         ? decideCanvasHierarchyOrder(decision)
         : Promise.resolve({ kind: 'error', error: 'untrusted' })
+  )
+  ipcMain.removeHandler('repos:closeCanvasHierarchyChat')
+  ipcMain.handle(
+    'repos:closeCanvasHierarchyChat',
+    (event, tabId: unknown, folders: unknown): Promise<void> =>
+      isTrustedBrowserRenderer(event.sender) &&
+      typeof tabId === 'string' &&
+      Array.isArray(folders) &&
+      folders.every((folder) => typeof folder === 'string')
+        ? closeCanvasHierarchyChat(tabId, folders)
+        : Promise.resolve()
   )
 }

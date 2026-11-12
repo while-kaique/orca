@@ -65,6 +65,8 @@ export const reposApi = {
     decision: CanvasHierarchyDecision
   ): Promise<CanvasHierarchyDecisionResult> =>
     ipcRenderer.invoke('repos:decideCanvasHierarchyOrder', decision),
+  closeCanvasHierarchyChat: (tabId: string, folders: string[]): Promise<void> =>
+    ipcRenderer.invoke('repos:closeCanvasHierarchyChat', tabId, folders),
   setPcDeskSmartTitles: (enabled: boolean): Promise<void> =>
     ipcRenderer.invoke('repos:setPcDeskSmartTitles', enabled),
 

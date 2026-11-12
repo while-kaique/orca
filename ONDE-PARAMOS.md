@@ -1,5 +1,18 @@
 # Onde paramos — fork do Orca "PC como mesa"
 
+## 11/11/2026 (noite) — PO só vale enquanto a aba dele está aberta
+
+- **Regra:** fechar a aba do chat (pelo "x" ou pela barra lateral) encerra o chat na hierarquia. Se era o
+  PO, o projeto fica sem PO (`hierarquia estado` mostra `PO: (nenhum)`) e o próximo chat roda `criar-po`.
+- **Como:** `canvas-hierarchy-closed-tab-watch.ts` (ligado em `AppWorkspaceShell.tsx`) vê a aba sumir e
+  chama `repos:closeCanvasHierarchyChat`; o processo principal roda `hierarquia encerrar --chat ID_DA_ABA`,
+  que grava `chat_encerrado`. `regras.mjs` zera `estado.po` quando o chat encerrado é o PO.
+- **À mão:** `hierarquia encerrar --chat ID_DA_ABA --projeto PASTA` (recusa se rodado por chat da hierarquia).
+- **Feito à mão nesta data:** o PO `1c56db15…` do projeto orca, cuja aba já estava fechada, foi encerrado.
+- **Não provado ao vivo:** o aviso da tela ao fechar a aba só entra depois de reconstruir e reabrir o Orca;
+  testado até aqui: regra (21 testes), comando `encerrar`, tipos e lint.
+- `foraDoGit` saiu de `hierarquia.mjs` para `pasta-fora-do-git.mjs` (o arquivo passava de 600 linhas).
+
 ## 12/11/2026 — PO só abre chat com plano aprovado + consertos do comando `hierarquia`
 
 - **Regra nova do PO** (`skills/hierarquia/papeis/po.md`, "Antes de abrir qualquer chat"): registrar o

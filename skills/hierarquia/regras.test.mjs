@@ -342,6 +342,15 @@ test('com vaga sobrando nada e fechado, mesmo havendo chat terminado', () => {
   )
 })
 
+test('PO com a aba fechada deixa o projeto sem PO', () => {
+  const estado = montarEstado([
+    ev('po_criado', { chatId: 'aba-po', handle: 'term-1' }),
+    ev('chat_encerrado', { chatId: 'aba-po', motivo: 'aba fechada no Orca' })
+  ])
+  assert.equal(estado.po, null)
+  assert.equal(estado.chats['aba-po'].ativo, false)
+})
+
 test('o chat e a aba; o identificador de terminal muda quando o Orca reabre', () => {
   const eventos = [
     ev('po_criado', { chatId: 'aba-po', handle: 'term-1' }),

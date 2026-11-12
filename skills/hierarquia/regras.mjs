@@ -116,6 +116,9 @@ export function montarEstado(eventos) {
         if (estado.chats[ev.chatId]) {
           estado.chats[ev.chatId].ativo = false
         }
+        if (estado.po === ev.chatId) {
+          estado.po = null
+        }
         break
       case 'chat_reconectado':
         if (estado.chats[ev.chatId]) {
