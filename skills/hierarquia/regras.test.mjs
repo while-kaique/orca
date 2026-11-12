@@ -1,13 +1,17 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { rotuloDaSituacao } from './estado-na-tela.mjs'
 import {
+  acharWorkerNovo,
   decidirConferencia,
   decidirEntrega,
+  decidirInicio,
   decidirOrdem,
   decidirPedidoDeOk,
   destinoDaPergunta,
   filaDoKaique,
   montarEstado,
+  ondeEstaOTexto,
   ordensLiberadasDaEspera,
   temOkDoKaique
 } from './regras.mjs'
@@ -388,4 +392,93 @@ test('chat registrado ao nascer ja tem papel e criador; lancamento que falha lib
   assert.equal(depois.ordens['o-1'].situacao, 'parou')
   assert.equal(depois.ordens['o-1'].lancamentoFalhou, 'o Orca nao criou o chat')
   assert.equal(depois.chats['aba-1'].ativo, false)
+})
+
+test('chat novo e achado pelo titulo da tarefa, o unico dado que o task-list devolve', () => {
+  const tarefas = [
+    {
+      id: 'task_fd04a248fde1',
+      status: 'blocked',
+      title: 'executor: Fluxograma: construir a mascara de carregamento do PO confor'
+    },
+    { id: 'task_fb061cb8ede3', status: 'blocked', title: 'correcao o-009' }
+  ]
+  const workers = [
+    { dispatchId: 'ctx_7a4a509925ca', taskId: 'task_fd04a248fde1', terminal: 'term_e1003c10' },
+    { dispatchId: 'ctx_90ca6351863f', taskId: 'task_fb061cb8ede3', terminal: 'term_5ce11f91' }
+  ]
+  const titulo = 'executor: Fluxograma: construir a mascara de carregamento do PO confor'
+  assert.equal(
+    acharWorkerNovo(workers, tarefas, new Set(['ctx_90ca6351863f']), titulo).dispatchId,
+    'ctx_7a4a509925ca'
+  )
+  assert.equal(acharWorkerNovo(workers, tarefas, new Set(['ctx_7a4a509925ca']), titulo), null)
+})
+
+test('ordem parada na caixa e enviada uma vez so; chat que ja trabalha nao recebe nada', () => {
+  const linha = '─'.repeat(40)
+  const parada = [
+    linha,
+    '❯ ORDEM o-17 (executor). PAPEL: executor na',
+    '  hierarquia',
+    linha,
+    '  barra'
+  ]
+  const andando = [
+    '❯ ORDEM o-17 (executor). PAPEL: executor na',
+    '● lendo',
+    linha,
+    '❯',
+    linha,
+    '  barra'
+  ]
+  const trecho = 'ORDEM o-17 (executor). PAPEL: executor'
+  assert.equal(ondeEstaOTexto(parada, trecho), 'na_caixa')
+  assert.equal(ondeEstaOTexto(andando, trecho), 'no_historico')
+
+  let vigia = { naCaixaDesde: null, tentouEnviarEm: null, enviadaEm: null, comecouEm: null }
+  const parado = { atividade: 'done', onde: 'na_caixa' }
+  const acoes = [1000, 3000, 5500, 9000].map((t) => {
+    const r = decidirInicio(vigia, parado, t)
+    vigia = r.acao === 'enviar' ? { ...r.vigia, tentouEnviarEm: t } : r.vigia
+    return r.acao
+  })
+  assert.deepEqual(acoes, ['esperar', 'esperar', 'enviar', 'esperar'])
+  assert.equal(
+    decidirInicio(vigia, { atividade: 'working', onde: 'no_historico' }, 12000).acao,
+    'comecou'
+  )
+  const sozinho = { naCaixaDesde: null, tentouEnviarEm: null, enviadaEm: null, comecouEm: null }
+  assert.equal(
+    decidirInicio(sozinho, { atividade: 'working', onde: 'na_caixa' }, 1000).acao,
+    'comecou'
+  )
+})
+
+test('estado nao mostra trabalhando para chat que nunca comecou', () => {
+  const nascendo = [
+    ev('po_criado', { chatId: 'PO' }),
+    ev('ordem_criada', { ordemId: 'o-1', de: 'PO', para: 'executor', campos: CAMPOS }),
+    ev('chat_lancado', {
+      ordemId: 'o-1',
+      chatId: 'aba-1',
+      modelo: 'sonnet',
+      situacaoDoLancamento: 'esperando_o_orca'
+    })
+  ]
+  const rotulo = (extra) => rotuloDaSituacao(montarEstado([...nascendo, ...extra]).ordens['o-1'])
+  assert.match(rotulo([]), /inicio ainda nao confirmado/)
+  assert.match(
+    rotulo([ev('chat_nao_iniciou', { ordemId: 'o-1', naCaixa: true })]),
+    /ORDEM NAO ENVIADA/
+  )
+  assert.match(
+    rotulo([ev('chat_nao_iniciou', { ordemId: 'o-1', naCaixa: false })]),
+    /inicio NAO confirmado/
+  )
+  assert.equal(rotulo([ev('chat_iniciou', { ordemId: 'o-1' })]), 'trabalhando')
+  assert.equal(
+    rotulo([ev('lancamento_respondeu', { ordemId: 'o-1', situacaoDoLancamento: 'ready' })]),
+    'trabalhando'
+  )
 })

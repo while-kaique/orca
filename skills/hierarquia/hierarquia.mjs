@@ -20,13 +20,20 @@ import {
   branchDoProjeto,
   citar,
   dormir,
+  enviarCorrecao,
   garantirExecucao,
   lancarWorker,
   manterAberto,
-  orca,
-  semAcento
+  orca
 } from './orca-lancador.mjs'
-import { marcadorDaOrdem, pedidoParaOrca, textoDaOrdem } from './pedido-da-ordem.mjs'
+import {
+  pedidoDaCorrecao,
+  pedidoParaOrca,
+  textoDaOrdem,
+  tituloDaTarefa,
+  trechoDoPedido
+} from './pedido-da-ordem.mjs'
+import { criarVigia } from './inicio-do-turno.mjs'
 import { imprimirEstado } from './estado-na-tela.mjs'
 import { foraDoGit } from './pasta-fora-do-git.mjs'
 
@@ -129,7 +136,8 @@ function gravarFoto(projeto) {
         chatId: ordem.chatId,
         situacao: ordem.situacao,
         reprovacoes: ordem.reprovacoes,
-        titulo: ordem.campos.titulo ?? ordem.campos.objetivo
+        titulo: ordem.campos.titulo ?? ordem.campos.objetivo,
+        inicio: ordem.inicio
       }
     ])
   )
@@ -192,14 +200,16 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
     lerConfig(projeto).pastaDosChats === 'projeto'
       ? citar(`path:${projeto.replaceAll('\\', '/')}`)
       : 'new-child'
+  const pedido = pedidoParaOrca(projeto, ordem.id, ordem.papel, ordem.campos)
+  const titulo = tituloDaTarefa(ordem)
   const args = [
     'orchestration',
     'worker-start',
     ...(souPo ? [] : ['--from', meuTerminal()]),
     '--spec',
-    citar(pedidoParaOrca(projeto, ordem.id, ordem.papel, ordem.campos)),
+    citar(pedido),
     '--task-title',
-    citar(semAcento(`${ordem.papel}: ${ordem.campos.titulo ?? ordem.id}`).slice(0, 70)),
+    citar(titulo),
     '--worktree',
     pasta,
     ...(pasta === 'new-child' ? ['--base-branch', citar(branchDoProjeto(projeto))] : []),
@@ -219,11 +229,18 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
       situacaoDoLancamento: situacao
     })
   // O registro nasce junto com a aba: o fluxograma só sabe o papel e o criador depois dele.
-  const { resposta, nascido } = await lancarWorker(
-    args,
-    marcadorDaOrdem(ordem.id, ordem.papel),
-    (chat) => registrar(chat, 'esperando_o_orca')
-  )
+  const vigia = criarVigia(trechoDoPedido(pedido))
+  let abaVigiada = null
+  const anotarInicio = (tipo, dados) =>
+    anotar(projeto, tipo, { ordemId: ordem.id, chatId: abaVigiada, ...dados })
+  const { resposta, nascido } = await lancarWorker(args, titulo, {
+    aoNascer: (chat) => {
+      abaVigiada = chat.chatId
+      registrar(chat, 'esperando_o_orca')
+      vigia.ligar(chat.dispatchId, chat.handle)
+    },
+    aoEsperar: () => vigia.vigiar(anotarInicio)
+  })
   const dados = resposta.result ?? {}
   const handle = dados.terminal
   if (!handle) {
@@ -245,10 +262,9 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
   }
   manterAberto(dados.dispatchId)
   if (dados.state !== 'ready') {
-    console.log(
-      `ATENÇÃO: o Orca não confirmou que o chat recebeu a ordem (${dados.state}). ` +
-        `Leia a tela dele antes de relançar: orca-dev orchestration worker-read --dispatch ${dados.dispatchId} --source terminal --json`
-    )
+    abaVigiada = chatId
+    vigia.ligar(dados.dispatchId, handle)
+    console.log(await vigia.fechar(anotarInicio))
   }
   return { chatId, dispatchId: dados.dispatchId }
 }
@@ -429,51 +445,28 @@ ${op.motivo}
       'utf8'
     )
     const pasta = citar(`path:${(ordem.pasta || projeto).replaceAll('\\', '/')}`)
+    const pedido = pedidoDaCorrecao(op.ordem, op.motivo)
+    const handleDoChat = estado.chats[ordem.chatId].handle
+    let devolvida
     try {
-      const reenviar = () =>
-        orca([
-          'orchestration',
-          'worker-start',
-          ...(estado.chats[eu].papel === 'po' ? [] : ['--from', meuTerminal()]),
-          '--spec',
-          citar(
-            semAcento(
-              `Sua entrega da ordem ${op.ordem} foi REPROVADA. Motivo: ${op.motivo}. Corrija so o que o motivo aponta, produza prova nova, rode hierarquia entregar --ordem ${op.ordem} --prova CAMINHO e depois envie worker_done.`
-            )
-          ),
-          '--task-title',
-          citar(`correcao ${op.ordem}`),
-          '--terminal',
-          estado.chats[ordem.chatId].handle,
-          '--worktree',
-          pasta,
-          '--timeout-ms',
-          ESPERA_DO_LANCAMENTO_MS
-        ])
-      let resposta = reenviar()
-      // Logo depois de entregar o chat ainda está fechando o turno e o Orca não o aceita: espera e repete.
-      for (let i = 0; i < 6 && resposta.error?.code === 'agent_unconfigured'; i++) {
-        dormir(15000)
-        resposta = reenviar()
-      }
-      const dispatchId = resposta.result?.dispatchId
-      if (!resposta.ok || !dispatchId) {
-        throw new Error(JSON.stringify(resposta.error ?? resposta).slice(0, 400))
-      }
-      if (resposta.result.state !== 'ready') {
-        console.log(
-          `ATENÇÃO: o Orca não confirmou que o chat ${ordem.chatId} recebeu a correção (${resposta.result.state}). Leia a tela dele antes de reenviar.`
-        )
-      }
+      devolvida = enviarCorrecao({
+        de: estado.chats[eu].papel === 'po' ? null : meuTerminal(),
+        handle: handleDoChat,
+        pasta,
+        ordemId: op.ordem,
+        pedido,
+        timeoutMs: ESPERA_DO_LANCAMENTO_MS
+      })
       anotar(projeto, 'chat_lancado', {
         ordemId: op.ordem,
         chatId: ordem.chatId,
-        handle: estado.chats[ordem.chatId].handle,
+        handle: handleDoChat,
         pasta: ordem.pasta,
         modelo: estado.chats[ordem.chatId].modelo,
-        dispatchId
+        dispatchId: devolvida.dispatchId,
+        situacaoDoLancamento: devolvida.state
       })
-      manterAberto(dispatchId)
+      manterAberto(devolvida.dispatchId)
     } catch (erro) {
       // O chat antigo não aceitou: a correção vai para um chat novo, com o motivo no arquivo da ordem.
       console.error(
@@ -491,6 +484,15 @@ ${op.motivo}
       return
     }
     console.log(`Ordem ${op.ordem} devolvida ao chat ${ordem.chatId} com o motivo.`)
+    if (devolvida.state !== 'ready') {
+      const vigia = criarVigia(trechoDoPedido(pedido))
+      vigia.ligar(devolvida.dispatchId, handleDoChat)
+      console.log(
+        await vigia.fechar((tipo, dados) =>
+          anotar(projeto, tipo, { ordemId: op.ordem, chatId: ordem.chatId, ...dados })
+        )
+      )
+    }
   },
 
   perguntar(op) {

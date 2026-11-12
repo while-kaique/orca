@@ -70,6 +70,7 @@ export function montarEstado(eventos) {
         ordem.pasta = ev.pasta
         ordem.situacao = 'trabalhando'
         ordem.lancamento = ev.situacaoDoLancamento
+        ordem.inicio = ev.situacaoDoLancamento === 'ready' ? 'confirmado' : 'pendente'
         estado.chats[ev.chatId] = {
           id: ev.chatId,
           handle: ev.handle ?? null,
@@ -84,6 +85,16 @@ export function montarEstado(eventos) {
       case 'lancamento_respondeu':
         ordem.pasta = ev.pasta ?? ordem.pasta
         ordem.lancamento = ev.situacaoDoLancamento
+        if (ev.situacaoDoLancamento === 'ready') {
+          ordem.inicio = 'confirmado'
+        }
+        break
+      case 'chat_iniciou':
+        ordem.inicio = 'confirmado'
+        ordem.iniciouEm = ev.em ?? ev.t
+        break
+      case 'chat_nao_iniciou':
+        ordem.inicio = ev.naCaixa ? 'nao_enviada' : 'nao_confirmado'
         break
       case 'lancamento_falhou':
         ordem.situacao = 'parou'
@@ -340,4 +351,58 @@ export function destinoDaPergunta(estado, de) {
     return null
   }
   return chat.pai ?? 'kaique'
+}
+
+const MARCA_DE_COLAGEM = '[Pasted text'
+const LINHA_DE_SEPARACAO = /^[─━-]{10,}$/u
+
+function emUmaLinha(linhas) {
+  return linhas.join(' ').replace(/\s+/gu, ' ')
+}
+
+/** O worker novo é o que não existia antes e cuja tarefa tem o título que o lançador deu (o task-list só devolve id, status e título). */
+export function acharWorkerNovo(workers, tarefas, antes, titulo) {
+  const ids = new Set(tarefas.filter((t) => t.title === titulo).map((t) => t.id))
+  return workers.find((w) => w.terminal && !antes.has(w.dispatchId) && ids.has(w.taskId)) ?? null
+}
+
+/** Onde o texto enviado está na tela do chat: digitado na caixa de entrada (ainda não enviado) ou já no histórico. */
+export function ondeEstaOTexto(linhas, trecho) {
+  const tela = linhas.map((linha) => String(linha).trim())
+  const caixa = tela.findLastIndex((linha) => linha.startsWith('❯'))
+  if (caixa === -1) {
+    return emUmaLinha(tela).includes(trecho) ? 'no_historico' : 'ausente'
+  }
+  let fim = tela.findIndex((linha, i) => i > caixa && LINHA_DE_SEPARACAO.test(linha))
+  fim = fim === -1 ? tela.length : fim
+  const dentro = emUmaLinha(tela.slice(caixa, fim))
+  if (dentro.includes(trecho) || dentro.includes(MARCA_DE_COLAGEM)) {
+    return 'na_caixa'
+  }
+  return emUmaLinha(tela.slice(0, caixa)).includes(trecho) ? 'no_historico' : 'ausente'
+}
+
+export const ESTABILIDADE_DA_CAIXA_MS = 4000
+
+/**
+ * Um passo da conferência do início do turno. `vigia` guarda o que já foi visto/feito; `visto` é
+ * {atividade, onde}. Envia no máximo uma vez, e só quando o texto ficou parado na caixa.
+ */
+export function decidirInicio(vigia, visto, agora) {
+  if (vigia.comecouEm) {
+    return { acao: 'comecou', vigia }
+  }
+  if (visto.atividade === 'working' || visto.onde === 'no_historico') {
+    const fonte = visto.atividade === 'working' ? 'atividade' : 'tela'
+    return { acao: 'comecou', vigia: { ...vigia, comecouEm: agora, fonte, onde: visto.onde } }
+  }
+  const proximo = { ...vigia, onde: visto.onde }
+  if (visto.onde !== 'na_caixa') {
+    return { acao: 'esperar', vigia: { ...proximo, naCaixaDesde: null } }
+  }
+  const desde = vigia.naCaixaDesde ?? agora
+  if (!vigia.tentouEnviarEm && agora - desde >= ESTABILIDADE_DA_CAIXA_MS) {
+    return { acao: 'enviar', vigia: { ...proximo, naCaixaDesde: desde } }
+  }
+  return { acao: 'esperar', vigia: { ...proximo, naCaixaDesde: desde } }
 }
