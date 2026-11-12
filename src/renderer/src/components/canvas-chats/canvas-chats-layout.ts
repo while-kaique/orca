@@ -203,13 +203,11 @@ export function layoutCanvas(
     assign(roots, -1)
     const tierTops: number[] = []
     for (let tier = 0; tier < hanging.length; tier++) {
+      // A row nobody sits in takes no room: an executor under the PO sits as close as under a planner.
       tierTops[tier] =
-        tier === 0
-          ? 0
-          : tierTops[tier - 1] +
-            (heights[tier - 1] ?? C.h) +
-            (hanging[tier - 1] ?? 0) +
-            PROJECT_TO_CHATS
+        tier === 0 || heights[tier - 1] === undefined
+          ? (tierTops[tier - 1] ?? 0)
+          : tierTops[tier - 1] + heights[tier - 1] + (hanging[tier - 1] ?? 0) + PROJECT_TO_CHATS
     }
     const bottom = Math.max(
       0,

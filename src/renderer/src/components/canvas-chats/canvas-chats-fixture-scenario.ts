@@ -1,3 +1,5 @@
+import { translate } from '@/i18n/i18n'
+import { CHATS, type Chat } from './canvas-chats-fixture-chats'
 import type { AppState } from '@/store/types'
 import type { AgentStatusEntry } from '../../../../shared/agent-status/contracts/agent-status-types'
 import type { AgentChildWorkView } from '../../../../shared/agent-status/child-work/agent-status-child-work-view'
@@ -10,106 +12,15 @@ import type { Worktree } from '../../../../shared/worktree/types'
  * Fork: a made-up project with the full chat hierarchy (one PO, two planners, four executors) and every
  * kind of attachment, to check the flowchart's look in a fixture without real chats.
  */
+/** Second project: a PO that created an executor directly, with no planner between them. */
+const DIRECT = { repo: 'demo-direct', folder: 'C:/demo/painel-interno' } as const
 const REPO = 'demo-repo'
 const FOLDER = 'C:/demo/loja-online'
 const WORKTREE = `${REPO}::${FOLDER}`
+const DIRECT_WORKTREE = `${DIRECT.repo}::${DIRECT.folder}`
 const LEAF = '11111111-1111-4111-8111-111111111111'
 const NOW = 1_794_430_000_000
 const transcript = (tab: string): string => `C:/demo/.claude/projects/loja/${tab}.jsonl`
-
-type Chat = {
-  tab: string
-  title: string
-  role: 'po' | 'planejador' | 'executor'
-  parent: string | null
-  state: AgentStatusEntry['state']
-  prompt: string
-  reply: string
-  tokens: number
-  order?: string
-  agents?: string[]
-}
-
-const CHATS: Chat[] = [
-  {
-    tab: 'po',
-    title: 'Mestre de Banners',
-    role: 'po',
-    parent: null,
-    state: 'done',
-    prompt: 'quero a tela de status e os pagamentos prontos',
-    reply: 'Duas frentes em andamento: a tela de status e os pagamentos.',
-    tokens: 156_000,
-    agents: ['revisor de layout', 'pesquisa de referências']
-  },
-  {
-    tab: 'pl1',
-    title: 'Tela de status',
-    role: 'planejador',
-    parent: 'po',
-    state: 'working',
-    prompt: 'planeje a tela de status',
-    reply: 'Dividi em duas tarefas independentes.',
-    tokens: 302_000,
-    order: 'Tela de status do pedido',
-    agents: ['leitor do código']
-  },
-  {
-    tab: 'pl2',
-    title: 'Pagamentos',
-    role: 'planejador',
-    parent: 'po',
-    state: 'done',
-    prompt: 'planeje os pagamentos',
-    reply: 'Esperando a entrega dos dois executores.',
-    tokens: 188_000,
-    order: 'Pagamentos por Pix'
-  },
-  {
-    tab: 'ex1',
-    title: 'Mestre UI/UX',
-    role: 'executor',
-    parent: 'pl1',
-    state: 'working',
-    prompt: 'monte a tela',
-    reply: '',
-    tokens: 242_000,
-    order: 'Montar a tela de status'
-  },
-  {
-    tab: 'ex2',
-    title: 'Validador',
-    role: 'executor',
-    parent: 'pl1',
-    state: 'done',
-    prompt: 'valide a tela',
-    reply: 'Tela validada nos três tamanhos.',
-    tokens: 91_000,
-    order: 'Validar a tela de status'
-  },
-  {
-    tab: 'ex3',
-    title: 'Debugger',
-    role: 'executor',
-    parent: 'pl2',
-    state: 'done',
-    prompt: 'ache o erro do Pix',
-    reply: 'Erro achado no cálculo do troco.',
-    tokens: 84_000,
-    order: 'Achar o erro do Pix'
-  },
-  {
-    tab: 'ex4',
-    title: 'Criador de Testes',
-    role: 'executor',
-    parent: 'pl2',
-    state: 'working',
-    prompt: 'escreva os testes',
-    reply: '',
-    tokens: 330_000,
-    order: 'Testes do pagamento por Pix'
-  }
-]
 
 function agentView(tab: string, name: string, index: number): AgentChildWorkView {
   return {
@@ -150,7 +61,7 @@ const worktree: Worktree = {
 const tabs: TerminalTab[] = CHATS.map((chat, index) => ({
   id: chat.tab,
   ptyId: null,
-  worktreeId: WORKTREE,
+  worktreeId: chat.direct ? DIRECT_WORKTREE : WORKTREE,
   title: chat.title,
   customTitle: chat.title,
   color: null,
@@ -158,12 +69,32 @@ const tabs: TerminalTab[] = CHATS.map((chat, index) => ({
   createdAt: NOW - 3_600_000 + index
 }))
 
+const directWorktree: Worktree = {
+  ...worktree,
+  id: DIRECT_WORKTREE,
+  repoId: DIRECT.repo,
+  path: DIRECT.folder
+}
+
+/** The tab Orca opens on its own to run the setup script: named "Setup", no agent, no status. */
+const preparationTab: TerminalTab = {
+  id: 'prep',
+  ptyId: null,
+  worktreeId: DIRECT_WORKTREE,
+  title: 'Terminal 2',
+  defaultTitle: 'Terminal 2',
+  customTitle: translate('worktree.setupTerminalTitle', 'Setup'),
+  color: null,
+  sortOrder: 9,
+  createdAt: NOW - 3_500_000
+}
+
 const statuses: Record<string, AgentStatusEntry> = Object.fromEntries(
   CHATS.map((chat) => {
     const paneKey = `${chat.tab}:${LEAF}`
     const entry: AgentStatusEntry = {
       paneKey,
-      worktreeId: WORKTREE,
+      worktreeId: chat.direct ? DIRECT_WORKTREE : WORKTREE,
       tabId: chat.tab,
       agentType: 'claude',
       state: chat.state,
@@ -190,10 +121,21 @@ export const SCENARIO_STORE: Partial<AppState> = {
       badgeColor: '#8b5cf6',
       addedAt: NOW,
       kind: 'git'
+    },
+    {
+      id: DIRECT.repo,
+      path: DIRECT.folder,
+      displayName: 'Painel Interno',
+      badgeColor: '#0ea5e9',
+      addedAt: NOW,
+      kind: 'git'
     }
   ],
-  worktreesByRepo: { [REPO]: [worktree] },
-  tabsByWorktree: { [WORKTREE]: tabs },
+  worktreesByRepo: { [REPO]: [worktree], [DIRECT.repo]: [directWorktree] },
+  tabsByWorktree: {
+    [WORKTREE]: tabs.filter((tab) => tab.worktreeId === WORKTREE),
+    [DIRECT_WORKTREE]: [...tabs.filter((tab) => tab.worktreeId === DIRECT_WORKTREE), preparationTab]
+  },
   // A live terminal per chat, so each card shows its state instead of "parado".
   ptyIdsByTabId: Object.fromEntries(CHATS.map((chat) => [chat.tab, [`${WORKTREE}@@${chat.tab}`]])),
   agentStatusByPaneKey: statuses,
@@ -224,24 +166,25 @@ export const SCENARIO_STORE: Partial<AppState> = {
   }
 }
 
-export const SCENARIO_HIERARCHY: CanvasHierarchySnapshot[] = [
-  {
-    folder: FOLDER,
-    chats: Object.fromEntries(
-      CHATS.map((chat) => [
-        chat.tab,
-        {
-          id: chat.tab,
-          papel: chat.role,
-          pai: chat.parent,
-          ordemId: chat.order ? `o-${chat.tab}` : null,
-          ativo: true,
-          mexidoPeloKaique: false
-        }
-      ])
-    ),
-    ordens: Object.fromEntries(
-      CHATS.filter((chat) => chat.order).map((chat) => [
+const hierarchyOf = (folder: string, chats: readonly Chat[]): CanvasHierarchySnapshot => ({
+  folder,
+  chats: Object.fromEntries(
+    chats.map((chat) => [
+      chat.tab,
+      {
+        id: chat.tab,
+        papel: chat.role,
+        pai: chat.parent,
+        ordemId: chat.order ? `o-${chat.tab}` : null,
+        ativo: true,
+        mexidoPeloKaique: false
+      }
+    ])
+  ),
+  ordens: Object.fromEntries(
+    chats
+      .filter((chat) => chat.order)
+      .map((chat) => [
         `o-${chat.tab}`,
         {
           id: `o-${chat.tab}`,
@@ -252,9 +195,19 @@ export const SCENARIO_HIERARCHY: CanvasHierarchySnapshot[] = [
           titulo: chat.order ?? ''
         }
       ])
-    ),
-    fila: []
-  }
+  ),
+  fila: []
+})
+
+export const SCENARIO_HIERARCHY: CanvasHierarchySnapshot[] = [
+  hierarchyOf(
+    FOLDER,
+    CHATS.filter((chat) => !chat.direct)
+  ),
+  hierarchyOf(
+    DIRECT.folder,
+    CHATS.filter((chat) => chat.direct)
+  )
 ]
 
 export const SCENARIO_CONTEXT: CanvasContextTokens = Object.fromEntries(

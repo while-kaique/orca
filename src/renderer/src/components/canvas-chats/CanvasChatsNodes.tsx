@@ -287,9 +287,14 @@ export function ChatNode({
       ) : null}
       {shape === 'crest' ? <CanvasExecutorCrest chat={chat} name={executorName} /> : null}
       <div className="cc-chat-head">
+        {shape === 'slim' ? (
+          <div className="cc-head-row">
+            <CanvasChatRole chat={chat} />
+          </div>
+        ) : null}
         <div className="cc-head-row">
           <span className="cc-dot" />
-          <CanvasChatRole chat={chat} />
+          {shape === 'slim' ? null : <CanvasChatRole chat={chat} />}
           <b>{chat.hierarchy?.role === 'planejador' ? executorName : chat.title}</b>
           {open ? (
             <>

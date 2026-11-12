@@ -105,7 +105,9 @@ export const exemploEstados = defineFixture({
       ex1: 'working',
       ex2: 'unseen',
       ex3: 'waiting',
-      ex4: 'monitoring'
+      ex4: 'monitoring',
+      dpo: 'idle',
+      dex: 'seen'
     }
     for (const [key, state] of Object.entries(states)) {
       frame.querySelector(`[data-chat-key="${key}"]`)?.setAttribute('data-status', state)
