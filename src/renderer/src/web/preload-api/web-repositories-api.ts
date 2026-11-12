@@ -83,6 +83,7 @@ export function createReposApi(): NonNullable<Partial<PreloadApi>['repos']> {
     nameCanvasExecutor: () => Promise.resolve({ kind: 'error', error: 'unsupported' }),
     readCanvasHierarchy: () => Promise.resolve([]),
     readCanvasContextTokens: () => Promise.resolve({}),
+    readCanvasChatModels: () => Promise.resolve({}),
     readCanvasImage: () => Promise.resolve({ kind: 'error', error: 'unsupported' }),
     decideCanvasHierarchyOrder: () => Promise.resolve({ kind: 'error', error: 'unsupported' }),
     closeCanvasHierarchyChat: () => Promise.resolve(),

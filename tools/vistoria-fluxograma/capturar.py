@@ -10,6 +10,7 @@ Uso: python tools/vistoria-fluxograma/capturar.py
 import glob
 import json
 import os
+import re
 import sqlite3
 import subprocess
 import sys
@@ -25,6 +26,36 @@ CAMPOS_DE_USO = (
     "cache_creation_input_tokens",
     "output_tokens",
 )
+
+
+def modelo_da_transcricao(caminho):
+    """Mesma regra de src/shared/canvas-chat-transcript-model.ts."""
+    try:
+        tamanho = os.path.getsize(caminho)
+        with open(caminho, "rb") as arquivo:
+            arquivo.seek(max(0, tamanho - CAUDA))
+            linhas = arquivo.read().decode("utf-8", "replace").split("\n")
+    except OSError:
+        return None
+    for linha in reversed(linhas):
+        if not linha.startswith("{") or ('"model"' not in linha and "Set model to" not in linha):
+            continue
+        try:
+            registro = json.loads(linha)
+        except ValueError:
+            continue
+        mensagem = registro.get("message")
+        if registro.get("isSidechain") or not isinstance(mensagem, dict):
+            continue
+        modelo = mensagem.get("model")
+        if registro.get("type") == "assistant" and isinstance(modelo, str) and not modelo.startswith("<"):
+            return modelo
+        texto = mensagem.get("content")
+        if registro.get("type") == "user" and isinstance(texto, str) and texto.startswith("<local-command-stdout>"):
+            achado = re.search(r"Set model to `([^`]+?)(?:\s*\([^)]*\))?`", texto)
+            if achado:
+                return achado.group(1)
+    return None
 
 
 def documento(banco, dominio, padrao):
@@ -192,11 +223,15 @@ def main():
     hierarquia = [h for h in map(ler_hierarquia, dict.fromkeys(pastas)) if h]
 
     contexto = {}
+    modelos = {}
     for registro in list(agentes.values()) + list(dormindo.values()):
         caminho = (registro.get("providerSession") or {}).get("transcriptPath")
         tokens = tokens_de_contexto(caminho) if caminho else None
         if tokens is not None:
             contexto[caminho] = tokens
+        modelo = modelo_da_transcricao(caminho) if caminho else None
+        if modelo is not None:
+            modelos[caminho] = modelo
 
     estado = {
         "capturadoEm": int(time.time() * 1000),
@@ -209,6 +244,7 @@ def main():
         },
         "hierarchy": hierarquia,
         "contextTokens": contexto,
+        "chatModels": modelos,
     }
     os.makedirs(os.path.dirname(SAIDA), exist_ok=True)
     with open(SAIDA, "w", encoding="utf-8") as arquivo:
@@ -216,7 +252,7 @@ def main():
     chats = sum(len(lista) for lista in abas.values())
     print(
         f"{len(estado['store']['repos'])} projetos, {chats} chats, {len(agentes)} estados, "
-        f"{len(dormindo)} dormindo, {len(hierarquia)} hierarquias, {len(contexto)} contextos"
+        f"{len(dormindo)} dormindo, {len(hierarquia)} hierarquias, {len(contexto)} contextos, {len(modelos)} modelos"
     )
     print(SAIDA)
 

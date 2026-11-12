@@ -1,11 +1,13 @@
 import { useEffect, useSyncExternalStore } from 'react'
+import type { CanvasChatModels } from '../../../../shared/canvas-chat-transcript-model'
 import type { CanvasContextTokens } from '../../../../shared/canvas-context-tokens'
 import type { CanvasProject } from './canvas-chats-layout'
 
-/** Fork: tokens in each chat's context, read from its transcript while the flowchart is open. */
+/** Fork: tokens and model of each chat, read from its transcript while the flowchart is open. */
 const REFRESH_MS = 20_000
 const listeners = new Set<() => void>()
 let tokensByTranscript: CanvasContextTokens = {}
+let modelByTranscript: CanvasChatModels = {}
 
 function subscribe(listener: () => void): () => void {
   listeners.add(listener)
@@ -26,6 +28,16 @@ export function useCanvasContextTokensRefresh(projects: readonly CanvasProject[]
       if (paths.length === 0) {
         return
       }
+      void window.api.repos
+        .readCanvasChatModels(paths)
+        .then((next) => {
+          const merged = { ...modelByTranscript, ...next }
+          if (alive && JSON.stringify(merged) !== JSON.stringify(modelByTranscript)) {
+            modelByTranscript = merged
+            listeners.forEach((listener) => listener())
+          }
+        })
+        .catch(() => undefined)
       void window.api.repos
         .readCanvasContextTokens(paths)
         .then((next) => {
@@ -50,5 +62,12 @@ export function useCanvasContextTokensRefresh(projects: readonly CanvasProject[]
 export function useCanvasContextTokens(transcriptPath: string | null): number | null {
   return useSyncExternalStore(subscribe, () =>
     transcriptPath ? (tokensByTranscript[transcriptPath] ?? null) : null
+  )
+}
+
+/** Null until the transcript names a model; it follows a /model within one refresh. */
+export function useCanvasChatTranscriptModel(transcriptPath: string | null): string | null {
+  return useSyncExternalStore(subscribe, () =>
+    transcriptPath ? (modelByTranscript[transcriptPath] ?? null) : null
   )
 }

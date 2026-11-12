@@ -3,6 +3,7 @@ import type {
   CanvasHierarchyDecisionResult,
   CanvasHierarchySnapshot
 } from '../../shared/canvas-hierarchy'
+import type { CanvasChatModels } from '../../shared/canvas-chat-transcript-model'
 import type { CanvasContextTokens } from '../../shared/canvas-context-tokens'
 import type { PcDeskHomeFolderListing } from '../../shared/pc-desk-home-folder-types'
 import type {
@@ -123,6 +124,8 @@ export type RepositoryApi = {
   readCanvasHierarchy: (folders: string[]) => Promise<CanvasHierarchySnapshot[]>
   /** Fork-only: tokens in each chat's context, read from its Claude transcript, for the flowchart. */
   readCanvasContextTokens: (transcriptPaths: string[]) => Promise<CanvasContextTokens>
+  /** Fork-only: the model each chat runs now, read from its Claude transcript, for the flowchart. */
+  readCanvasChatModels: (transcriptPaths: string[]) => Promise<CanvasChatModels>
   /** Fork-only: an image file a chat printed, as a thumbnail or full picture, for the flowchart. */
   readCanvasImage: (request: {
     path: string

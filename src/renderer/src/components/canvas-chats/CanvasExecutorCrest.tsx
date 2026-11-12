@@ -1,5 +1,6 @@
 import type React from 'react'
 import { CanvasChatContextMeter } from './CanvasChatContextMeter'
+import { CanvasChatModel, CanvasChatRole } from './CanvasChatHierarchyBadges'
 import type { CanvasChat } from './canvas-chats-layout'
 import { EXECUTOR_CREST, EXECUTOR_CREST_SCALE } from './canvas-chat-shape'
 
@@ -34,7 +35,9 @@ export function CanvasExecutorCrest({
       <svg className="cc-crest-outline" viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
         <polygon points={OUTLINE} />
       </svg>
+      <CanvasChatRole chat={chat} />
       <b>{name}</b>
+      <CanvasChatModel chat={chat} />
       <CanvasChatContextMeter transcriptPath={chat.transcriptPath} />
     </div>
   )
