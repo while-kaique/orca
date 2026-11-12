@@ -1,5 +1,6 @@
 import { translate } from '@/i18n/i18n'
 import type { CanvasHierarchyOrderState } from '../../../../shared/canvas-hierarchy'
+import { useCanvasChatTranscriptModel } from './canvas-chat-context-tokens'
 import { canvasChatModelLabel } from './canvas-chat-model-label'
 import type { CanvasChat } from './canvas-chats-layout'
 
@@ -52,9 +53,10 @@ export function CanvasChatRole({ chat }: { chat: CanvasChat }): React.JSX.Elemen
   )
 }
 
-/** The model the chat runs now, from the same status record the sidebar reads. */
+/** The model the chat runs now: its transcript (Claude's status record has none), else the status record. */
 export function CanvasChatModel({ chat }: { chat: CanvasChat }): React.JSX.Element | null {
-  const label = canvasChatModelLabel(chat.model)
+  const transcriptModel = useCanvasChatTranscriptModel(chat.transcriptPath)
+  const label = canvasChatModelLabel(transcriptModel ?? chat.model)
   return label ? (
     <span className="cc-model" data-family={label.family}>
       {label.label}

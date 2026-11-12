@@ -185,7 +185,6 @@ const statuses: Record<string, AgentStatusEntry> = Object.fromEntries(
       worktreeId: WORKTREE,
       tabId: chat.tab,
       agentType: 'claude',
-      model: chat.model,
       state: chat.state,
       prompt: chat.prompt,
       ...(chat.reply ? { lastAssistantMessage: chat.reply } : {}),
@@ -282,6 +281,11 @@ export const SCENARIO_HIERARCHY: CanvasHierarchySnapshot[] = [
     fila: []
   }
 ]
+
+/** Claude's status record has no model; the flowchart reads it from each chat's transcript. */
+export const SCENARIO_MODELS: Record<string, string> = Object.fromEntries(
+  CHATS.map((chat) => [transcript(chat.tab), chat.model])
+)
 
 export const SCENARIO_CONTEXT: CanvasContextTokens = Object.fromEntries(
   CHATS.map((chat) => [transcript(chat.tab), chat.tokens])
