@@ -23,6 +23,8 @@ import { useCanvasExecutorName } from './canvas-chat-executor-name'
 import { chatShape, chatVisualBox } from './canvas-chat-shape'
 import { CanvasChatGate, CanvasChatModel, CanvasChatRole } from './CanvasChatHierarchyBadges'
 import { CanvasProjectClose } from './CanvasProjectClose'
+import { CanvasChatLaunchMask } from './CanvasChatLaunchMask'
+import { useCanvasLaunchRecord } from './canvas-chat-launch-mask'
 
 export const STATUS_LABEL: Record<CanvasChat['status'], string> = {
   idle: translate('fork.canvas.statusIdle', 'parado'),
@@ -30,7 +32,8 @@ export const STATUS_LABEL: Record<CanvasChat['status'], string> = {
   monitoring: translate('fork.canvas.statusMonitoring', 'em segundo plano'),
   unseen: translate('fork.canvas.statusUnseen', 'terminou'),
   seen: translate('fork.canvas.statusSeen', 'visto'),
-  waiting: translate('fork.canvas.statusWaiting', 'precisa de você')
+  waiting: translate('fork.canvas.statusWaiting', 'precisa de você'),
+  team: translate('fork.canvas.statusTeam', 'aguardando equipe')
 }
 
 export function ProjectNode({
@@ -154,7 +157,8 @@ export function ChatNode({
   const status = useCanvasChatStatus(chat)
   const [confirmingClose, setConfirmingClose] = useState(false)
   const autoVoice = useCanvasListenMode()
-  const peeking = usePeek(open || chat.hierarchy?.role === 'executor', cardRef)
+  const launch = useCanvasLaunchRecord(chat.tabId, chat.lines.find((l) => l.role === 'user')?.text)
+  const peeking = usePeek(open || chat.hierarchy?.role === 'executor' || launch !== null, cardRef)
   const livePty = useAppStore((s) => s.ptyIdsByTabId[chat.tabId]?.[0] ?? null)
   const peekTheme = usePeekTheme()
   const peekFont = useAppStore((s) => s.settings?.terminalFontFamily)
@@ -216,6 +220,7 @@ export function ChatNode({
       className={`cc-node cc-chat${open ? ' cc-open' : ''}${peek ? ' cc-peek' : ''}${shape === 'card' ? '' : ` cc-shape-${shape}`}${linkRole ? ` cc-link-${linkRole}` : ''}`}
       data-chat-key={chat.key}
       data-status={status}
+      data-launch={launch ? (launch.problem ? 'problem' : 'on') : undefined}
       style={style}
       onClick={open ? undefined : onOpen}
       onPointerOver={peeking.over}
@@ -283,6 +288,7 @@ export function ChatNode({
           </div>
         </div>
       ) : null}
+      {launch ? <CanvasChatLaunchMask chat={chat} record={launch} open={open} /> : null}
       {shape === 'crest' ? <CanvasExecutorCrest chat={chat} name={executorName} /> : null}
       <div className="cc-chat-head">
         {shape === 'slim' ? (

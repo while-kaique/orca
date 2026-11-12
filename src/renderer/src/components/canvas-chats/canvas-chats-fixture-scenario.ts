@@ -14,13 +14,13 @@ import type { Worktree } from '../../../../shared/worktree/types'
  */
 /** Second project: a PO that created an executor directly, with no planner between them. */
 const DIRECT = { repo: 'demo-direct', folder: 'C:/demo/painel-interno' } as const
-const REPO = 'demo-repo'
-const FOLDER = 'C:/demo/loja-online'
-const WORKTREE = `${REPO}::${FOLDER}`
+export const REPO = 'demo-repo'
+export const FOLDER = 'C:/demo/loja-online'
+export const WORKTREE = `${REPO}::${FOLDER}`
 const DIRECT_WORKTREE = `${DIRECT.repo}::${DIRECT.folder}`
-const LEAF = '11111111-1111-4111-8111-111111111111'
-const NOW = 1_794_430_000_000
-const transcript = (tab: string): string => `C:/demo/.claude/projects/loja/${tab}.jsonl`
+export const LEAF = '11111111-1111-4111-8111-111111111111'
+export const NOW = 1_794_430_000_000
+export const transcript = (tab: string): string => `C:/demo/.claude/projects/loja/${tab}.jsonl`
 
 function agentView(tab: string, name: string, index: number): AgentChildWorkView {
   return {
@@ -38,7 +38,7 @@ function agentView(tab: string, name: string, index: number): AgentChildWorkView
   }
 }
 
-const worktree: Worktree = {
+export const worktree: Worktree = {
   id: WORKTREE,
   repoId: REPO,
   path: FOLDER,
@@ -83,7 +83,10 @@ const preparationTab: TerminalTab = {
   worktreeId: DIRECT_WORKTREE,
   title: 'Terminal 2',
   defaultTitle: 'Terminal 2',
-  customTitle: translate('worktree.setupTerminalTitle', 'Setup'),
+  // Read at render time: the language loads after this module, and the flowchart compares against the same translation.
+  get customTitle() {
+    return translate('worktree.setupTerminalTitle', 'Setup')
+  },
   color: null,
   sortOrder: 9,
   createdAt: NOW - 3_500_000
@@ -164,6 +167,43 @@ export const SCENARIO_STORE: Partial<AppState> = {
       ]
     }
   }
+}
+
+/** The same project with other states: lets a fixture show who works and who waits. */
+export function scenarioStoreWithStates(
+  states: Record<string, AgentStatusEntry['state']>
+): Partial<AppState> {
+  // Fresh timestamps: the app ignores a state that is older than its freshness window.
+  const now = Date.now()
+  return {
+    ...SCENARIO_STORE,
+    agentStatusByPaneKey: Object.fromEntries(
+      Object.entries(statuses).map(([paneKey, entry]) => [
+        paneKey,
+        {
+          ...entry,
+          state: states[paneKey.split(':')[0]] ?? entry.state,
+          updatedAt: now,
+          stateStartedAt: now - 120_000
+        }
+      ])
+    )
+  }
+}
+
+/** The same chats with other creators (tab -> creator tab), e.g. an executor created straight by the PO. */
+export function scenarioHierarchyWithParents(
+  parents: Record<string, string>
+): CanvasHierarchySnapshot[] {
+  return SCENARIO_HIERARCHY.map((snapshot) => ({
+    ...snapshot,
+    chats: Object.fromEntries(
+      Object.entries(snapshot.chats).map(([tab, chat]) => [
+        tab,
+        { ...chat, pai: parents[tab] ?? chat.pai }
+      ])
+    )
+  }))
 }
 
 const hierarchyOf = (folder: string, chats: readonly Chat[]): CanvasHierarchySnapshot => ({

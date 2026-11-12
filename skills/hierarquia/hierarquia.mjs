@@ -34,6 +34,7 @@ import {
   trechoDoPedido
 } from './pedido-da-ordem.mjs'
 import { criarVigia } from './inicio-do-turno.mjs'
+import { opcoes } from './opcoes-da-linha.mjs'
 import { imprimirEstado } from './estado-na-tela.mjs'
 import { foraDoGit } from './pasta-fora-do-git.mjs'
 
@@ -43,23 +44,6 @@ const ESPERA_DO_LANCAMENTO_MS = '180000'
 function sair(mensagem, codigo = 1) {
   console.error(mensagem)
   process.exit(codigo)
-}
-
-function opcoes(argv) {
-  const saida = { _: [], prova: [] }
-  for (let i = 0; i < argv.length; i++) {
-    const item = argv[i]
-    if (!item.startsWith('--')) {
-      saida._.push(item)
-    } else if (item === '--aprovar' || item === '--reprovar') {
-      saida[item.slice(2)] = true
-    } else if (item === '--prova') {
-      saida.prova.push(argv[++i])
-    } else {
-      saida[item.slice(2)] = argv[++i]
-    }
-  }
-  return saida
 }
 
 /** A pasta do projeto é a que tem `.hierarquia/`; cópias de trabalho do git apontam para a principal. */
@@ -233,7 +217,7 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
   let abaVigiada = null
   const anotarInicio = (tipo, dados) =>
     anotar(projeto, tipo, { ordemId: ordem.id, chatId: abaVigiada, ...dados })
-  const { resposta, nascido } = await lancarWorker(args, titulo, {
+  const { resposta, nascido, enganado } = await lancarWorker(args, titulo, {
     aoNascer: (chat) => {
       abaVigiada = chat.chatId
       registrar(chat, 'esperando_o_orca')
@@ -241,6 +225,9 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
     },
     aoEsperar: () => vigia.vigiar(anotarInicio)
   })
+  if (enganado) {
+    anotar(projeto, 'chat_encerrado', { chatId: enganado.chatId, motivo: 'aba reconhecida errada' })
+  }
   const dados = resposta.result ?? {}
   const handle = dados.terminal
   if (!handle) {

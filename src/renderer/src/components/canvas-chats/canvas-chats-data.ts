@@ -20,6 +20,7 @@ import type {
 import { runningChildWork } from './canvas-chat-child-work'
 import type { CanvasChatLatestEntry } from './canvas-chat-lineage'
 import { linkProjectChats, useCanvasHierarchy } from './canvas-chat-hierarchy'
+import { canWaitForTeam, markChatsAwaitingTeam } from './canvas-chat-team-wait'
 import { projectColor, projectInitials } from './canvas-project-badge'
 import { getWorkspacePortsByWorktreeId } from '@/lib/workspace-ports/workspace-port-groups'
 import { useCanvasArtifactLinks, type CanvasArtifactLinks } from './canvas-chat-artifacts'
@@ -112,16 +113,11 @@ function subagentStatus(state: string): { status: CanvasChatStatus; blocked: boo
 
 /**
  * The terminal Orca opens on its own to run the workspace's setup script: titled by the same
- * translation Orca names it with, never launched an agent, never reported agent status, and
- * sitting beside another tab. A lone tab, an agent chat or a sleeping chat never matches.
+ * translation Orca names it with, never launched an agent and never reported agent status. Hidden even
+ * when it is the folder's only tab; an agent chat, a sleeping chat or a terminal with another name never matches.
  */
-function isSetupPreparationTab(
-  state: CanvasInputs,
-  tab: TerminalTab,
-  worktreeTabs: readonly TerminalTab[]
-): boolean {
+function isSetupPreparationTab(state: CanvasInputs, tab: TerminalTab): boolean {
   return (
-    worktreeTabs.length > 1 &&
     tab.customTitle?.trim() === translate('worktree.setupTerminalTitle', 'Setup') &&
     !tab.launchAgent &&
     !latestEntry(state, tab.id) &&
@@ -140,9 +136,8 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
       if (worktree.isArchived) {
         continue
       }
-      const worktreeTabs = state.tabsByWorktree[worktree.id] ?? []
-      for (const tab of worktreeTabs) {
-        if (isSetupPreparationTab(state, tab, worktreeTabs)) {
+      for (const tab of state.tabsByWorktree[worktree.id] ?? []) {
+        if (isSetupPreparationTab(state, tab)) {
           continue
         }
         const latest = latestEntry(state, tab.id)
@@ -215,6 +210,7 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
     }
     const folders = (state.worktreesByRepo[repo.id] ?? []).map((w) => w.path)
     const queue = linkProjectChats(chats, latestByChat, state.hierarchy, folders)
+    markChatsAwaitingTeam(chats)
     if (chats.length > 0) {
       projects.push({
         id: repo.id,
@@ -275,8 +271,9 @@ export function useCanvasChatStatus(chat: CanvasChat): CanvasChatStatus {
   if (sidebarStatus === 'monitoring') {
     return 'monitoring'
   }
+  let status: CanvasChatStatus = 'idle'
   if (sidebarStatus === 'done' || sidebarStatus === 'failed' || sidebarStatus === 'interrupted') {
-    return unseen ? 'unseen' : 'seen'
+    status = unseen ? 'unseen' : 'seen'
   }
-  return 'idle'
+  return chat.awaitingTeam && canWaitForTeam(status) ? 'team' : status
 }

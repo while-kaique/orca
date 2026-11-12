@@ -1,6 +1,6 @@
 // Conversa com o Orca: lançar chat, manter aberto e avisar. Usado pelo comando `hierarquia`.
 import { execFile, execFileSync } from 'node:child_process'
-import { acharWorkerNovo } from './regras.mjs'
+import { acharTarefaNova, acharTerminalNovo } from './regras.mjs'
 
 /** O texto que vai para o Orca precisa ser ASCII puro: acento vira lixo na ordem. */
 export function semAcento(texto) {
@@ -143,39 +143,47 @@ export async function abaDoChat(dispatchId, handle) {
 
 export const esperar = (ms) => new Promise((pronto) => setTimeout(pronto, ms))
 
-async function workersRecentes() {
-  const lista = await orcaEmSegundoPlano(['orchestration', 'worker-list', '--limit', '10'])
-  return lista.result?.workers ?? []
-}
+const tarefasDoOrca = async () =>
+  (await orcaEmSegundoPlano(['orchestration', 'task-list', '--brief'])).result?.tasks ?? []
+const terminaisDoOrca = async () =>
+  (await orcaEmSegundoPlano(['terminal', 'list'])).result?.terminals ?? []
 
 /**
- * O worker novo é o que não existia antes e cuja tarefa tem o título dado ao worker-start.
- * As três consultas saem juntas: cada chamada ao Orca demora, então a aba já vem na mesma rodada.
+ * O chat novo existe no Orca antes de o worker ter terminal: a tarefa (com o título dado ao
+ * worker-start) e o terminal de agente aparecem juntos. Uma chamada por rodada até achar a tarefa;
+ * o terminal só é pedido depois dela. `visto` guarda a tarefa já achada entre as rodadas.
  */
-async function workerDaOrdem(antes, titulo) {
-  const [workers, tarefas, terminais] = await Promise.all([
-    workersRecentes(),
-    orcaEmSegundoPlano(['orchestration', 'task-list', '--brief']),
-    orcaEmSegundoPlano(['terminal', 'list']).catch(() => null)
-  ])
-  const worker = acharWorkerNovo(workers, tarefas.result?.tasks ?? [], antes, titulo)
-  if (!worker) {
+async function chatDaOrdem(antes, titulo, visto) {
+  // Com a tarefa já achada e o terminal ainda duvidoso, relê a tarefa só de vez em quando: o `assignee` resolve a dúvida.
+  if (!visto.tarefa || (!visto.tarefa.assignee && visto.semTerminal % 2 === 0)) {
+    const achada = acharTarefaNova(await tarefasDoOrca(), antes.tarefas, titulo)
+    visto.tarefa = achada ?? visto.tarefa
+  }
+  if (!visto.tarefa) {
     return null
   }
-  const doTerminal = (terminais?.result?.terminals ?? []).find((t) => t.handle === worker.terminal)
-  const chatId = doTerminal?.tabId ?? (await abaDoChat(worker.dispatchId, worker.terminal))
-  return chatId ? { ...worker, chatId } : null
+  const terminal = acharTerminalNovo(
+    await terminaisDoOrca(),
+    antes.terminais,
+    visto.tarefa.assignee
+  )
+  visto.semTerminal += terminal ? 0 : 1
+  return terminal ? { terminal, tarefa: visto.tarefa } : null
 }
 
 /**
  * Roda o worker-start (que espera até 3 min o turno começar) e, enquanto ele espera, chama
- * `aoNascer` assim que o chat existe, para o registro nascer junto com a aba. Depois disso chama
+ * `aoNascer` assim que a aba existe, para o registro nascer junto com ela. Depois disso chama
  * `aoEsperar` a cada poucos segundos até ele devolver true (ou o Orca responder).
  */
 export async function lancarWorker(args, tituloDaTarefa, { aoNascer, aoEsperar }) {
   let antes = null
   try {
-    antes = new Set((await workersRecentes()).map((w) => w.dispatchId))
+    const [tarefas, terminais] = await Promise.all([tarefasDoOrca(), terminaisDoOrca()])
+    antes = {
+      tarefas: new Set(tarefas.map((t) => t.id)),
+      terminais: new Set(terminais.map((t) => t.handle))
+    }
   } catch {
     // Sem a lista não dá para reconhecer o chat cedo: o registro sai quando o Orca responder.
   }
@@ -187,17 +195,19 @@ export async function lancarWorker(args, tituloDaTarefa, { aoNascer, aoEsperar }
   )
   let nascido = null
   let parou = false
+  const visto = { tarefa: null, semTerminal: 0 }
   while (antes && !respondeu && !parou) {
     try {
       if (!nascido) {
-        const worker = await workerDaOrdem(antes, tituloDaTarefa)
-        if (worker && !respondeu) {
+        const achado = await chatDaOrdem(antes, tituloDaTarefa, visto)
+        if (achado && !respondeu) {
+          const { terminal, tarefa } = achado
           nascido = {
-            chatId: worker.chatId,
-            handle: worker.terminal,
-            dispatchId: worker.dispatchId,
-            taskId: worker.taskId,
-            pasta: String(worker.workspace ?? '').split('::')[1] ?? null
+            chatId: terminal.tabId,
+            handle: terminal.handle,
+            dispatchId: tarefa.dispatchId,
+            taskId: tarefa.id,
+            pasta: terminal.worktreePath ?? null
           }
           aoNascer(nascido)
         }
@@ -212,7 +222,9 @@ export async function lancarWorker(args, tituloDaTarefa, { aoNascer, aoEsperar }
   const resposta = await lancamento.catch((erro) => ({
     erro: String(erro.message ?? erro).slice(0, 300)
   }))
-  return { resposta, nascido }
+  const terminalReal = resposta.result?.terminal
+  const certo = !nascido || !terminalReal || terminalReal === nascido.handle
+  return { resposta, nascido: certo ? nascido : null, enganado: certo ? null : nascido }
 }
 
 /** Devolve a correção ao chat que já existe (`--terminal`); o Orca recusa enquanto ele ainda fecha o turno anterior. */
