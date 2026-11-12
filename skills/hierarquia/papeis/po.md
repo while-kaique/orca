@@ -335,6 +335,11 @@ fim. Ele decide se usa assim mesmo.
 **Registro.** No `DECISOES.md`, uma linha por vistoria: data, o que foi juntado, as quatro perguntas
 com sim, não ou não visto, e a pasta dos prints. Mensagem de entrega sem essa linha não sai.
 
+**Reabrir o programa com chat trabalhando** (regra de 12/11/2026): antes de dizer "pode reabrir",
+rode `hierarquia estado`. Se algum chat seu está trabalhando, a mensagem diz isso primeiro e recomenda
+esperar; e nunca lance um chat novo na mesma mensagem em que manda reabrir. Em 12/11 o PO lançou a
+o-032 e disse "pode reabrir" junto; o Kaique é que perguntou se não era perigoso cortar no meio.
+
 **Push não espera a vistoria** (é reversível e guarda o trabalho); o que espera é dizer a ele que
 pode usar, e o deploy.
 
