@@ -2,7 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { rotuloDaSituacao } from './estado-na-tela.mjs'
 import {
-  acharWorkerNovo,
+  acharTarefaNova,
+  acharTerminalNovo,
   decidirConferencia,
   decidirEntrega,
   decidirInicio,
@@ -394,25 +395,32 @@ test('chat registrado ao nascer ja tem papel e criador; lancamento que falha lib
   assert.equal(depois.chats['aba-1'].ativo, false)
 })
 
-test('chat novo e achado pelo titulo da tarefa, o unico dado que o task-list devolve', () => {
+test('chat novo e achado enquanto o worker ainda esta starting: tarefa pelo titulo, terminal pelo agente novo', () => {
+  const titulo = 'executor: Teste de lancamento: gravar um arquivo de texto e entregar'
   const tarefas = [
     {
-      id: 'task_fd04a248fde1',
-      status: 'blocked',
-      title: 'executor: Fluxograma: construir a mascara de carregamento do PO confor'
+      id: 'task_493f7d76e94a',
+      status: 'dispatched',
+      title: 'executor: Documentacao da rodada de 12/11 no ONDE-PARAMOS.md',
+      dispatchId: 'ctx_2eff2960bb0f',
+      assignee: 'term_19a4fa5e'
     },
-    { id: 'task_fb061cb8ede3', status: 'blocked', title: 'correcao o-009' }
+    { id: 'task_95e3a0d1c2cb', status: 'dispatched', title: titulo, dispatchId: 'ctx_a28888a1660b' }
   ]
-  const workers = [
-    { dispatchId: 'ctx_7a4a509925ca', taskId: 'task_fd04a248fde1', terminal: 'term_e1003c10' },
-    { dispatchId: 'ctx_90ca6351863f', taskId: 'task_fb061cb8ede3', terminal: 'term_5ce11f91' }
+  const antes = new Set(['task_493f7d76e94a'])
+  assert.equal(acharTarefaNova(tarefas, antes, titulo).dispatchId, 'ctx_a28888a1660b')
+  assert.equal(acharTarefaNova(tarefas, new Set(['task_95e3a0d1c2cb']), titulo), null)
+
+  const terminais = [
+    { handle: 'term_19a4fa5e', agentIdentity: 'claude', tabId: 'aba-velha' },
+    { handle: 'term_35a9441b', agentIdentity: 'claude', tabId: '88ba27d7' },
+    { handle: 'term_6b348712', tabId: '68b1622b' }
   ]
-  const titulo = 'executor: Fluxograma: construir a mascara de carregamento do PO confor'
-  assert.equal(
-    acharWorkerNovo(workers, tarefas, new Set(['ctx_90ca6351863f']), titulo).dispatchId,
-    'ctx_7a4a509925ca'
-  )
-  assert.equal(acharWorkerNovo(workers, tarefas, new Set(['ctx_7a4a509925ca']), titulo), null)
+  const antesTerminais = new Set(['term_19a4fa5e'])
+  assert.equal(acharTerminalNovo(terminais, antesTerminais, undefined).tabId, '88ba27d7')
+  const doisNovos = [...terminais, { handle: 'term_outro', agentIdentity: 'claude', tabId: 'x' }]
+  assert.equal(acharTerminalNovo(doisNovos, antesTerminais, undefined), null)
+  assert.equal(acharTerminalNovo(doisNovos, antesTerminais, 'term_35a9441b').tabId, '88ba27d7')
 })
 
 test('ordem parada na caixa e enviada uma vez so; chat que ja trabalha nao recebe nada', () => {

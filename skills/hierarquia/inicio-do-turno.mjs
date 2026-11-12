@@ -71,7 +71,7 @@ export function criarVigia(trecho) {
 
   return {
     ligar(dispatchId, handle) {
-      alvo ??= { dispatchId, handle }
+      alvo = { dispatchId, handle }
     },
     passo,
     /** Um passo enquanto o Orca ainda espera: grava assim que o chat começa e devolve true para parar. */

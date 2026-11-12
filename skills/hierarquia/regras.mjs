@@ -360,10 +360,24 @@ function emUmaLinha(linhas) {
   return linhas.join(' ').replace(/\s+/gu, ' ')
 }
 
-/** O worker novo é o que não existia antes e cuja tarefa tem o título que o lançador deu (o task-list só devolve id, status e título). */
-export function acharWorkerNovo(workers, tarefas, antes, titulo) {
-  const ids = new Set(tarefas.filter((t) => t.title === titulo).map((t) => t.id))
-  return workers.find((w) => w.terminal && !antes.has(w.dispatchId) && ids.has(w.taskId)) ?? null
+/**
+ * A tarefa nova é a que não existia antes e tem o título dado ao worker-start. O `task-list` já a mostra,
+ * com `dispatchId`, enquanto o worker ainda está `starting` (sem terminal no `worker-list`).
+ */
+export function acharTarefaNova(tarefas, antes, titulo) {
+  return tarefas.find((t) => t.title === titulo && t.dispatchId && !antes.has(t.id)) ?? null
+}
+
+/**
+ * O terminal do chat novo: o `assignee` da tarefa, quando já existe; antes disso, o único terminal
+ * de agente (`agentIdentity`) que não existia antes. Com dois ou mais candidatos não adivinha.
+ */
+export function acharTerminalNovo(terminais, antes, assignee) {
+  if (assignee) {
+    return terminais.find((t) => t.handle === assignee) ?? null
+  }
+  const novos = terminais.filter((t) => t.agentIdentity === 'claude' && !antes.has(t.handle))
+  return novos.length === 1 ? novos[0] : null
 }
 
 /** Onde o texto enviado está na tela do chat: digitado na caixa de entrada (ainda não enviado) ou já no histórico. */
