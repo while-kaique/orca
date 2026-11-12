@@ -1,5 +1,118 @@
 # Onde paramos — fork do Orca "PC como mesa"
 
+## 12/11/2026 (rodada do PO 105fc07b) — etiquetas, desenho, "aguardando equipe", máscara e comando `hierarquia`
+
+**Como ler:** **VISTO** = print ou teste que alguém conferiu. **DECLARADO** = escrito pelo executor, sem
+prova rodada ou sem conferência do PO. Fontes, locais e fora do git: `.hierarquia/PRODUTO.md` (pedidos 5 a
+18, com as palavras do Kaique), `.hierarquia/DECISOES.md`, `.hierarquia/relatorio-rodada-12-11.md`
+(horários e erros) e `.hierarquia/provas/<ordem>/`.
+
+- **Git (conferido em 12/11, ~06:30):** `feat/pc-como-mesa` está 12 commits à frente do `origin`. **Nada
+  desta rodada foi enviado ao GitHub.** Entraram nela: o-009, o-010, o-011 (só a spec), o-012, o-017 e os
+  papéis. **Não entraram:** o-013 e o-014. Elas estão juntas só na branch
+  `kaiquebreno-ggp/feat-o-016-executor` (commits `dac54abfa0` e `5bd260eddb`), ainda sem entrega.
+
+**1. Etiquetas de papel, de modelo e "Livre" (o-009; `370c71c522`, `abfe298aa4`; junção `10e475060a`)**
+
+- **Para quem usa:** papel em azul (forte no PO, médio no planejador, fraco no executor). Etiqueta de
+  modelo separada, em todo chat. Chat sem papel mostra "Livre". No hexágono, o papel fica no topo e o
+  modelo embaixo do título.
+- **Arquivos:** `CanvasChatHierarchyBadges.tsx`, `CanvasExecutorCrest.tsx`, `canvas-chats.css` e
+  `canvas-chat-transcript-model.ts` (em `src/shared/`). O modelo é lido da conversa gravada do chat
+  (`canvas-context-tokens-handler.ts`), porque o status do Claude não traz o modelo.
+- **VISTO:** print do fluxograma com chats reais, conferido pelo PO: PO "Fable 5.2", planejador "Opus 5.5",
+  executores "Sonnet 5.5", chat sem papel "Livre". A função que lê o modelo foi rodada em 2 conversas
+  reais e em 5 cenários de troca.
+- **DECLARADO / sem prova:** **troca de modelo com `/model` ao vivo não foi testada** (a tela relê a
+  conversa a cada ~20 s; só provado com conversas gravadas). O fluxograma só tem tema escuro.
+- **Histórico:** a o-009 foi reprovada 1 vez (o modelo não aparecia em nenhum chat real; o print "claro"
+  era igual ao escuro). A segunda entrega fechou isso.
+
+**2. Desenho do fluxograma (o-012; `6d672c330c`; junção `aa79b91440`)**
+
+- **Para quem usa:** card do planejador em três linhas (papel, título, contexto/modelo/estado). Hexágono do
+  executor sem o quadrado em volta. Fileira vazia não ocupa espaço: executor direto sob o PO fica mais
+  perto. A aba de preparação "Configuração" some do fluxograma quando há outra aba na pasta.
+- **Arquivos:** `CanvasChatsNodes.tsx`, `canvas-chats-layout.ts`, `canvas-chats.css`,
+  `canvas-chats-fixture-chats.ts` (dados de exemplo, separados por limite de 300 linhas).
+- **VISTO:** print conferido pelo PO em 12/11 (06:05): três linhas cabem no card; hexágono sem quadrado;
+  executor direto a 80 px do PO contra 108 px abaixo de um planejador. 11 testes de layout passam.
+- **Fontes divergem:** o resumo da o-012 declara a mesma distância nos dois casos (não medida). Vale a
+  medida do PO em print.
+- **Sobra:** 3 abas "Configuração" ainda apareciam (pasta sem outra aba). O conserto está na branch da
+  o-016 (`8705020dee`, `f17b2660c4`), **sem print conferido pelo PO**.
+
+**3. Estado "aguardando equipe" (o-013; `d7fe9acbd3`; só na branch da o-016)**
+
+- **Para quem usa:** PO ou planejador parado, com um chat criado por ele trabalhando, mostra
+  "aguardando equipe" em roxo. Some quando o último chat de baixo para.
+- **Arquivos:** `canvas-chat-team-wait.ts` (novo), `CanvasChatsNodes.tsx`, `CanvasChatsPage.tsx`,
+  `canvas-chats.css`, `canvas-chats-layout.ts`.
+- **VISTO:** prints de cenários de exemplo conferidos pelo PO (06:05): roxo no PO e no planejador,
+  legenda atualizada.
+- **Sem prova:** com chats reais ao vivo (as fontes não registram). A o-013 nunca rodou `entregar`; levou
+  baixa manual depois da queda.
+
+**4. Máscara de carregamento do PO (spec o-011 `1938b7f415`; código o-014 `cb2b1e39bb`)**
+
+- **Para quem usa (spec):** chat aberto no modo Hierárquico nasce coberto por uma máscara azul com três
+  etapas ("Iniciando...", "Carregando funções...", "Esperando um pedido"), que some no primeiro pedido.
+  Se o chat não sobe, para numa tela de problema em vermelho. Chat Livre não muda. Só o PO por enquanto.
+- **Arquivos:** spec em `docs/specs/carregamento-chat-hierarquico.md` (no git, adicionado com `git add -f`,
+  porque `docs/**` está no `.gitignore`). Código só na branch da o-016: `CanvasChatLaunchMask.tsx`,
+  `canvas-chat-launch-mask.ts`, `canvas-chat-launch-fixture-scenario.ts`, `launch-pc-desk-chat.ts`.
+- **Estado: em integração na ordem o-016.** O código da o-014 foi commitado sem nenhuma prova (a sessão
+  caiu). A o-016 juntou ele na base e deixou prints e checagens em `.hierarquia/provas/o-016/`, mas ainda
+  não entregou e o PO não conferiu. **A máscara não foi vista funcionando em lugar nenhum.**
+- **Spec:** aprovada pelo PO (00:14) sem OK do Kaique na hora. Base: a autorização que ele deixou ao sair,
+  na leitura do PO (`.hierarquia/DECISOES.md`).
+
+**5. Comando `hierarquia`: registro do chat novo e ordem não enviada (o-010, o-017)**
+
+- **o-010 (`599d1c45b5`; junção `0e18e054ea`):** tentou registrar o chat novo na hora em que a aba nasce.
+  **No Orca real não funcionou** (registro 4 min 12 s depois): o `task-list` real traz só `id`, `status` e
+  `title`, não o texto do pedido que a o-010 procurava. Provado só com Orca de mentira.
+- **o-017 (`dfac4226d1`; junção `5b1d1d6054`):** acha o chat novo pelo título da tarefa e vigia a ordem
+  digitada e não enviada: envia Enter uma única vez, grava `chat_iniciou` ou `chat_nao_iniciou`, e
+  `hierarquia estado` não diz "trabalhando" sem início confirmado. Arquivos: `orca-lancador.mjs`,
+  `inicio-do-turno.mjs` (novo), `regras.mjs`, `pedido-da-ordem.mjs`, `estado-na-tela.mjs`,
+  `hierarquia.mjs`. Aprovação do PO ainda não consta (a ordem estava em `conferindo_produto`).
+- **VISTO:** 25 testes passam. Simulação contra as respostas reais do Orca guardadas em
+  `.hierarquia/provas/o-010-real/`: a regra nova acha o chat certo nas 3 ordens reais (a antiga, em nenhuma).
+- **DECLARADO / sem prova:** que o chat novo já aparece nas listas do Orca enquanto o lançamento ainda
+  espera; a tela real de um chat com a ordem parada na caixa; o Orca real aceitando o Enter do comando.
+- **Lançamento novo, medido até aqui:** não confirmou o registro rápido. Esta própria ordem (o-018)
+  foi lançada e o chat entrou no registro 1 min 35 s depois, com situação `ready` e não
+  `esperando_o_orca`. Não sei se o código da o-017 já estava em uso nesse momento. Com a máquina livre, o
+  lançamento levou 1,5 a 2,7 min e a ordem chegou; com 4 a 5 chats pesados levou 4 a 8 min e a ordem ficou
+  sem enviar (efeito de máquina carregada, ao menos em parte).
+
+**6. Regras novas dos papéis (`913a15bc89`, `skills/hierarquia/papeis/po.md` e `planejador.md`)**
+
+- O PO decide a divisão em chats e avisa antes de lançar; o teto de chats existe para limitar memória e
+  não é preocupação do PO (regra do Kaique, 12/11).
+- Frentes no mesmo arquivo podem rodar em paralelo; a junção é feita pelo git, uma branch aprovada por vez.
+- **VISTO:** o texto está commitado. **Sem prova de uso.** A junção pelo git funcionou no código do
+  produto e falhou duas vezes no mesmo arquivo de cenários de exemplo (ver "Aberto").
+
+**Aberto**
+
+- **Frontend para terminais (pedido 8):** só viabilidade, nada construído. Fonte, tamanho e cores já são
+  opções do terminal (custo zero). Quebra de linha "de chat" exige tela própria: produto novo, spec própria.
+- **Máscara em planejador e executor:** possibilidade, não compromisso. A spec deve dizer se os mesmos
+  sinais servem.
+- **Limites da máquina com vários chats pesados:** memória baixa (2 a 3 GB livres) derrubou prints. De 01:54
+  a 06:02 ninguém trabalhou (causa da queda não confirmada, com 1,6 a 2,0 GB livres). Não há controle de
+  recurso pesado entre chats; a trava de prints (`.hierarquia/trava-prints`) foi regra do PO e ficou presa 4 h.
+- **Comando sem passo "spec aprovada, continue":** o PO só aprova (fecha a ordem) ou reprova. O executor da
+  máscara ficou ligado ao PO e não ao planejador.
+- **Comando sem baixa para ordem cujo chat morreu:** `parou_sem_entregar` foi escrito à mão no registro
+  para o-013, o-014 e o-015.
+- **Arquivo de cenários de exemplo (`canvas-chats-fixture-scenario.ts`):** toda frente visual o edita e
+  deu conflito na junção de o-012 e de o-013. Precisa de dono, ou um arquivo por frente.
+- **Também pendente:** entrega e conferência da o-016 (junta o-013 e o-014 e prova a máscara); medir um
+  lançamento real com o código da o-017; testar `/model` ao vivo; push só com OK do Kaique.
+
 ## 11/11/2026 (noite) — PO só vale enquanto a aba dele está aberta
 
 - **Regra:** fechar a aba do chat (pelo "x" ou pela barra lateral) encerra o chat na hierarquia. Se era o
