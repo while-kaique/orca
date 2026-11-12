@@ -10,7 +10,6 @@ import {
   decidirOrdem,
   decidirPedidoDeOk,
   destinoDaPergunta,
-  filaDoKaique,
   montarEstado,
   ordensLiberadasDaEspera,
   pedidoDaOrdemNova
@@ -36,22 +35,15 @@ import {
 } from './pedido-da-ordem.mjs'
 import { criarVigia } from './inicio-do-turno.mjs'
 import { opcoes } from './opcoes-da-linha.mjs'
-import { imprimirEstado } from './estado-na-tela.mjs'
+import { comandoEstado } from './estado-na-tela.mjs'
+import { fecharChats, ordensParaFechar } from './fechar-chats.mjs'
 import { foraDoGit } from './pasta-fora-do-git.mjs'
 import { decisaoDoKaique } from './decisao-do-kaique.mjs'
 import { destravarInicios } from './destravar-inicio.mjs'
-import {
-  acharProjeto,
-  anotar,
-  caminhos,
-  gravarFoto,
-  lerConfig,
-  lerEventos,
-  sair
-} from './registro.mjs'
+import { acharProjeto, anotar, caminhos, lerConfig, lerEventos, sair } from './registro.mjs'
 import { pegarTrava } from './trava.mjs'
 import { rodarNaVez } from './vez.mjs'
-import { garantirVigia, marcarChatsMortos, vigiar } from './vigia-do-criador.mjs'
+import { garantirVigia, vigiar } from './vigia-do-criador.mjs'
 
 const AQUI = import.meta.dirname
 const ESPERA_DO_LANCAMENTO_MS = '180000'
@@ -537,25 +529,28 @@ ${op.motivo}
     console.log(`Chat ${op.chat} encerrado.`)
   },
 
-  estado(op) {
+  async estado(op) {
     const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
-    try {
-      const terminais = orca(['terminal', 'list']).result?.terminals ?? []
-      if (terminais.length > 0) {
-        marcarChatsMortos(montarEstado(lerEventos(projeto)), terminais, (tipo, dados) =>
-          anotar(projeto, tipo, dados)
-        )
-      }
-    } catch {
-      // Sem o Orca, o estado sai só do registro.
+    await comandoEstado(projeto, op)
+  },
+
+  /** Quem criou fecha o chat de uma ordem sua (ligado ou dormindo), ou todos os seus que terminaram. */
+  async fechar(op) {
+    const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
+    if (!op.ordem && !op.terminados && !op.pedido) {
+      sair('Uso: hierarquia fechar --ordem ID | --terminados | --pedido NOME')
     }
     const estado = montarEstado(lerEventos(projeto))
-    gravarFoto(projeto)
-    if (op.json) {
-      console.log(JSON.stringify({ estado, fila: filaDoKaique(estado) }, null, 2))
-      return
-    }
-    imprimirEstado(projeto, estado, filaDoKaique(estado))
+    const eu = quemSou()
+    const ids = ordensParaFechar(estado, eu, op)
+    const linhas = await fecharChats({
+      projeto,
+      estado,
+      eu,
+      ids,
+      anotar: (tipo, dados) => anotar(projeto, tipo, dados)
+    })
+    console.log(linhas.length > 0 ? linhas.join('\n') : 'Nenhum chat seu para fechar.')
   }
 }
 

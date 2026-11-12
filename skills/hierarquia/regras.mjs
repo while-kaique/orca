@@ -385,7 +385,10 @@ export function chatsSemVida(estado, terminais, agora, prazoMs) {
     const terminal =
       terminais.find((t) => t.tabId === chat.id) ?? terminais.find((t) => t.handle === chat.handle)
     if (!terminal) {
-      mortos.push({ ordemId: ordem.id, motivo: 'a aba do chat foi fechada' })
+      mortos.push({
+        ordemId: ordem.id,
+        motivo: 'o chat nao tem terminal ligado (aba fechada ou dormindo)'
+      })
       continue
     }
     if (terminal.connected === false) {
@@ -406,6 +409,22 @@ export function chatsSemVida(estado, terminais, agora, prazoMs) {
     }
   }
   return mortos
+}
+
+/**
+ * Ligado (terminal vivo), dormindo (a aba existe sem terminal, como o fluxograma desenha depois de
+ * reabrir o Orca) ou fechado (a aba sumiu). `abas` null: sem a sessão do Orca, só dá para dizer ligado.
+ */
+export function vidaDoChat(chat, terminais, abas) {
+  const terminal =
+    terminais.find((t) => t.tabId === chat.id) ?? terminais.find((t) => t.handle === chat.handle)
+  if (terminal && terminal.connected !== false) {
+    return 'ligado'
+  }
+  if (!abas) {
+    return 'sem terminal'
+  }
+  return abas.has(chat.id) ? 'dormindo' : 'fechado'
 }
 
 /**

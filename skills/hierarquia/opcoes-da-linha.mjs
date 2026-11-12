@@ -12,6 +12,7 @@ export function opcoes(argv) {
         '--na-frente',
         '--na-pasta-do-criador',
         '--teste',
+        '--terminados',
         '--json'
       ].includes(item)
     ) {

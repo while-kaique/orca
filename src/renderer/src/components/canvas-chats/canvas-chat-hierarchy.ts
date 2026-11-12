@@ -106,6 +106,8 @@ export function linkProjectChats(
   projectFolders: readonly string[]
 ): CanvasQueueItem[] {
   linkCreatedChats(chats, latestByChat)
-  const snapshot = snapshots.find((candidate) => projectFolders.includes(candidate.folder))
-  return snapshot ? applyCanvasHierarchy(chats, snapshot) : []
+  // Why: a worktree can hold its own `.hierarquia/`; taking only the first one left the main registry's chats as free.
+  return snapshots
+    .filter((candidate) => projectFolders.includes(candidate.folder))
+    .flatMap((snapshot) => applyCanvasHierarchy(chats, snapshot))
 }
