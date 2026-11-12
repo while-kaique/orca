@@ -15,10 +15,10 @@ prova rodada ou sem conferência do PO. Fontes, locais e fora do git: `.hierarqu
 - **Git:** `feat/pc-como-mesa` em `fdd3eff304` já tem tudo da rodada: o-009, o-010, o-011 (a spec), o-012,
   o-013, o-014, o-016 (junção `fdd3eff304`), o-017 (duas entregas) e os papéis. **Enviado ao GitHub em
   12/11 junto com este commit, pelo PO, com autorização do Kaique registrada no `DECISOES.md`.**
-- **Conferência final do PO** com tudo junto em `fdd3eff304` (dita pelo PO; as saídas dos comandos não
-  estão em `.hierarquia/provas/final/`): `pnpm tc` sem erros, `oxlint` sem achados, 16 testes de
-  `canvas-chats` e 25 testes de `skills/hierarquia` passando. **VISTO:** 6 prints em
-  `.hierarquia/provas/final/`.
+- **Conferência final do PO** com tudo junto (rodada em `fdd3eff304` e repetida em `8ea575dbed`, com as
+  saídas dos comandos guardadas em `.hierarquia/provas/final/saida-*.txt`): `pnpm tc` sem erros, `oxlint`
+  sem achados, 16 testes de `canvas-chats` e 25 testes de `skills/hierarquia` passando. **VISTO:** 6 prints
+  em `.hierarquia/provas/final/`.
 
 **1. Etiquetas de papel, de modelo e "Livre" (o-009; `370c71c522`, `abfe298aa4`; junção `10e475060a`)**
 
