@@ -502,6 +502,10 @@
 /* model the chat runs on now: light round chip, so it never reads as the blue role label or grey text */
 .cc-model {
   flex: none;
+  max-width: calc(96px * var(--cc-inv));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   padding: calc(1px * var(--cc-inv)) calc(8px * var(--cc-inv));
   border: 1px solid color-mix(in srgb, #ececf3 55%, transparent);
   border-radius: 999px;
@@ -511,7 +515,8 @@
 }
 /* context meter: how full the chat's context is, 0 to 1M tokens */
 .cc-context {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   gap: calc(5px * var(--cc-inv));
@@ -525,6 +530,8 @@
 }
 .cc-context-track {
   width: calc(64px * var(--cc-inv));
+  min-width: calc(12px * var(--cc-inv));
+  flex: 0 1 auto;
   height: calc(5px * var(--cc-inv));
   border-radius: 999px;
   background: #2b2b31;
@@ -537,6 +544,7 @@
   background: var(--cc-context-color);
 }
 .cc-context-label {
+  flex: none;
   font:
     600 calc(10.5px * var(--cc-inv)) ui-monospace,
     monospace;
@@ -1469,6 +1477,10 @@
   background: #17171c;
   box-shadow: 0 18px 44px #000c;
   cursor: default;
+}
+.cc-chips-above .cc-chip-pop {
+  top: auto;
+  bottom: calc(100% + 8px);
 }
 .cc-chip-pop-head {
   display: flex;

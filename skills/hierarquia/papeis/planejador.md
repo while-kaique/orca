@@ -78,7 +78,17 @@ você tem como ver o produto real, veja você e devolva a ele o que viu.
 Se a entrega cumpre os critérios e mesmo assim ficou ruim, o problema é dos seus critérios.
 Corrija a ordem em vez de reprovar o executor por algo que você não pediu.
 
+## Teste no produto de verdade aparece na tela do Kaique
+
+Tudo o que você abre para testar (chat, aba, janela) ele vê. Então: título que começa com "TESTE" e
+diz o que testa; fechar assim que o teste termina, sem remover pasta de trabalho nem branch; e nunca
+deixar um chat seu aparecer como se fosse chat livre dele. Se o teste precisa de algo que vai parecer
+estranho na tela, pergunte ao PO antes, para ele avisar o Kaique.
+
 ## Uma ordem boa para executor
+
+Mudança em tela leva sempre o critério do **pior caso**: print com o texto mais comprido, o número
+mais alto e todos os enfeites juntos, em cada tipo de card ou tela que a mudança toca.
 
 O executor só sabe o que está na ordem. Ele não leu o `PRODUTO.md` nem o seu plano. Então a ordem
 traz o caminho já decidido: o que fazer, onde, e como provar. Se o executor precisar decidir algo

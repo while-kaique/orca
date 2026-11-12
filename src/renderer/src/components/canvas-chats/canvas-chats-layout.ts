@@ -95,7 +95,7 @@ export const CANVAS_ATTACHMENTS_ROW = { gap: 8, h: 30 } as const
 
 // Gaps are 30% over the first version, leaving room for what hangs off each chat.
 const COLUMN_GAP = 52
-const PROJECT_TO_CHATS = 80
+export const PROJECT_TO_CHATS = 80
 // One empty chat column between projects, so every chat of every row sits on the same column grid.
 const PROJECT_GAP = CANVAS_SIZES.chat.w + 2 * COLUMN_GAP
 // The header starts at its first chat's left edge; wider than one chat, it overhangs a single-chat block on the right.
@@ -105,12 +105,17 @@ const ROW_GAP = PROJECT_GAP - HEADER_OVERHANG
 // A squarer grid may cost up to 15% of zoom.
 const SQUARE_GRID_TOLERANCE = 0.85
 
-const CHILD_BUS_RISE = PROJECT_TO_CHATS / 2
+/** A chat outside the hierarchy: it sits above its project, never under it. */
+export const isFreeChat = (chat: CanvasChat): boolean => chat.hierarchy === null
 
 export type ChatTree = { chat: CanvasChat; children: ChatTree[] }
 type Block = {
   project: CanvasProject
   roots: ChatTree[]
+  /** Chats outside the hierarchy, side by side above the project. */
+  free: CanvasChat[]
+  /** Room above the project card: free chats, the chips that hang above them, and the line gap. */
+  up: number
   /** Row of each chat, and where each row starts below the project. */
   tiers: Map<string, number>
   tierTops: number[]
@@ -168,14 +173,15 @@ export function chatDescendants(chats: readonly CanvasChat[], key: string): Canv
     }
     return undefined
   }
-  const start = find(chatForest(chats))
+  // Only hierarchy chats hang under a creator; a free chat has nothing under it.
+  const start = find(chatForest(chats.filter((chat) => !isFreeChat(chat))))
   if (start) {
     collect(start)
   }
   return out
 }
 
-/** Project on top, its chats side by side below, each chat's own chats under it, agents stacked under each chat; blocks wrap into rows that best fit the viewport. */
+/** Project in the middle: hierarchy chats below it (each chat's own chats under it, agents under each chat), free chats side by side above it with their agents stacked above; blocks wrap into rows that best fit the viewport. */
 export function layoutCanvas(
   projects: readonly CanvasProject[],
   viewport: { w: number; h: number }
@@ -190,8 +196,12 @@ export function layoutCanvas(
     nodes.reduce((sum, node) => sum + treeWidth(node), 0) +
     Math.max(0, nodes.length - 1) * COLUMN_GAP
   const treeWidth = (node: ChatTree): number => Math.max(C.w, rowWidth(node.children))
+  const freeRowWidth = (count: number): number =>
+    count ? count * C.w + (count - 1) * COLUMN_GAP : 0
   const blocks: Block[] = projects.map((project) => {
-    const roots = chatForest(project.chats)
+    const free = project.chats.filter(isFreeChat)
+    const tree = project.chats.filter((chat) => !isFreeChat(chat))
+    const roots = chatForest(tree)
     // Rows by role: every executor sits below the planners' row, even one the PO created directly.
     const tiers = new Map<string, number>()
     const hanging: number[] = []
@@ -221,17 +231,20 @@ export function layoutCanvas(
     }
     const bottom = Math.max(
       0,
-      ...project.chats.map(
+      ...tree.map(
         (chat) => tierTops[tiers.get(chat.key) ?? 0] + drawnHeight(chat) + hangingHeight(chat)
       )
     )
+    const up = free.length ? PROJECT_TO_CHATS + C.h + Math.max(...free.map(hangingHeight)) : 0
     return {
       project,
       roots,
+      free,
+      up,
       tiers,
       tierTops,
-      w: Math.max(C.w, rowWidth(roots)),
-      h: P.h + (roots.length ? PROJECT_TO_CHATS + bottom : 0)
+      w: Math.max(C.w, rowWidth(roots), freeRowWidth(free.length)),
+      h: up + P.h + (roots.length ? PROJECT_TO_CHATS + bottom : 0)
     }
   })
   const boxes: Record<string, CanvasBox> = {}
@@ -286,8 +299,9 @@ export function layoutCanvas(
   const best =
     grids.filter(close).sort((a, b) => squareness(a) - squareness(b) || b.s - a.s)[0] ?? grids[0]
   for (const { block, x, y } of best.spots) {
-    boxes[`project:${block.project.id}`] = { x, y, w: P.w, h: P.h }
-    const chatsTop = y + P.h + PROJECT_TO_CHATS
+    const projectTop = y + block.up
+    boxes[`project:${block.project.id}`] = { x, y: projectTop, w: P.w, h: P.h }
+    const chatsTop = projectTop + P.h + PROJECT_TO_CHATS
     // Each chat sits centered over the chats it created, on the row of its role.
     const placeRow = (nodes: readonly ChatTree[], left: number): void => {
       let nodeX = left
@@ -302,41 +316,20 @@ export function layoutCanvas(
       }
     }
     placeRow(block.roots, x + (block.w - rowWidth(block.roots)) / 2)
+    // Free chats share one row above the project, bottoms level, centered on the block.
+    block.free.forEach((chat, index) => {
+      boxes[chat.key] = {
+        x: x + (block.w - freeRowWidth(block.free.length)) / 2 + index * (C.w + COLUMN_GAP),
+        y: projectTop - PROJECT_TO_CHATS - C.h,
+        w: C.w,
+        h: C.h
+      }
+    })
     // The project card starts at its first chat's left edge, wherever that chat ended up over its own chats.
-    const first = block.roots[0] ? boxes[block.roots[0].chat.key] : undefined
+    const first = boxes[(block.roots[0]?.chat ?? block.free[0])?.key ?? '']
     if (first) {
       boxes[`project:${block.project.id}`].x = first.x
     }
   }
   return { boxes, bounds: { x: 0, y: 0, w: best.W, h: best.H } }
-}
-
-/** Project bottom → chat top: down, straight across, down, with rounded corners. */
-export function busPath(from: CanvasBox, to: CanvasBox): string {
-  const px = from.x + from.w / 2
-  const py = from.y + from.h
-  const cx = to.x + to.w / 2
-  const cy = to.y
-  const m = (py + cy) / 2
-  const dir = Math.sign(cx - px)
-  const r = Math.min(12, Math.abs(cx - px) / 2, (cy - py) / 2)
-  if (Math.abs(cx - px) < 1) {
-    return `M${px} ${py} V${cy}`
-  }
-  return `M${px} ${py} V${m - r} Q${px} ${m} ${px + dir * r} ${m} H${cx - dir * r} Q${cx} ${m} ${cx} ${m + r} V${cy}`
-}
-
-/** Chat → a chat it created: out of its bottom center, across right below it, then straight down the child's own column. */
-export function childChatPath(from: CanvasBox, to: CanvasBox): string {
-  const sx = from.x + from.w / 2
-  const sy = from.y + from.h
-  const cx = to.x + to.w / 2
-  const cy = to.y
-  const m = sy + CHILD_BUS_RISE
-  if (Math.abs(cx - sx) < 1) {
-    return `M${sx} ${sy} V${cy}`
-  }
-  const dir = Math.sign(cx - sx)
-  const r = Math.max(0, Math.min(12, Math.abs(cx - sx) / 2, (cy - m) / 2, CHILD_BUS_RISE / 2))
-  return `M${sx} ${sy} V${m - r} Q${sx} ${m} ${sx + dir * r} ${m} H${cx - dir * r} Q${cx} ${m} ${cx} ${m + r} V${cy}`
 }
