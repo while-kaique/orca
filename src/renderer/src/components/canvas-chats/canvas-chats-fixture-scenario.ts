@@ -20,8 +20,9 @@ const transcript = (tab: string): string => `C:/demo/.claude/projects/loja/${tab
 type Chat = {
   tab: string
   title: string
-  role: 'po' | 'planejador' | 'executor'
+  role: 'po' | 'planejador' | 'executor' | null
   parent: string | null
+  model: string
   state: AgentStatusEntry['state']
   prompt: string
   reply: string
@@ -33,6 +34,7 @@ type Chat = {
 const CHATS: Chat[] = [
   {
     tab: 'po',
+    model: 'claude-fable-5-2',
     title: 'Mestre de Banners',
     role: 'po',
     parent: null,
@@ -44,6 +46,7 @@ const CHATS: Chat[] = [
   },
   {
     tab: 'pl1',
+    model: 'claude-opus-5-5',
     title: 'Tela de status',
     role: 'planejador',
     parent: 'po',
@@ -56,6 +59,7 @@ const CHATS: Chat[] = [
   },
   {
     tab: 'pl2',
+    model: 'claude-opus-5-5',
     title: 'Pagamentos',
     role: 'planejador',
     parent: 'po',
@@ -67,6 +71,7 @@ const CHATS: Chat[] = [
   },
   {
     tab: 'ex1',
+    model: 'claude-sonnet-5-5',
     title: 'Mestre UI/UX',
     role: 'executor',
     parent: 'pl1',
@@ -78,6 +83,7 @@ const CHATS: Chat[] = [
   },
   {
     tab: 'ex2',
+    model: 'claude-sonnet-5-5',
     title: 'Validador',
     role: 'executor',
     parent: 'pl1',
@@ -89,6 +95,7 @@ const CHATS: Chat[] = [
   },
   {
     tab: 'ex3',
+    model: 'claude-haiku-5-5',
     title: 'Debugger',
     role: 'executor',
     parent: 'pl2',
@@ -100,6 +107,7 @@ const CHATS: Chat[] = [
   },
   {
     tab: 'ex4',
+    model: 'claude-sonnet-5-5',
     title: 'Criador de Testes',
     role: 'executor',
     parent: 'pl2',
@@ -108,6 +116,17 @@ const CHATS: Chat[] = [
     reply: '',
     tokens: 330_000,
     order: 'Testes do pagamento por Pix'
+  },
+  {
+    tab: 'livre',
+    model: 'claude-sonnet-5-5',
+    title: 'Conversa solta',
+    role: null,
+    parent: null,
+    state: 'done',
+    prompt: 'me explica essa mensagem de erro',
+    reply: 'É um erro de rede; tente de novo em alguns minutos.',
+    tokens: 42_000
   }
 ]
 
@@ -166,6 +185,7 @@ const statuses: Record<string, AgentStatusEntry> = Object.fromEntries(
       worktreeId: WORKTREE,
       tabId: chat.tab,
       agentType: 'claude',
+      model: chat.model,
       state: chat.state,
       prompt: chat.prompt,
       ...(chat.reply ? { lastAssistantMessage: chat.reply } : {}),
@@ -228,17 +248,23 @@ export const SCENARIO_HIERARCHY: CanvasHierarchySnapshot[] = [
   {
     folder: FOLDER,
     chats: Object.fromEntries(
-      CHATS.map((chat) => [
-        chat.tab,
-        {
-          id: chat.tab,
-          papel: chat.role,
-          pai: chat.parent,
-          ordemId: chat.order ? `o-${chat.tab}` : null,
-          ativo: true,
-          mexidoPeloKaique: false
-        }
-      ])
+      CHATS.flatMap((chat) =>
+        chat.role
+          ? [
+              [
+                chat.tab,
+                {
+                  id: chat.tab,
+                  papel: chat.role,
+                  pai: chat.parent,
+                  ordemId: chat.order ? `o-${chat.tab}` : null,
+                  ativo: true,
+                  mexidoPeloKaique: false
+                }
+              ] as const
+            ]
+          : []
+      )
     ),
     ordens: Object.fromEntries(
       CHATS.filter((chat) => chat.order).map((chat) => [

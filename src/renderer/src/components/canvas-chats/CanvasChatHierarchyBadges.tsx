@@ -1,5 +1,6 @@
 import { translate } from '@/i18n/i18n'
 import type { CanvasHierarchyOrderState } from '../../../../shared/canvas-hierarchy'
+import { canvasChatModelLabel } from './canvas-chat-model-label'
 import type { CanvasChat } from './canvas-chats-layout'
 
 function roleLabel(role: NonNullable<CanvasChat['hierarchy']>['role']): string {
@@ -38,11 +39,25 @@ export function orderStateLabel(state: CanvasHierarchyOrderState): string {
   }
 }
 
-/** PO, planner or executor, beside the chat's name. */
-export function CanvasChatRole({ chat }: { chat: CanvasChat }): React.JSX.Element | null {
+/** PO, planner or executor beside the chat's name; a chat outside the hierarchy reads 'Livre'. */
+export function CanvasChatRole({ chat }: { chat: CanvasChat }): React.JSX.Element {
   return chat.hierarchy ? (
     <span className="cc-role" data-role={chat.hierarchy.role}>
       {roleLabel(chat.hierarchy.role)}
+    </span>
+  ) : (
+    <span className="cc-role" data-role="free">
+      {translate('fork.canvas.role.free', 'Livre')}
+    </span>
+  )
+}
+
+/** The model the chat runs now, from the same status record the sidebar reads. */
+export function CanvasChatModel({ chat }: { chat: CanvasChat }): React.JSX.Element | null {
+  const label = canvasChatModelLabel(chat.model)
+  return label ? (
+    <span className="cc-model" data-family={label.family}>
+      {label.label}
     </span>
   ) : null
 }
