@@ -44,7 +44,9 @@ do trabalho, ele entra no seu pacote: leia, ajuste o plano e entregue tudo junto
    vez. Conflito você resolve, ou manda um executor resolver. O PO não junta branch de executor.
 8. **Prove o conjunto.** Com tudo junto na sua branch: rode as checagens que o projeto exige e veja o
    **produto de verdade funcionando** (o programa real aberto, o comando real rodando), critério por
-   critério da sua ordem. Print de cenário montado não prova que o produto funciona. Guarde saídas e
+   critério da sua ordem. Print de cenário montado não prova que o produto funciona. Se a mudança mexe
+   em algo que o usuário já tem guardado (posição, dado, preferência), prove com o estado guardado de
+   **antes** da mudança, e olhe também o que você não mudou naquela tela. Guarde saídas e
    prints na pasta de prova. Escreva também, em palavras simples, o que ficou **sem** provar.
    Toda checagem pesada (`pnpm tc`, testes, `pnpm fixtures:shot`, build) roda com
    `hierarquia vez -- <comando>`: um comando pesado por vez na máquina, os outros esperam.

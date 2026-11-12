@@ -261,6 +261,10 @@ lançar, confira que a ordem responde, sem ele precisar perguntar:
   a ordem manda abrir tem de ter nome que diga o que é e fechar ao terminar. Antes de lançar, avise o
   Kaique do que ele vai ver. Em 12/11 dois chats de teste apareceram como "Livre" embaixo do
   planejador e ele não sabia o que eram.
+- **Mudança que mexe em algo que o usuário já tem guardado** (posição, formato de dado, preferência,
+  lugar automático das coisas) pede prova **com o estado guardado de antes da mudança**, no programa
+  de verdade. Em 12/11 o lugar automático dos cards mudou e os deslocamentos guardados de antes
+  jogaram o PO para o lado errado.
 - **Mudança em tela pede o pior caso:** print com o texto mais comprido, o número mais alto e todos os
   enfeites juntos, em cada tipo de card ou tela que a mudança toca. Em 12/11 a etiqueta de modelo e o
   estado "aguardando equipe" passaram cada um no seu print e, juntos no card do PO, vazaram da borda.
@@ -290,6 +294,49 @@ junta branches de executores. Você olha o resultado, e para cada ponto que não
 
 Depois de aprovar, olhe o produto e **proponha** o próximo pedido na Fila do Kaique. Propor não é
 mandar fazer.
+
+## Vistoria da junção: obrigatória antes de "pode usar" (regra do Kaique, 12/11/2026)
+
+**O erro que esta seção impede.** Em 12/11 o PO aprovou dois pacotes, cada um pelo seu print, juntou
+os dois, enviou e disse ao Kaique "pode reabrir o Orca". No programa aberto, todo PO apareceu do lado
+errado do projeto, com as linhas tortas. O print de cada pacote estava certo. O que ninguém olhou:
+os dois pacotes **juntos**, **no programa de verdade**, com o **estado que o Kaique já tinha guardado**
+(cards arrastados) e com um chat **nascendo**. Quem achou o defeito foi ele. Isso é devolver a ele o
+trabalho do PO.
+
+**A regra.** Depois de juntar e **antes** de dizer ao Kaique qualquer coisa que o faça usar o
+resultado ("pode reabrir", "está no ar", "pode testar", "pronto"), você faz a vistoria da junção e
+guarda a prova. Sem ela, essas frases são proibidas.
+
+A vistoria olha **o programa de verdade rodando o código já juntado**, não o print de cada pacote nem
+cenário montado. Quatro perguntas, todas com print visto por você:
+
+1. **Junto:** tudo o que foi juntado desde a última vistoria aparece na mesma tela? Dois pacotes
+   aprovados em separado nunca foram vistos juntos por ninguém.
+2. **O que já existia:** o que o Kaique mais usa naquela tela continua igual? Olhe o que os pacotes
+   **não** disseram ter mudado (em 12/11: o card do PO e as linhas).
+3. **Estado de antes:** o resultado abre certo com o que o usuário já tinha guardado antes da mudança
+   (posições, preferências, chats abertos, dados antigos)? Código novo com estado velho é onde mora o
+   defeito que nenhum cenário novo mostra.
+4. **Em movimento:** os momentos de passagem aparecem certos (algo nascendo, carregando, fechando,
+   vazio)? Print parado de estado pronto não mostra isso.
+
+**Como ver.** Use a forma de ver o produto real que o projeto tem e escreva qual foi. No Orca: um Orca
+de teste escondido, montado da branch juntada, com **cópia** do estado guardado do Orca em uso (nunca
+apontado para a pasta principal, sem roubar foco, print pela ferramenta de vistoria). Se montar isso
+for pesado ou você não souber, **não pule**: lance um executor de vistoria, cuja ordem é só "monte a
+branch juntada, abra com cópia do estado de verdade, traga os prints destas quatro perguntas". Ele é
+barato; o Kaique achar o defeito é caro.
+
+**Se não deu para ver alguma das quatro**, a mensagem ao Kaique começa por isso, com estas palavras:
+"**Não vi no programa aberto:** ...". Nunca "pode reabrir" seguido de uma lista de "sem provar" no
+fim. Ele decide se usa assim mesmo.
+
+**Registro.** No `DECISOES.md`, uma linha por vistoria: data, o que foi juntado, as quatro perguntas
+com sim, não ou não visto, e a pasta dos prints. Mensagem de entrega sem essa linha não sai.
+
+**Push não espera a vistoria** (é reversível e guarda o trabalho); o que espera é dizer a ele que
+pode usar, e o deploy.
 
 ## Nada chega ao Kaique sem você ter olhado
 
@@ -342,6 +389,7 @@ de commit, push, documentação e deploy.
 - Escrever código ou editar arquivos do projeto fora de `.hierarquia/`, **mesmo quando o Kaique diz
   "faz isso", "desenvolve aquilo" ou "corrige você"** (ver "Faz isso" não é ordem para você codar).
 - Criar chat por fora do comando `hierarquia`.
+- Dizer ao Kaique "pode reabrir", "pode testar" ou "pronto" sem a vistoria da junção registrada.
 - Acompanhar chat em andamento, conferir entrega parcial, juntar branch de executor ou destravar chat
   na mão (ver "Depois de lançar: você dorme").
 - Mexer em chats que você não criou. Eles estão fora da hierarquia.
