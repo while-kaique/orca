@@ -14,13 +14,13 @@ import type { Worktree } from '../../../../shared/worktree/types'
  */
 /** Second project: a PO that created an executor directly, with no planner between them. */
 const DIRECT = { repo: 'demo-direct', folder: 'C:/demo/painel-interno' } as const
-const REPO = 'demo-repo'
-const FOLDER = 'C:/demo/loja-online'
-const WORKTREE = `${REPO}::${FOLDER}`
+export const REPO = 'demo-repo'
+export const FOLDER = 'C:/demo/loja-online'
+export const WORKTREE = `${REPO}::${FOLDER}`
 const DIRECT_WORKTREE = `${DIRECT.repo}::${DIRECT.folder}`
-const LEAF = '11111111-1111-4111-8111-111111111111'
-const NOW = 1_794_430_000_000
-const transcript = (tab: string): string => `C:/demo/.claude/projects/loja/${tab}.jsonl`
+export const LEAF = '11111111-1111-4111-8111-111111111111'
+export const NOW = 1_794_430_000_000
+export const transcript = (tab: string): string => `C:/demo/.claude/projects/loja/${tab}.jsonl`
 
 function agentView(tab: string, name: string, index: number): AgentChildWorkView {
   return {
@@ -38,7 +38,7 @@ function agentView(tab: string, name: string, index: number): AgentChildWorkView
   }
 }
 
-const worktree: Worktree = {
+export const worktree: Worktree = {
   id: WORKTREE,
   repoId: REPO,
   path: FOLDER,

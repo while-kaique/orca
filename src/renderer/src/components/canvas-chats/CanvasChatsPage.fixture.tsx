@@ -5,6 +5,7 @@ import type { CanvasChatModels } from '../../../../shared/canvas-chat-transcript
 import type { CanvasContextTokens } from '../../../../shared/canvas-context-tokens'
 import CanvasChatsPage from './CanvasChatsPage'
 import { noteCanvasChatArtifacts } from './canvas-chat-artifacts'
+import { registerLaunchRecord } from './canvas-chat-launch-mask'
 import {
   SCENARIO_CONTEXT,
   SCENARIO_HIERARCHY,
@@ -15,6 +16,7 @@ import {
   scenarioPicture,
   scenarioStoreWithStates
 } from './canvas-chats-fixture-scenario'
+import { launchScenario, type LaunchScenarioKind } from './canvas-chat-launch-fixture-scenario'
 
 /**
  * Fork: the flowchart drawn from a copy of the real app state, so layout and colors can be checked
@@ -236,3 +238,33 @@ export const real = defineFixture({
   },
   render: board
 })
+
+/** A PO just launched: the mask covers its card at the given point of the start-up. */
+function launchMaskFixture(
+  kind: LaunchScenarioKind,
+  settleMs = 0
+): ReturnType<typeof defineFixture> {
+  const scenario = launchScenario(kind)
+  return defineFixture({
+    width: 1280,
+    store: scenario.store,
+    setup: () => {
+      window.api.repos.readCanvasHierarchy = () => Promise.resolve(scenario.hierarchy)
+      window.api.repos.readCanvasContextTokens = () => Promise.resolve({})
+      stubPictures()
+      registerLaunchRecord(scenario.record)
+    },
+    interact: async (frame) => {
+      await wait(400)
+      frame.querySelector<HTMLButtonElement>('.cc-tidy')?.click()
+      await wait(700 + settleMs)
+    },
+    render: board
+  })
+}
+
+export const carregandoIniciando = launchMaskFixture('iniciando')
+export const carregandoFuncoes = launchMaskFixture('funcoes')
+export const carregandoEsperando = launchMaskFixture('esperando')
+/** The first turn ended and the chat never registered as PO: after the grace period the mask turns into the problem screen. */
+export const carregandoProblema = launchMaskFixture('problema', 7000)

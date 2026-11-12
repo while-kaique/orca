@@ -4,6 +4,7 @@ import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
 import { resolveDefaultAgentForNewTab } from '@/lib/agent-tab-shortcuts'
+import { registerLaunchRecord } from '../../canvas-chats/canvas-chat-launch-mask'
 import type { Repo } from '../../../../../shared/repo-types'
 import { resolvePcDeskMainWorktreeId } from './pc-desk-main-worktree-id'
 import { ensurePcDeskRepo } from './open-pc-desk-folder'
@@ -43,6 +44,10 @@ export function launchPcDeskChat(worktreeId: string, mode: PcDeskChatMode = 'liv
   if (!result) {
     toast.error('Não consegui abrir o chat novo.')
     return false
+  }
+  // Same synchronous call as the tab: the flowchart draws the card already masked.
+  if (po && result.surface.kind === 'local-terminal') {
+    registerLaunchRecord({ tabId: result.surface.tabId, worktreeId, launchText: po.prompt })
   }
   return true
 }
