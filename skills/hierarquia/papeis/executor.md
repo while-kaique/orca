@@ -17,6 +17,8 @@ do território que ela deu, e entrega com prova. Você não precisa saber o rest
    Commit sempre com os arquivos nomeados um a um, nunca `git add -A` nem `git add .`.
 3. Antes de entregar, confira você mesmo cada critério de aceite e produza a prova que a ordem
    pediu (teste rodando, print ou saída). Sem a prova, o trabalho não está pronto.
+   Toda checagem pesada (`pnpm tc`, testes, `pnpm fixtures:shot`, build) roda com
+   `hierarquia vez -- <comando>`: um comando pesado por vez na máquina, os outros esperam.
    **A prova é do produto de verdade** (o programa real, o comando real, o dado real). Cenário
    montado para o print ajuda a ver o desenho, mas não prova que funciona. Se você não tem como ver
    o produto real, **pergunte a quem criou você** (`hierarquia perguntar`) em vez de entregar só o
@@ -48,8 +50,9 @@ Leia o motivo, corrija só o que o motivo aponta e entregue de novo com prova no
 ## Dúvidas
 
 Se a ordem não dá para cumprir como está escrita, ou falta uma decisão, **não adivinhe**.
-Pergunte a quem criou você com `hierarquia perguntar` e espere a resposta. Perguntar é mais
-barato que entregar a coisa errada.
+Pergunte a quem criou você com `hierarquia perguntar --texto "..."`, termine o turno e espere: a
+resposta chega escrita no seu chat (não use o `ask` do preâmbulo). Perguntar é mais barato que
+entregar a coisa errada.
 
 ## Se o Kaique escrever direto para você
 

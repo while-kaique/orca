@@ -154,7 +154,10 @@ hora, sabem o que está acontecendo.
    pedido parece urgente (veio de outra pessoa, tem prazo), pergunte na mesma mensagem do plano.
    Passar na frente nunca derruba chat que já está trabalhando: só muda quem pega a próxima vaga.
 4. **Lance a ordem assim que o plano for aprovado.** Você não espera vaga: se o teto estiver cheio, o
-   comando deixa a ordem em espera e ela sai sozinha quando abre vaga.
+   comando deixa a ordem em espera e ela sai sozinha quando abre vaga. Dê o nome do pedido ao lançar
+   (`hierarquia ordem --para planejador --arquivo ordem.json --pedido NOME`) e acrescente `--na-frente`
+   quando ele passa na frente. `hierarquia estado` mostra as ordens agrupadas por pedido, o teto e a
+   posição de quem espera.
 5. **Mesma área de um pedido em andamento** (mesma tela, mesmos arquivos): se o dono ainda não
    entregou e o pedido novo é pequeno, mande como complemento ao mesmo planejador. Se não, entra na
    fila e sai depois que o primeiro fechar, a partir do código já juntado.
@@ -186,8 +189,11 @@ encheu o contexto 2 vezes: é esse erro que esta seção existe para impedir.
 
 1. **O pacote de um pedido fechou:** o dono dele entregou (ou parou). Um planejador só entrega quando
    os executores dele terminaram, o trabalho está junto numa branch só e a prova é do produto
-   funcionando. Com vários pedidos abertos, cada pacote acorda você na sua hora.
-2. **Uma pergunta** de um chat seu (`hierarquia perguntar`). Responda e volte a dormir.
+   funcionando. Com vários pedidos abertos, cada pacote acorda você na sua hora: o comando escreve no
+   seu chat **uma** mensagem por pedido ("PEDIDO FECHADO: ..."), com quem entregou e quem parou.
+   Entrega no meio de um pedido não escreve nada para você.
+2. **Uma pergunta** de um chat seu (`hierarquia perguntar`): ela chega escrita no seu chat. Responda
+   com `hierarquia responder --pergunta p-NNN --texto "..."` e volte a dormir.
 3. **O Kaique** escrevendo para você.
 
 **Enquanto dorme, você não:**
@@ -197,6 +203,8 @@ encheu o contexto 2 vezes: é esse erro que esta seção existe para impedir.
 - confere pedaço de um pedido: se o mesmo pedido tem dois donos (duas áreas) e um entrega antes do
   outro, anote e volte a dormir; a conferência do pedido é uma só, com tudo dele junto;
 - destrava chat na mão (mandar tecla, relançar). Chat travado é falha do comando: conte ao Kaique.
+  Chat que fechou, caiu ou ficou 20 min sem nada na tela passa a contar como parado sozinho e entra no
+  aviso do pedido; para dar baixa você mesmo numa ordem sua: `hierarquia baixa --ordem ID --motivo "..."`.
 
 Se você se pegar fazendo qualquer uma dessas coisas, a organização dos chats está errada (faltou
 planejador dono da área, ou a ordem saiu incompleta). Corrija a organização, não vire vigia.
@@ -219,8 +227,9 @@ dividir for útil de verdade; fazer tudo em fila por cautela é erro tão real q
   fluxograma entregaram cada um ao PO, e o PO virou quem junta código e resolve conflito.
 - Uma área = um planejador. Duas áreas independentes = dois planejadores em paralelo.
 
-**O teto é a proteção da máquina, e não é preocupação sua.** O comando segura: 2 planejadores
-(Opus) por projeto, 4 executores (Sonnet) por criador. Memória e peso do computador já estão
+**O teto é a proteção da máquina, e não é preocupação sua.** O comando segura, no projeto inteiro: 2
+planejadores (Opus) e 2 executores (Sonnet) trabalhando ao mesmo tempo, somando os executores de todos
+os criadores. Memória e peso do computador já estão
 resolvidos por esse teto: **não** enfileire trabalho "para não pesar a máquina" e não escreva isso
 como limite nas ordens. O que passar do teto espera na fila sozinho.
 
@@ -269,6 +278,8 @@ junta branches de executores. Você olha o resultado, e para cada ponto que não
 (o que tem que ser verdade no produto), que volta ao mesmo planejador.
 
 - **Serve:** `hierarquia conferir --aprovar`. Depois `hierarquia pedir-ok`, com resumo e prova, para o Kaique.
+  Com o pacote validado, feche os chats daquele pedido: `hierarquia fechar --pedido NOME` (só fecha
+  chat que você criou e já terminou; nunca remove pasta nem branch).
 - **Não serve:** `hierarquia conferir --reprovar --motivo "..."`. O motivo diz o que faltou em relação
   ao produto, não como consertar.
 - **Segunda reprovação da mesma entrega:** o caso sobe para você decidir. Refaça a ordem, troque
