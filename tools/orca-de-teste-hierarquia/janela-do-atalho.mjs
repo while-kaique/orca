@@ -21,13 +21,21 @@ public class Janela {
 "@
 `
 
-/** true quando ha uma janela visivel com exatamente este titulo. */
+/**
+ * true quando o atalho (wscript) mostra uma janela com exatamente este titulo. Pelo `tasklist`, que responde em menos
+ * de 1 s: o PowerShell compilava o codigo da janela a cada consulta e a pergunta passava sem ser vista (o-043).
+ */
 export function janelaAberta(titulo) {
-  return (
-    powershell(
-      `${USER32}; $h=[Janela]::FindWindow($null,'${titulo}'); if ($h -ne [IntPtr]::Zero -and [Janela]::IsWindowVisible($h)) { 'sim' } else { 'nao' }`
-    ) === 'sim'
-  )
+  try {
+    const saida = execFileSync(
+      'tasklist',
+      ['/v', '/fo', 'csv', '/nh', '/fi', 'IMAGENAME eq wscript.exe'],
+      { encoding: 'latin1', windowsHide: true }
+    )
+    return saida.split(/\r?\n/u).some((linha) => linha.trim().endsWith(`"${titulo}"`))
+  } catch {
+    return false
+  }
 }
 
 /** Print so da janela (o retangulo dela na tela). */

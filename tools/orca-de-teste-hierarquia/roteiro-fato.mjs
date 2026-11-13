@@ -322,6 +322,36 @@ async function acordar(chat) {
   }
 }
 
+/** A queda (so o programa morre, sem X), o atalho com os chats ainda vivos e a reabertura que se reconecta a eles. */
+async function quedaEAtalho(chats) {
+  // A QUEDA: so o programa morre (sem X). Os chats seguem vivos no guarda de terminais; o atalho pergunta.
+  await retratoAntes(chats, 'antes-da-queda')
+  execFileSync('taskkill', ['/F', '/PID', String(orca.pid)], { stdio: 'ignore' })
+  await orca.browser.close().catch(() => null)
+  await esperar(10_000)
+  const vivosQueda = processosDoMundo(pidsDoOrca)
+  guardar('queda-processos-do-mundo.txt', linhasDosProcessos(vivosQueda))
+  dizer(
+    `queda (so o programa morreu): ${vivosQueda.filter((p) => /^claude/iu.test(p.nome)).length} Claude seguem vivos (${vivosQueda.length} processos do mundo)`
+  )
+  await atalho('atalho-com-chat-vivo', path.join(saida, 'atalho-abriu-1.txt'))
+
+  // Reabre: o Orca se reconecta aos chats vivos.
+  await abrir()
+  await esperar(30_000)
+  guardar('depois-da-queda-terminais.json', orcaTeste(['terminal', 'list']).result?.terminals ?? [])
+  for (const [nome, chat] of Object.entries(chats)) {
+    const t = (orcaTeste(['terminal', 'list']).result?.terminals ?? []).find(
+      (x) => x.tabId === chat.tabId
+    )
+    dizer(`depois da queda ${nome}: ligado=${t?.connected ?? 'sem aba'}`)
+    if (t?.handle) {
+      chat.handle = t.handle
+    }
+  }
+  contar('depois de reabrir da queda')
+}
+
 let projetoA = null
 try {
   montarMundo()
@@ -384,35 +414,7 @@ try {
     await esperar(60_000)
     contar('com os 3 chats trabalhando')
 
-    // A QUEDA: so o programa morre (sem X). Os chats seguem vivos no guarda de terminais; o atalho pergunta.
-    await retratoAntes(chats, 'antes-da-queda')
-    execFileSync('taskkill', ['/F', '/PID', String(orca.pid)], { stdio: 'ignore' })
-    await orca.browser.close().catch(() => null)
-    await esperar(10_000)
-    const vivosQueda = processosDoMundo(pidsDoOrca)
-    guardar('queda-processos-do-mundo.txt', linhasDosProcessos(vivosQueda))
-    dizer(
-      `queda (so o programa morreu): ${vivosQueda.filter((p) => /^claude/iu.test(p.nome)).length} Claude seguem vivos (${vivosQueda.length} processos do mundo)`
-    )
-    await atalho('atalho-com-chat-vivo', path.join(saida, 'atalho-abriu-1.txt'))
-
-    // Reabre: o Orca se reconecta aos chats vivos.
-    await abrir()
-    await esperar(30_000)
-    guardar(
-      'depois-da-queda-terminais.json',
-      orcaTeste(['terminal', 'list']).result?.terminals ?? []
-    )
-    for (const [nome, chat] of Object.entries(chats)) {
-      const t = (orcaTeste(['terminal', 'list']).result?.terminals ?? []).find(
-        (x) => x.tabId === chat.tabId
-      )
-      dizer(`depois da queda ${nome}: ligado=${t?.connected ?? 'sem aba'}`)
-      if (t?.handle) {
-        chat.handle = t.handle
-      }
-    }
-    contar('depois de reabrir da queda')
+    await quedaEAtalho(chats)
 
     // O X.
     const fora = await retratoAntes(chats)
@@ -463,6 +465,7 @@ try {
       chats.filho = { handle: filho.handle, tabId: filho.tabId, titulo: 'TESTE fato: chat filho' }
     }
     dizer(`filho aberto pelo pai: ${Boolean(filho)}`)
+    await quedaEAtalho(chats)
     const lanc = ordemTeste(
       projetoA,
       'ordem-nascendo',
