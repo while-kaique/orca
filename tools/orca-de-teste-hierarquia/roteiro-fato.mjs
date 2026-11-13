@@ -361,6 +361,18 @@ async function quedaEAtalho(chats) {
     }
   }
   contar('depois de reabrir da queda')
+  // Ponto 2 da reprovacao: 45 s depois de abrir, o Orca encerra o chat que ficou rodando sem aba e grava a lista.
+  await esperar(60_000)
+  const { readdirSync } = await import('node:fs')
+  const relatorios = readdirSync(PERFIL).filter((nome) => nome.startsWith('fork-chats-escondidos'))
+  for (const nome of relatorios) {
+    guardar(`queda-${nome}.txt`, readFileSync(path.join(PERFIL, nome), 'utf8'))
+  }
+  const terminaisDepois = orcaTeste(['terminal', 'list']).result?.terminals ?? []
+  const claudesDepois = contarDoMundo(pidsDoOrca).claudes
+  dizer(
+    `depois da queda + 60 s: ${terminaisDepois.length} abas com terminal, ${claudesDepois} Claude vivos; chats escondidos encerrados: ${relatorios.length ? relatorios.join(', ') : 'nenhum relatorio'}`
+  )
 }
 
 let projetoA = null
@@ -441,6 +453,15 @@ try {
     await abrir()
     await esperar(200_000)
     await retratoReaberto(chats, projetoA)
+    // Ponto 1 da reprovacao: o chat cortado volta dormindo, ou quem criou recebe o aviso de chat perdido com o resume.
+    const registroFinal = readFileSync(path.join(projetoA, '.hierarquia', 'registro.jsonl'), 'utf8')
+    const avisos = registroFinal
+      .split('\n')
+      .filter((l) => /conversa_perdida_avisada|corte_avisado|chat_retomado|CHAT PERDIDO/u.test(l))
+    guardar('volta-registro.txt', avisos.join('\n'))
+    dizer(
+      `volta: ${avisos.length} registro(s) de volta ou de chat perdido: ${avisos.map((l) => JSON.parse(l).tipo).join(', ') || 'nenhum'}`
+    )
     contar('reaberto, chats dormindo')
     // Acorda o longo: o Claude dele volta e a volta entrega o aviso uma vez.
     const lista = orcaTeste(['terminal', 'list']).result?.terminals ?? []
@@ -507,6 +528,15 @@ try {
     await abrir()
     await esperar(200_000)
     await retratoReaberto(chats, projetoA)
+    // Ponto 1 da reprovacao: o chat cortado volta dormindo, ou quem criou recebe o aviso de chat perdido com o resume.
+    const registroFinal = readFileSync(path.join(projetoA, '.hierarquia', 'registro.jsonl'), 'utf8')
+    const avisos = registroFinal
+      .split('\n')
+      .filter((l) => /conversa_perdida_avisada|corte_avisado|chat_retomado|CHAT PERDIDO/u.test(l))
+    guardar('volta-registro.txt', avisos.join('\n'))
+    dizer(
+      `volta: ${avisos.length} registro(s) de volta ou de chat perdido: ${avisos.map((l) => JSON.parse(l).tipo).join(', ') || 'nenhum'}`
+    )
     contar('reaberto')
   }
 } catch (erro) {
