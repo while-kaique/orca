@@ -74,6 +74,11 @@ const linhasDosProcessos = (lista) =>
   lista.map((p) => `${p.pid}\t${p.pai}\t${p.nome}\t${p.comando.slice(0, 220)}`).join('\n')
 
 async function abrir() {
+  // Um Orca de teste por vez (decisao do PO): com o anterior ainda vivo, o roteiro para em vez de abrir outro.
+  const vivo = contarDoMundo(pidsDoOrca).orcas
+  if (vivo > 0) {
+    throw new Error(`ainda ha ${vivo} Orca de teste vivo: nao abro outro`)
+  }
   orca = await abrirOrca({ extraEnv, log: dizer })
   pidsDoOrca.push(orca.pid)
   return orca
@@ -461,16 +466,17 @@ try {
     dizer(`pai: caixa do Claude pronta = ${await esperarCaixa(chats.pai)}`)
     enviar(
       chats.pai.handle,
-      `Use a ferramenta Bash e rode exatamente: ${CLI_DO_MUNDO.replaceAll('\\', '/')} terminal create --worktree path:${B2} --title "TESTE fato: chat filho" --command "claude --model haiku --dangerously-skip-permissions" . Depois rode em PRIMEIRO plano (timeout 600000): sleep 590 . Nao responda nada antes do sleep terminar.`
+      'Use a ferramenta Bash em PRIMEIRO plano (sem run_in_background, timeout 600000) e rode exatamente: sleep 590 . Nao responda nada antes do sleep terminar.'
     )
-    await esperar(90_000)
-    const filho = (orcaTeste(['terminal', 'list']).result?.terminals ?? []).find((t) =>
-      /chat filho/u.test(t.title ?? '')
+    // O filho do teste: o roteiro o abre pelo comando do Orca de teste, como o pai faria (o haiku nem sempre obedece).
+    chats.filho = abrirClaude(B, 'TESTE fato: chat filho do pai')
+    dizer(`filho: caixa do Claude pronta = ${await esperarCaixa(chats.filho)}`)
+    enviar(
+      chats.filho.handle,
+      'Use a ferramenta Bash em PRIMEIRO plano (timeout 600000) e rode exatamente: sleep 590 . Nao responda nada antes.'
     )
-    if (filho) {
-      chats.filho = { handle: filho.handle, tabId: filho.tabId, titulo: 'TESTE fato: chat filho' }
-    }
-    dizer(`filho aberto pelo pai: ${Boolean(filho)}`)
+    await esperar(60_000)
+    void B2
     await quedaEAtalho(chats)
     const lanc = ordemTeste(
       projetoA,

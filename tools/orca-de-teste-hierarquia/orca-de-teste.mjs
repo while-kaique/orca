@@ -335,6 +335,25 @@ export async function fecharPeloX(orca, { prazoMs = 90_000 } = {}) {
   if (!janelas) {
     await orca.page.evaluate(() => window.close()).catch(() => null)
   }
+  // Com terminal rodando, o proprio Orca pergunta antes ("Close Window?"); a janela de teste e escondida, entao o
+  // roteiro responde "Close" por ela e o fechamento segue para a pergunta do fork.
+  for (let i = 0; i < 30 && orca.processo.exitCode === null; i++) {
+    const respondeu = await orca.page
+      .evaluate(() => {
+        const dialogo = [...document.querySelectorAll('[role="dialog"]')].find((el) =>
+          /Close Window|Fechar a janela|Fechar janela/iu.test(el.textContent ?? '')
+        )
+        const botoes = dialogo ? [...dialogo.querySelectorAll('button')] : []
+        botoes.at(-1)?.click()
+        return dialogo ? (dialogo.textContent ?? '').replace(/\s+/gu, ' ').slice(0, 200) : null
+      })
+      .catch(() => null)
+    if (respondeu) {
+      orca.fechadoPor += ` | o Orca perguntou antes e o teste respondeu Close: "${respondeu}"`
+      break
+    }
+    await esperar(1000)
+  }
   const limite = Date.now() + prazoMs
   while (orca.processo.exitCode === null && Date.now() < limite) {
     await esperar(250)
