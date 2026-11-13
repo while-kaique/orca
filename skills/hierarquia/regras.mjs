@@ -159,6 +159,12 @@ export function montarEstado(eventos) {
         ordem.situacao = 'parou'
         ordem.motivoDaParada = ev.motivo
         ordem.paradaAutomatica = Boolean(ev.automatico)
+        ordem.paradaEm = ev.t
+        break
+      case 'conversa_perdida_avisada':
+        if (ordem) {
+          ordem.conversaAvisada = { sessao: ev.sessao ?? null, t: ev.t }
+        }
         break
       case 'chat_encerrado':
         if (estado.chats[ev.chatId]) {

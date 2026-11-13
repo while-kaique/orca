@@ -10,6 +10,8 @@ import {
 import { acharProjeto, anotar, caminhos, lerEventos, sair } from './registro.mjs'
 import { montarEstado } from './regras.mjs'
 import { garantirVigia } from './vigia-do-criador.mjs'
+import { tratarEscondidos } from './chats-escondidos.mjs'
+import { AVISO_DE_CONVERSA_PERDIDA_ATE_MS } from './conversa-perdida.mjs'
 
 /**
  * `hierarquia retomar`: o Orca do fork roda isto ao abrir. Em todo projeto da maquina, liga o vigia de cada chat
@@ -18,8 +20,18 @@ import { garantirVigia } from './vigia-do-criador.mjs'
 export async function comandoRetomar(script) {
   const abas = await abasGuardadas()
   const projetos = projetosDaMaquina([...(abas?.values() ?? [])].map((aba) => aba.pasta))
+  // Chats que rodavam escondidos e o Orca encerrou ao reabrir: as ordens deles param (o vigia avisa quem criou).
+  await tratarEscondidos(projetos).catch(() => null)
   for (const projeto of projetos) {
     const estado = montarEstado(lerEventos(projeto))
+    // Chat perdido ainda sem aviso: o vigia de quem criou avisa; criador que sumiu passa a vez ao PO (herdeiro).
+    const perdidas = Object.values(estado.ordens).filter(
+      (ordem) =>
+        ordem.situacao === 'parou' &&
+        ordem.paradaAutomatica &&
+        !ordem.conversaAvisada &&
+        Date.now() - Date.parse(ordem.paradaEm ?? 0) < AVISO_DE_CONVERSA_PERDIDA_ATE_MS
+    )
     const donos = new Set([
       ...Object.values(estado.ordens)
         .filter((ordem) =>
@@ -31,7 +43,9 @@ export async function comandoRetomar(script) {
         .map((chat) => chat.pai ?? chat.id),
       ...Object.values(estado.guardados).map(
         (aviso) => estado.chats[aviso.chatId]?.pai ?? aviso.chatId
-      )
+      ),
+      ...perdidas.map((ordem) => ordem.de),
+      ...(perdidas.length > 0 && estado.po ? [estado.po] : [])
     ])
     for (const dono of donos) {
       if (estado.chats[dono]?.ativo && abas?.has(dono)) {

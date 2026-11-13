@@ -8,6 +8,11 @@ import { esperar, orcaEmSegundoPlano } from './orca-lancador.mjs'
 import { abasGuardadas } from './abas-do-orca.mjs'
 import { retomarUmCortado } from './volta-dos-cortados.mjs'
 import { ordensComComandoPreso, TEXTO_DO_COMANDO_PRESO } from './comando-preso.mjs'
+import {
+  acharConversa,
+  ordensComConversaPerdida,
+  textoDaConversaPerdida
+} from './conversa-perdida.mjs'
 import { estadosDosAgentes } from './porta-do-orca.mjs'
 import {
   chatsSemVida,
@@ -113,6 +118,43 @@ export function marcarChatsMortos(estado, terminais, anotar, abas = null) {
     marcados.push(morto)
   }
   return marcados
+}
+
+/**
+ * Chat perdido (o-043): ordem que parou sozinha porque o chat sumiu (a aba nao voltou). Quem criou (ou o PO herdeiro)
+ * recebe uma vez o aviso com o comando para retomar a conversa. Sem a sessao do Orca (`abas` null) nao afirma nada.
+ */
+async function avisarConversasPerdidas(
+  projeto,
+  eu,
+  estado,
+  terminais,
+  abas,
+  anotar,
+  handleDoCriador,
+  log
+) {
+  if (!abas) {
+    return
+  }
+  const vidas = new Map(
+    Object.values(estado.chats).map((chat) => [chat.id, vidaDoChat(chat, terminais, abas)])
+  )
+  for (const ordem of ordensComConversaPerdida(estado, eu, vidas)) {
+    const conversa = acharConversa({
+      pasta: ordem.pasta,
+      dispatchId: ordem.dispatchId,
+      desdeMs: Date.parse(ordem.lancadoEm ?? 0)
+    })
+    anotar('conversa_perdida_avisada', { ordemId: ordem.id, sessao: conversa?.sessao ?? null })
+    const chegou = await avisarChat(
+      projeto,
+      eu,
+      handleDoCriador,
+      textoDaConversaPerdida(ordem, conversa)
+    )
+    log(`conversa perdida ${ordem.id}: ${conversa?.sessao ?? 'sem conversa achada'} (${chegou})`)
+  }
 }
 
 /** A tela de cada chat na conferencia anterior, sem digitos (o relogio do Claude muda sozinho). */
@@ -391,6 +433,16 @@ export async function vigiar({
           )
         }
         await avisarComandosPresos(projeto, eu, lerEstado(), terminais, abas, anotar, handle(), log)
+        await avisarConversasPerdidas(
+          projeto,
+          eu,
+          lerEstado(),
+          terminais,
+          abas,
+          anotar,
+          handle(),
+          log
+        )
         await retomarUmCortado(projeto, eu, log)
         const filhos = Object.values(lerEstado().ordens)
           .filter((ordem) => ordem.de === eu && ordem.chatId)

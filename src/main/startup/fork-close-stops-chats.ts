@@ -4,6 +4,9 @@ import { execFile, spawn } from 'node:child_process'
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { app, dialog, type BrowserWindow } from 'electron'
+import { getDaemonProvider, listLiveDaemonSessions } from '../daemon/daemon-provider-state'
+import { endHiddenSessions } from './fork-hidden-chat-sessions'
+import { mainProcessState } from './main-process-state'
 
 const PORTA_PRAZO_MS = 25_000
 const CORTE_PRAZO_MS = 10_000
@@ -278,7 +281,23 @@ export function scheduleForkVolta(): void {
     return
   }
   void app.whenReady().then(() => {
-    const timer = setTimeout(() => {
+    const openedAtMs = Date.now()
+    const timer = setTimeout(async () => {
+      // Chats a crash left running without a tab are ended first; `retomar` then warns their creators.
+      try {
+        const sessions = await listLiveDaemonSessions()
+        const provider = getDaemonProvider()
+        if (sessions && provider) {
+          await endHiddenSessions({
+            sessions,
+            session: mainProcessState.store?.getWorkspaceSession(),
+            orcaOpenedAtMs: openedAtMs,
+            shutdown: (sessionId) => provider.shutdown(sessionId, { immediate: true })
+          })
+        }
+      } catch {
+        // Without the sweep, hidden chats keep running until the next close by X ends the whole tree.
+      }
       try {
         const filho = spawn(process.execPath, [script, 'retomar'], {
           detached: true,
