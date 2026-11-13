@@ -124,9 +124,8 @@ const ordem = (n, titulo) => {
   return arquivo
 }
 
-// Criterio 16, 13, 15 (o-041) na versao enxuta da o-043: tres lancamentos de chat TESTE (haiku), um por vez.
-// No maximo 3 Claude vivos: o 1 trabalhando + chat livre em B + o 2 nascendo (o pior caso que cabe); depois o 1, o
-// livre e o 2 fecham e o 3 sai sozinho.
+// Criterio 16, 13, 15 (o-041) na versao enxuta da o-043: tres lancamentos de chat TESTE (haiku), UM chat de teste
+// vivo por vez (decisao do PO): cada um e fechado antes do proximo.
 const lancados = []
 const teto = vigiarTeto(() => [orca.pid], dizer)
 const contar = (quando) => {
@@ -136,34 +135,9 @@ const contar = (quando) => {
   )
 }
 contar('antes dos lancamentos')
-let livreT = null
 for (let n = 1; n <= 3; n++) {
   const t0 = Date.now()
-  if (n === 2) {
-    // Criterio 2 (outro projeto) e 7: chat livre trabalhando em B, junto com o 1 trabalhando em A e o 2 nascendo.
-    const livre = orcaTeste([
-      'terminal',
-      'create',
-      '--worktree',
-      `path:${B}`,
-      '--title',
-      'TESTE porta: chat livre trabalhando',
-      '--command',
-      'claude --model haiku --dangerously-skip-permissions'
-    ])
-    livreT = livre.result?.terminal ?? livre.result
-    await esperar(60_000)
-    orcaTeste([
-      'terminal',
-      'send',
-      '--terminal',
-      livreT.handle,
-      '--text',
-      '"Use a ferramenta Bash em primeiro plano (timeout 600000) e rode: sleep 400"',
-      '--enter'
-    ])
-    await esperar(30_000)
-  }
+  const id = `o-${String(n).padStart(3, '0')}`
   const filho = spawn(
     process.execPath,
     [
@@ -186,23 +160,11 @@ for (let n = 1; n <= 3; n++) {
     passo('02-porta-com-ordem-nascendo', hierarquia(poA, A, ['porta']))
     passo('02-liberar-com-ordem-nascendo', hierarquia(poA, A, ['porta', '--liberar']))
   }
-  if (n === 2) {
-    // Pior caso que cabe no teto de 3: o PO de B pergunta com o 1 trabalhando, o livre trabalhando e o 2 nascendo.
-    await esperar(20_000)
-    contar('pior caso (1 trabalhando, livre trabalhando, 2 nascendo)')
-    passo('04-porta-do-projeto-B', hierarquia(poB, B, ['porta']))
-    passo('04-estado-do-projeto-A', hierarquia(poA, A, ['estado']))
-    await orca.page.setViewportSize({ width: 1500, height: 950 }).catch(() => null)
-    await orca.page
-      .screenshot({ path: path.join(saida, '04-orca-de-teste-durante-lancamento.png') })
-      .catch(() => null)
-  }
   await new Promise((pronto) => filho.on('exit', pronto))
   guardar(`03-lancamento-${n}.txt`, texto)
   dizer(
     `lancamento ${n}: ${((Date.now() - t0) / 1000).toFixed(0)} s | ${texto.trim().split('\n').pop()}`
   )
-  const id = `o-${String(n).padStart(3, '0')}`
   const eventos = readFileSync(path.join(A, '.hierarquia', 'registro.jsonl'), 'utf8')
     .split('\n')
     .filter(Boolean)
@@ -213,14 +175,24 @@ for (let n = 1; n <= 3; n++) {
     `  ${id} chat_iniciou: ${iniciou ? `enviadaPeloComando=${iniciou.enviadaPeloComando}` : 'NAO'}; modelo ${lancado?.modelo}`
   )
   lancados.push(id)
+  await esperar(30_000)
+  contar(`com o chat de teste ${n} trabalhando`)
   // Tela do chat: a ordem chegou e nenhum "You have N messages" escapou.
-  await esperar(20_000)
   const tela = lancado ? (ler(lancado.handle)?.tail ?? []).join('\n') : ''
   guardar(`03-tela-chat-${n}.txt`, tela)
   const telaPo = (ler(poA.handle)?.tail ?? []).join('\n')
   dizer(
     `  tela do chat ${n}: "You have" no chat=${/You have \d+/u.test(tela)}; no PO=${/You have \d+/u.test(telaPo)}`
   )
+  if (n === 1) {
+    // Criterio 2 (outro projeto): o PO do projeto B pergunta com o chat de A trabalhando.
+    passo('04-porta-do-projeto-B', hierarquia(poB, B, ['porta']))
+    passo('04-estado-do-projeto-A', hierarquia(poA, A, ['estado']))
+    await orca.page.setViewportSize({ width: 1500, height: 950 }).catch(() => null)
+    await orca.page
+      .screenshot({ path: path.join(saida, '04-orca-de-teste-com-chat-de-teste.png') })
+      .catch(() => null)
+  }
   if (n === 3 && lancado) {
     // Criterio 8: um chat que ja e executor (de teste) nao vira PO de nenhum projeto.
     passo(
@@ -228,18 +200,10 @@ for (let n = 1; n <= 3; n++) {
       hierarquia({ tabId: lancado.chatId, handle: lancado.handle }, B, ['criar-po', '--projeto', B])
     )
   }
-  if (n === 2) {
-    // Fecha o 1, o 2 e o livre antes do 3: nunca mais de 3 Claude vivos.
-    passo('04-fechar-1-e-2', hierarquia(poA, A, ['fechar', '--ordem', 'o-001']))
-    passo('04-fechar-2', hierarquia(poA, A, ['fechar', '--ordem', 'o-002']))
-    orcaTeste(['terminal', 'close', '--terminal', livreT.handle])
-    await esperar(15_000)
-    contar('depois de fechar o 1, o 2 e o livre')
-  }
+  passo(`04-fechar-${id}`, hierarquia(poA, A, ['fechar', '--ordem', id]))
+  await esperar(15_000)
+  contar(`depois de fechar o chat de teste ${n}`)
 }
-passo('04-fechar-3', hierarquia(poA, A, ['fechar', '--ordem', 'o-003']))
-await esperar(15_000)
-contar('depois dos 3 lancamentos, chats de teste fechados')
 
 // Criterio 12: o PO A e so um shell (Claude fechado): fechar o pedido nao digita nada nele; o aviso fica guardado.
 for (const id of lancados) {
