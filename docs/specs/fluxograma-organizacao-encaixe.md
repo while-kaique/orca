@@ -17,19 +17,25 @@ de 12/11 ("deixa tudo parado pra eu apertar o botão mesmo").
 
 ## 2. A regra nova do lugar (encaixe)
 
-1. **Forma real de cada projeto:** o contorno é uma pilha de retângulos, um por fileira (livres + selos em cima,
-   cabeçalho, PO, planejadores, executores), cada um cobrindo só o que é desenhado na fileira e o vão de linhas
-   acima dela no mesmo intervalo de largura. Não é mais a caixa retangular do projeto inteiro.
-2. **Encaixe:** os projetos são postos um a um no quadro; cada um cai na posição da grade em que não encosta em
-   nada já posto (folga mínima de 104 unidades na horizontal e 80 na vertical entre formas de projetos
-   diferentes) e que deixa o card maior na tela. Assim um projeto pode entrar por baixo ou ao lado de outro,
-   dentro da caixa retangular dele (o social-hub sob o Astra no print a mão).
+1. **Forma real de cada projeto:** o contorno é o que é desenhado: por fileira, uma faixa com os cards e os selos
+   dela e, acima, uma faixa fina só onde passam as linhas (do centro do card de cima aos centros dos de baixo);
+   livres + selos em cima, cabeçalho. Não é mais a caixa retangular do projeto inteiro (o-042).
+2. **Encaixe:** os projetos são postos um a um no quadro; cada um cai na posição em que não encosta em nada já
+   posto e que deixa o card maior na tela. Assim um projeto pode entrar por baixo ou ao lado de outro, dentro
+   da caixa retangular dele (o social-hub sob o Astra no print a mão).
+   2a. **Margem entre projetos (complemento do Kaique de 13/11 e resposta p-009 do PO):** a distância entre projetos
+   vizinhos é **52 unidades** (o mesmo vão entre dois cards de uma fileira), **igual em todo lugar**: nenhum
+   projeto fica a mais de 52 do vizinho mais próximo e nada de um projeto (card, linha, selo, texto) chega a
+   menos de 52 de outro. No fim da busca, cada projeto que ficou longe desliza até ficar a 52 de um vizinho, sem
+   diminuir o card (pode deixar no máximo um card a mais de vazio: a margem igual vem primeiro). A vistoria mede
+   e reprova vão fora de 52 ± 4 (tipo j).
 3. **Busca:** testa toda ordem de projetos até 6 projetos; acima disso, busca em feixe a partir das ordens
    "mais alto primeiro" e "mais largo primeiro". Ganha a arrumação com o maior card na tela (zoom em que tudo
    cabe no quadro, no máximo 1:1); empate (menos de 0,5%): cabeçalhos da mesma faixa na mesma altura, depois a
    menor área, depois a ordem da barra lateral. Tempo: 8 projetos e 40 chats em menos de 200 ms.
-4. **Grade:** todo card começa num múltiplo de 196 unidades (meia coluna; coluna = 340 + 52) contado da mesma
-   origem para todos os projetos. Cabeçalhos de projetos na mesma faixa ficam na mesma altura. PO centrado sob
+4. **Grade:** dentro de cada projeto, todo card começa num múltiplo de 196 unidades (meia coluna; coluna =
+   340 + 52) contado do chat mais à esquerda dele. Entre projetos vale a margem de 52, não a grade (p-009: a
+   grade única entre projetos era critério do PO; a margem pequena é pedido do Kaique). Cabeçalhos de projetos na mesma faixa ficam na mesma altura. PO centrado sob
    o cabeçalho do projeto dele (já é a regra da árvore).
 5. **Zoom final:** depois do Reorganizar o zoom ajusta ao que é **desenhado** (contorno real, selos e chips
    incluídos), descontando a barra de legenda e os botões de baixo, com folga de 32 px de tela em cada lado; o
@@ -91,7 +97,9 @@ lista do que achou, ou saída 0 com "zero achado". Mede, no programa de verdade 
    PO e livre);
 8. números do Reorganizar: largura do card do PO em px, margem vazia de cada lado em px, maior buraco entre
    projetos;
-9. (tipo i, o-042) executor ou planejador ligado direto ao projeto.
+9. (tipo i, o-042) executor ou planejador ligado direto ao projeto;
+10. (tipo j, o-042) margem entre projetos vizinhos fora de 52 ± 4 (encosta, passa por cima ou fica longe); o tipo 6
+    (grade) passa a valer por projeto.
 
 Obrigatória antes de qualquer entrega que toque o fluxograma (escrito no `AGENTS.md` e no `ONDE-PARAMOS.md`).
 

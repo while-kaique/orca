@@ -62,7 +62,8 @@ const NOME_DO_TIPO = {
   e: 'e) selo longe do card',
   f: 'f) card fora da grade de 196',
   g: 'g) chat a mais de 3 colunas do dono',
-  i: 'i) executor ou planejador ligado direto ao projeto'
+  i: 'i) executor ou planejador ligado direto ao projeto',
+  j: 'j) margem entre projetos vizinhos fora de 52 +/- 4 (encosta, por cima ou longe)'
 }
 
 const pedirPagina = async (page, chave, arquivo) => {
@@ -237,6 +238,14 @@ try {
     await modulo?.depoisDoReorganizar?.(page, { lerTela: () => lerTela(page), dizer })
     await esperarAssentar(page, 800)
     const depois = await medir('depois do Reorganizar', 'reorganizado', true)
+    const vaos = passadas.at(-1).vaos
+    if (vaos.length > 0) {
+      const emPx = (d) => Math.round(d * depois.escala * 10) / 10
+      const distancias = vaos.map((v) => v.distancia)
+      dizer(
+        `vao entre projetos vizinhos: menor ${Math.min(...distancias).toFixed(1)} unidades (${emPx(Math.min(...distancias))} px), maior ${Math.max(...distancias).toFixed(1)} unidades (${emPx(Math.max(...distancias))} px); por projeto ${JSON.stringify(Object.fromEntries(vaos.map((v) => [v.projeto, Math.round(v.distancia * 10) / 10])))}`
+      )
+    }
     dizer(
       `numeros do Reorganizar: card do PO ${JSON.stringify(depois.numeros.larguraDoPoEmPx)} px de largura; margens vazias ${JSON.stringify(depois.numeros.margensEmPx)} px; maior buraco entre projetos ${depois.numeros.maiorBuracoEntreProjetosEmPx} px`
     )

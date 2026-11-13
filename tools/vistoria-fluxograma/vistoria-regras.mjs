@@ -10,7 +10,9 @@ export const LIMITES = {
   seloAteOCard: 16,
   colunasAteODono: 3,
   folgaDoTexto: 0.75,
-  volta: 12
+  volta: 12,
+  margemEntreProjetos: 52,
+  folgaDaMargem: 4
 }
 
 const arredondar = (n) => Math.round(n)
@@ -116,6 +118,93 @@ function pontasDaSeta(linha, cardsPorChave, guardadas) {
     }
   }
   return melhor ? { de: melhor.de, para: melhor.para } : null
+}
+
+const cruzam = ([ax, ay], [bx, by], [cx, cy], [dx, dy]) => {
+  const lado = (px, py, qx, qy, rx, ry) => Math.sign((qx - px) * (ry - py) - (qy - py) * (rx - px))
+  return (
+    lado(ax, ay, bx, by, cx, cy) * lado(ax, ay, bx, by, dx, dy) < 0 &&
+    lado(cx, cy, dx, dy, ax, ay) * lado(cx, cy, dx, dy, bx, by) < 0
+  )
+}
+
+/** Menor distancia entre duas pecas desenhadas: caixa ({x,y,w,h}) ou trecho de linha ([p, q]). */
+function distanciaEntrePecas(a, b) {
+  if (!Array.isArray(a) && !Array.isArray(b)) {
+    return distanciaEntreCaixas(a, b)
+  }
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (cruzam(a[0], a[1], b[0], b[1])) {
+      return 0
+    }
+    return Math.min(
+      distanciaAoSegmento(a[0], b[0], b[1]),
+      distanciaAoSegmento(a[1], b[0], b[1]),
+      distanciaAoSegmento(b[0], a[0], a[1]),
+      distanciaAoSegmento(b[1], a[0], a[1])
+    )
+  }
+  const [trecho, caixa] = Array.isArray(a) ? [a, b] : [b, a]
+  const bordas = cantos(caixa)
+  if (trecho.some((p) => dentroDoPoligono(p, bordas))) {
+    return 0
+  }
+  let melhor = Math.min(...trecho.map((p) => distanciaACaixa(p, caixa)))
+  for (let i = 0; i < 4; i++) {
+    const [p, q] = [bordas[i], bordas[(i + 1) % 4]]
+    if (cruzam(trecho[0], trecho[1], p, q)) {
+      return 0
+    }
+    melhor = Math.min(melhor, distanciaAoSegmento(p, trecho[0], trecho[1]))
+  }
+  return melhor
+}
+
+const pontoDaPeca = (peca) =>
+  Array.isArray(peca) ? peca[0] : [peca.x + peca.w / 2, peca.y + peca.h / 2]
+
+/** Para cada projeto, o vizinho mais perto e a distancia de tudo o que ele desenha ate tudo o que o vizinho desenha. */
+export function vaosEntreProjetos(fatos, ligacoes) {
+  const cardsPorChave = new Map(fatos.cards.map((card) => [card.chave, card]))
+  const pecas = new Map()
+  const juntar = (projeto, peca) => {
+    if (projeto) {
+      pecas.set(projeto, [...(pecas.get(projeto) ?? []), peca])
+    }
+  }
+  for (const card of fatos.cards) {
+    juntar(card.projeto, card.caixa)
+  }
+  for (const selo of fatos.selos) {
+    juntar(cardsPorChave.get(selo.dono)?.projeto, selo.caixa)
+  }
+  for (const { linha, de, para } of ligacoes) {
+    if (linha.tipo === 'seta') {
+      continue
+    }
+    const projeto = de?.projeto ?? para?.projeto
+    for (let i = 1; i < linha.pontos.length; i++) {
+      juntar(projeto, [linha.pontos[i - 1], linha.pontos[i]])
+    }
+  }
+  const nomes = [...pecas.keys()]
+  if (nomes.length < 2) {
+    return []
+  }
+  return nomes.map((projeto) => {
+    let melhor = { distancia: Infinity, vizinho: null, ponto: null }
+    for (const outro of nomes.filter((n) => n !== projeto)) {
+      for (const a of pecas.get(projeto)) {
+        for (const b of pecas.get(outro)) {
+          const distancia = distanciaEntrePecas(a, b)
+          if (distancia < melhor.distancia) {
+            melhor = { distancia, vizinho: outro, ponto: pontoDaPeca(a) }
+          }
+        }
+      }
+    }
+    return { projeto, ...melhor }
+  })
 }
 
 export function analisar(fatos, { depoisDoReorganizar }) {
@@ -315,23 +404,53 @@ export function analisar(fatos, { depoisDoReorganizar }) {
     }
   }
 
-  // f) grade de 196 contada da mesma origem (so depois do Reorganizar).
-  let origemDaGrade = null
-  if (depoisDoReorganizar && cards.length > 0) {
-    origemDaGrade = Math.min(...cards.map((card) => lugarDoCard(card).x))
-    for (const card of cards) {
-      const resto =
-        (((lugarDoCard(card).x - origemDaGrade) % MEIA_COLUNA) + MEIA_COLUNA) % MEIA_COLUNA
-      const desvio = Math.min(resto, MEIA_COLUNA - resto)
-      if (desvio > 1.5) {
-        achar(
-          'f',
-          'card fora da grade de 196',
-          card.rotulo,
-          [lugarDoCard(card).x, card.caixa.y],
-          `a ${desvio.toFixed(1)} unidades da linha da grade (origem x=${arredondar(origemDaGrade)})`
-        )
+  // f) grade de 196 dentro de cada projeto, contada do chat mais a esquerda dele (so depois do Reorganizar). Entre
+  // projetos vale a margem (tipo j). O cabecalho fica fora: ele e centrado no PO.
+  const origemDaGrade = {}
+  if (depoisDoReorganizar) {
+    const chatsPorProjeto = new Map()
+    for (const card of cards.filter((c) => c.tipo === 'chat')) {
+      chatsPorProjeto.set(card.projeto, [...(chatsPorProjeto.get(card.projeto) ?? []), card])
+    }
+    for (const [projeto, doProjeto] of chatsPorProjeto) {
+      const origem = Math.min(...doProjeto.map((card) => lugarDoCard(card).x))
+      origemDaGrade[projeto] = arredondar(origem)
+      for (const card of doProjeto) {
+        const resto = (((lugarDoCard(card).x - origem) % MEIA_COLUNA) + MEIA_COLUNA) % MEIA_COLUNA
+        const desvio = Math.min(resto, MEIA_COLUNA - resto)
+        if (desvio > 1.5) {
+          achar(
+            'f',
+            'card fora da grade de 196',
+            card.rotulo,
+            [lugarDoCard(card).x, card.caixa.y],
+            `a ${desvio.toFixed(1)} unidades da linha da grade do projeto (origem x=${arredondar(origem)})`
+          )
+        }
       }
+    }
+  }
+
+  // j) margem entre projetos vizinhos (so depois do Reorganizar): de tudo o que um projeto desenha (cards, selos, linhas)
+  // ate o mais perto de outro projeto. Menos que a margem (encosta ou passa por cima) ou mais (longe do vizinho) reprova.
+  const vaos = depoisDoReorganizar ? vaosEntreProjetos(fatos, ligacoes) : []
+  for (const vao of vaos) {
+    if (vao.distancia < LIMITES.margemEntreProjetos - LIMITES.folgaDaMargem) {
+      achar(
+        'j',
+        vao.distancia <= 0 ? 'projeto por cima de outro' : 'projeto encostando em outro',
+        `projeto "${vao.projeto}"`,
+        vao.ponto,
+        `${vao.distancia.toFixed(1)} unidades de "${vao.vizinho}" (margem ${LIMITES.margemEntreProjetos} +/- ${LIMITES.folgaDaMargem})`
+      )
+    } else if (vao.distancia > LIMITES.margemEntreProjetos + LIMITES.folgaDaMargem) {
+      achar(
+        'j',
+        'projeto longe do vizinho',
+        `projeto "${vao.projeto}"`,
+        vao.ponto,
+        `vizinho mais perto ("${vao.vizinho}") a ${vao.distancia.toFixed(1)} unidades (margem ${LIMITES.margemEntreProjetos} +/- ${LIMITES.folgaDaMargem})`
+      )
     }
   }
 
@@ -371,5 +490,5 @@ export function analisar(fatos, { depoisDoReorganizar }) {
     }
   }
 
-  return { achados, origemDaGrade }
+  return { achados, origemDaGrade, vaos }
 }

@@ -13,16 +13,17 @@ Saída 2 = a vistoria não conseguiu rodar (erro escrito na última linha).
 real (`preparar-estado.py`), tira o print do fluxograma **como está** e **depois de clicar no Reorganizar**, lê da
 tela a posição de cada card, o contorno desenhado (hexágono incluso), cada texto, selo, linha e seta, e mede:
 
-| Tipo | O que reprova                                                                                                                                                                                    |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| a    | linha de árvore que passa por dentro de card, corre colada (menos de 24 unidades por 40 ou mais) em volta de card que não é ponta dela, ou contorna card (sai para fora do caminho reto e volta) |
-| b    | ponta de linha ou de seta a mais de 4 unidades do contorno **desenhado** do card (hexágono, card fino)                                                                                           |
-| c    | texto cortado (reticências ou maior que a caixa dele) ou com a caixa fora da borda do card                                                                                                       |
-| d    | card sobre card                                                                                                                                                                                  |
-| e    | selo (anexos) a mais de 16 unidades do card dono                                                                                                                                                 |
-| f    | card fora da grade de 196 unidades (origem = card mais à esquerda; só depois do Reorganizar)                                                                                                     |
-| g    | chat a mais de 3 colunas (392 cada, borda a borda) do dono: o criador, ou o projeto (PO e livre)                                                                                                 |
-| i    | executor ou planejador ligado direto ao projeto (só pode estar ligado a um chat; criador fechado = fica sob o chat vivo mais próximo)                                                            |
+| Tipo | O que reprova                                                                                                                                                                                                                                                   |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| a    | linha de árvore que passa por dentro de card, corre colada (menos de 24 unidades por 40 ou mais) em volta de card que não é ponta dela, ou contorna card (sai para fora do caminho reto e volta)                                                                |
+| b    | ponta de linha ou de seta a mais de 4 unidades do contorno **desenhado** do card (hexágono, card fino)                                                                                                                                                          |
+| c    | texto cortado (reticências ou maior que a caixa dele) ou com a caixa fora da borda do card                                                                                                                                                                      |
+| d    | card sobre card                                                                                                                                                                                                                                                 |
+| e    | selo (anexos) a mais de 16 unidades do card dono                                                                                                                                                                                                                |
+| f    | card fora da grade de 196 unidades **dentro do projeto** (origem = chat mais à esquerda do projeto; só depois do Reorganizar)                                                                                                                                   |
+| g    | chat a mais de 3 colunas (392 cada, borda a borda) do dono: o criador, ou o projeto (PO e livre)                                                                                                                                                                |
+| i    | executor ou planejador ligado direto ao projeto (só pode estar ligado a um chat; criador fechado = fica sob o chat vivo mais próximo)                                                                                                                           |
+| j    | margem entre projetos vizinhos fora de 52 ± 4 unidades: de tudo o que um projeto desenha (cards, selos, linhas) até o mais perto de outro; menos = encosta ou por cima, mais = longe do vizinho (só depois do Reorganizar). Imprime o menor e o maior vão em px |
 
 Também imprime os números do Reorganizar: largura do card do PO em px de tela, margem vazia de cada lado em px e
 o maior buraco entre projetos. Esses números não reprovam; servem para comparar antes e depois.
