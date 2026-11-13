@@ -18,6 +18,8 @@ da o-041 em `provas/o-041/`), pasta principal, fora do git. Entrega e tabela cri
   LIGADO" já antes de o vigia passar; caso real do reinício de 13/11 14:04 refeito numa cópia do registro).
 - **Comando preso**: chat com um comando de shell rodando há 15 min sem nada novo gera **um** aviso para quem criou e a
   coluna "COMANDO PRESO?" no `estado`; a ordem segue trabalhando (caso real da o-042, 41 min num `python` com heredoc).
+- **Chats esperando o Kaique confirmar o fechamento**: topo do `estado` com cada chat de pedido entregue (ou parado com o
+  criador caído) ainda aberto, o que ele fez e a frase que o PO repete em toda mensagem; some quando a aba fecha.
 - **Aviso só com o Claude aberto**: texto que a hierarquia digitaria num shell sem Claude fica guardado e chega depois.
 - **Chat de teste oficial**: `hierarquia ordem --teste --para executor`, título "TESTE ...", haiku, vaga própria.
 

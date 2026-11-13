@@ -12,6 +12,7 @@ import {
 } from './regras.mjs'
 import { marcarChatsMortos } from './vigia-do-criador.mjs'
 import { ordensComComandoPreso } from './comando-preso.mjs'
+import { chatsEsperandoFechar, linhasEsperandoFechar } from './esperando-fechar.mjs'
 import { estadosDosAgentes, olharPorta } from './porta-do-orca.mjs'
 
 /** `hierarquia estado`: marca os chats mortos, regrava a foto e escreve o estado com a vida de cada chat. */
@@ -37,11 +38,25 @@ export async function comandoEstado(projeto, op) {
     const vida = Object.fromEntries(vidas)
     const comandosPresos = Object.fromEntries(presos)
     console.log(
-      JSON.stringify({ estado, vida, fila: filaDoKaique(estado), porta, comandosPresos }, null, 2)
+      JSON.stringify(
+        {
+          estado,
+          vida,
+          fila: filaDoKaique(estado),
+          porta,
+          comandosPresos,
+          esperandoFechar: chatsEsperandoFechar(estado, vidas)
+        },
+        null,
+        2
+      )
     )
     return
   }
   console.log(linhaDaPorta(porta))
+  for (const linha of linhasEsperandoFechar(chatsEsperandoFechar(estado, vidas))) {
+    console.log(linha)
+  }
   imprimirEstado(projeto, estado, filaDoKaique(estado), vidas, presos)
 }
 

@@ -324,6 +324,9 @@ junta branches de executores. Você olha o resultado, e para cada ponto que não
   fechar, ou você fecha?". Vale também para chat parado sem dono (o criador caiu). Nunca escreva
   "próxima ação: nenhuma" com um chat esperando a resposta dele. Em 13/11 o PO citou o chat da o-035
   "esperando você confirmar" em quatro mensagens e fechou todas com "nenhuma ação sua".
+  **A trava está no comando** (o-043): enquanto houver chat assim, o topo de `hierarquia estado` mostra
+  "ESPERANDO O KAIQUE CONFIRMAR O FECHAMENTO", com cada chat, o que ele fez e a frase pronta para
+  repetir. A linha some quando a aba do chat fecha.
 - **Não serve:** `hierarquia conferir --reprovar --motivo "..."`. O motivo diz o que faltou em relação
   ao produto, não como consertar.
 - **Segunda reprovação da mesma entrega:** o caso sobe para você decidir. Refaça a ordem, troque

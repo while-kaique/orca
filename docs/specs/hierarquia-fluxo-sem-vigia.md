@@ -178,3 +178,8 @@ Teto por máquina (vários projetos); aviso ao Kaique quando tudo para.
   plano em no máximo 10 min; passou disso com 5 min de folga, o próprio limite falhou. Comando em segundo plano
   devolve na hora e não conta; subagente (ferramenta Agent) também não. A regra antiga de "20 min sem nada na tela"
   (que dava falso parado) não volta: aqui ninguém é dado como parado.
+- **Chats esperando o Kaique confirmar o fechamento** (complemento 2 da o-043, regra do Kaique de 13/11). O topo de
+  `hierarquia estado` mostra "ESPERANDO O KAIQUE CONFIRMAR O FECHAMENTO": cada chat de pedido entregue com a aba ainda
+  aberta e cada chat parado cujo criador caiu (aba do criador fechada), com o id da ordem, o que fez e a frase pronta
+  que o PO repete em toda mensagem. Aberto = a aba existe, mesmo que o registro já dê o chat como encerrado. A linha
+  some quando a aba fecha.
