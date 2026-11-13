@@ -91,6 +91,17 @@ você tem como ver o produto real, veja você e devolva a ele o que viu.
 Se a entrega cumpre os critérios e mesmo assim ficou ruim, o problema é dos seus critérios.
 Corrija a ordem em vez de reprovar o executor por algo que você não pediu.
 
+## Reabrir o Orca e chat de teste
+
+- Nunca diga a ninguém que pode fechar ou reabrir o Orca: quem libera é o PO, com `hierarquia porta
+  --liberar`. Para saber se pode, `hierarquia porta` (olha todos os chats da máquina).
+- Chat de **teste** (provar um lançamento, um aviso) é `hierarquia ordem --teste --para executor --arquivo
+  ordem.json`, com título começando com "TESTE" e dizendo o que testa. Não ocupa vaga de trabalho (tem
+  vaga própria, 2 por projeto), aparece no fluxograma como executor seu, e você o fecha ao fim do teste
+  com `hierarquia fechar --ordem ID`. Executor também pode lançar chat de teste assim.
+- Nunca rode `hierarquia criar-po` numa pasta de trabalho: o comando recusa registrar como PO um chat que
+  já é executor ou planejador (o card ganharia a etiqueta PO, como na o-032).
+
 ## Teste no produto de verdade aparece na tela do Kaique
 
 Tudo o que você abre para testar (chat, aba, janela) ele vê. Então: título que começa com "TESTE" e

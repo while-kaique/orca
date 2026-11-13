@@ -1,0 +1,309 @@
+// Orca de teste da hierarquia: abre escondido, com perfil e pastas proprias, e deixa fechar pelo X, reabrir e
+// contar processos sem tocar no Orca em uso. Usado pelos roteiros desta pasta (o-041).
+import { execFileSync, spawn } from 'node:child_process'
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs'
+import { createRequire } from 'node:module'
+import os from 'node:os'
+import path from 'node:path'
+import { chromium } from 'playwright-core'
+
+const require = createRequire(import.meta.url)
+export const RAIZ = path.resolve(import.meta.dirname, '..', '..')
+export const MUNDO = path.join(process.env.TEMP ?? os.tmpdir(), 'orca-de-teste-hierarquia', 'mundo')
+export const PERFIL = path.join(MUNDO, 'perfil')
+export const PROJETOS = path.join(MUNDO, 'projetos')
+/** O comando do Orca de teste: o `orca-dev` da maquina fixa o perfil do Orca em uso, este fixa o do mundo. */
+export const CLI_DO_MUNDO = path.join(MUNDO, 'orca-teste.cmd')
+
+export const esperar = (ms) => new Promise((pronto) => setTimeout(pronto, ms))
+
+const powershell = (comando) =>
+  execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', comando], {
+    encoding: 'utf8',
+    windowsHide: true,
+    maxBuffer: 64 * 1024 * 1024
+  })
+
+function git(pasta, ...args) {
+  execFileSync(
+    'git',
+    ['-c', 'user.name=teste', '-c', 'user.email=teste@example.invalid', ...args],
+    {
+      cwd: pasta,
+      stdio: 'ignore',
+      windowsHide: true
+    }
+  )
+}
+
+/** Projeto de teste: repositorio git com `.hierarquia/` vazio; os chats nascem na propria pasta (sem copia de trabalho). */
+export function criarProjeto(nome) {
+  const pasta = path.join(PROJETOS, nome)
+  mkdirSync(path.join(pasta, '.hierarquia', 'ordens'), { recursive: true })
+  if (!existsSync(path.join(pasta, '.git'))) {
+    git(pasta, 'init', '-q')
+    writeFileSync(path.join(pasta, 'LEIAME.txt'), `projeto de teste ${nome}\n`)
+    writeFileSync(path.join(pasta, '.gitignore'), '.hierarquia/\n')
+    git(pasta, 'add', '.')
+    git(pasta, 'commit', '-q', '-m', 'teste')
+  }
+  writeFileSync(path.join(pasta, '.hierarquia', 'registro.jsonl'), '')
+  writeFileSync(
+    path.join(pasta, '.hierarquia', 'config.json'),
+    JSON.stringify({ pastaDosChats: 'projeto' })
+  )
+  return pasta
+}
+
+/** Copia o estado guardado do Orca em uso (so leitura) para o mundo e cria o comando do Orca de teste. */
+export function montarMundo() {
+  execFileSync(
+    'python',
+    [path.join(RAIZ, 'tools', 'vistoria-fluxograma', 'preparar-estado.py'), MUNDO],
+    { encoding: 'utf8', windowsHide: true }
+  )
+  const cli = path.join(RAIZ, 'out', 'cli', 'index.js')
+  writeFileSync(
+    CLI_DO_MUNDO,
+    [
+      '@echo off',
+      'setlocal',
+      `set "ORCA_USER_DATA_PATH=${PERFIL}"`,
+      'set NODE_OPTIONS=',
+      'set ELECTRON_RUN_AS_NODE=1',
+      `"${require('electron')}" "${cli}" %*`,
+      ''
+    ].join('\r\n')
+  )
+  return MUNDO
+}
+
+/** O ambiente de um comando que fala com o Orca de teste (orca e hierarquia), nunca com o em uso. */
+export function ambienteDoMundo(extra = {}) {
+  return {
+    ...process.env,
+    HIERARQUIA_ORCA: CLI_DO_MUNDO,
+    HIERARQUIA_ORCA_DADOS: PERFIL,
+    HIERARQUIA_VEZ: path.join(MUNDO, 'vez'),
+    HIERARQUIA_INDICE: path.join(MUNDO, 'projetos-da-hierarquia.json'),
+    ...extra
+  }
+}
+
+export function orcaTeste(args, { tempo = 240_000 } = {}) {
+  let saida
+  try {
+    saida = execFileSync(CLI_DO_MUNDO, [...args, '--json'], {
+      encoding: 'utf8',
+      shell: true,
+      windowsHide: true,
+      timeout: tempo,
+      maxBuffer: 64 * 1024 * 1024
+    })
+  } catch (erro) {
+    saida = String(erro.stdout ?? '')
+    if (!saida.includes('{')) {
+      throw erro
+    }
+  }
+  return JSON.parse(saida.slice(saida.indexOf('{')))
+}
+
+/** Todos os processos da maquina: pid, pai, nome, linha de comando. */
+export function processos() {
+  const saida = powershell(
+    'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId)`t$($_.ParentProcessId)`t$($_.Name)`t$($_.CreationDate.ToString(\'o\'))`t$($_.CommandLine)" }'
+  )
+  return saida
+    .split(/\r?\n/u)
+    .filter(Boolean)
+    .map((linha) => {
+      const [pid, pai, nome, criado, ...resto] = linha.split('\t')
+      return { pid: Number(pid), pai: Number(pai), nome, criado, comando: resto.join('\t') }
+    })
+}
+
+/** Descendentes de `raizes` pelo processo pai (pai precisa ter nascido antes do filho: pid reaproveitado nao conta). */
+export function arvore(lista, raizes) {
+  const porPid = new Map(lista.map((p) => [p.pid, p]))
+  const dentro = new Set(raizes.filter((pid) => porPid.has(pid)))
+  let mudou = true
+  while (mudou) {
+    mudou = false
+    for (const p of lista) {
+      const pai = porPid.get(p.pai)
+      if (!dentro.has(p.pid) && dentro.has(p.pai) && pai && pai.criado <= p.criado) {
+        dentro.add(p.pid)
+        mudou = true
+      }
+    }
+  }
+  return lista.filter((p) => dentro.has(p.pid))
+}
+
+/** O pid do processo que guarda os terminais do Orca de teste (o daemon), lido do arquivo dele. */
+export function pidDoGuardaTerminais() {
+  const pasta = path.join(PERFIL, 'daemon')
+  if (!existsSync(pasta)) {
+    return []
+  }
+  return readdirSync(pasta)
+    .filter((nome) => nome.endsWith('.pid'))
+    .map((nome) => {
+      try {
+        return JSON.parse(readFileSync(path.join(pasta, nome), 'utf8')).pid
+      } catch {
+        return null
+      }
+    })
+    .filter(Boolean)
+}
+
+/** Processos do mundo: a arvore do Orca de teste e do guarda-terminais, mais tudo que cita a pasta do mundo. */
+export function processosDoMundo(raizes = []) {
+  const lista = processos()
+  const alvo = path.resolve(MUNDO).replaceAll('\\', '/').toLowerCase()
+  const citam = lista
+    .filter(
+      (p) =>
+        p.pid !== process.pid &&
+        p.comando.replaceAll('\\', '/').toLowerCase().includes(alvo) &&
+        !/Get-CimInstance/u.test(p.comando)
+    )
+    .map((p) => p.pid)
+  return arvore(lista, [...raizes, ...pidDoGuardaTerminais(), ...citam]).filter(
+    (p) => p.pid !== process.pid && !/Get-CimInstance/u.test(p.comando)
+  )
+}
+
+export function confiarNoMundo() {
+  const arquivo = path.join(os.homedir(), '.claude.json')
+  const config = JSON.parse(readFileSync(arquivo, 'utf8'))
+  const raiz = path.resolve(MUNDO).replaceAll('\\', '/')
+  config.projects ??= {}
+  for (const pasta of [raiz, ...readdirSync(PROJETOS).map((n) => `${raiz}/projetos/${n}`)]) {
+    config.projects[pasta] = { ...config.projects[pasta], hasTrustDialogAccepted: true }
+  }
+  writeFileSync(arquivo, JSON.stringify(config, null, 2))
+}
+
+export function desconfiarDoMundo() {
+  const arquivo = path.join(os.homedir(), '.claude.json')
+  const config = JSON.parse(readFileSync(arquivo, 'utf8'))
+  const raiz = path.resolve(MUNDO).replaceAll('\\', '/')
+  for (const pasta of Object.keys(config.projects ?? {})) {
+    if (pasta.startsWith(raiz)) {
+      delete config.projects[pasta]
+    }
+  }
+  writeFileSync(arquivo, JSON.stringify(config, null, 2))
+}
+
+/**
+ * Abre o Orca montado em RAIZ/out, escondido, com o perfil do mundo. `extraEnv` liga opcoes do fork.
+ * Devolve { page, pid, porta, browser }.
+ */
+export async function abrirOrca({ extraEnv = {}, log = console.log } = {}) {
+  const porta = 9860 + Math.floor(Math.random() * 100)
+  const env = { ...process.env }
+  for (const nome of Object.keys(env)) {
+    if (/^(ORCA_|CLAUDE|AI_AGENT|HIERARQUIA_)/u.test(nome)) {
+      delete env[nome]
+    }
+  }
+  delete env.ELECTRON_RUN_AS_NODE
+  Object.assign(env, {
+    ORCA_BACKGROUND_LAUNCH: '1',
+    ORCA_DEV_USER_DATA_PATH: PERFIL,
+    ORCA_DEV_INSTANCE_KEY: 'orca-de-teste-hierarquia',
+    ORCA_CLOUD_API_URL: 'http://127.0.0.1:9',
+    ...extraEnv
+  })
+  mkdirSync(path.join(MUNDO, 'logs'), { recursive: true })
+  const log1 = openSync(path.join(MUNDO, 'logs', 'orca.log'), 'a')
+  // A marca com a pasta do mundo na linha de comando: a limpeza acha so este Orca, nunca o de outra ferramenta.
+  const filho = spawn(
+    require('electron'),
+    ['.', `--remote-debugging-port=${porta}`, `--mundo-de-teste=${MUNDO}`],
+    { cwd: RAIZ, env, windowsHide: true, stdio: ['ignore', log1, log1] }
+  )
+  closeSync(log1)
+  const limite = Date.now() + 180_000
+  for (;;) {
+    if (filho.exitCode !== null) {
+      throw new Error(`O Orca de teste saiu antes de abrir (codigo ${filho.exitCode}).`)
+    }
+    try {
+      if ((await fetch(`http://127.0.0.1:${porta}/json/version`)).ok) {
+        break
+      }
+    } catch {
+      // subindo
+    }
+    if (Date.now() > limite) {
+      throw new Error('O Orca de teste nao abriu em 3 min.')
+    }
+    await esperar(500)
+  }
+  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${porta}`)
+  let page
+  while (!page) {
+    page = browser
+      .contexts()[0]
+      ?.pages()
+      .find((p) => !p.url().startsWith('devtools'))
+    if (!page) {
+      await esperar(300)
+    }
+  }
+  // A montagem do fork nao expoe o __store: basta a lista de projetos desenhada.
+  await page.waitForFunction(() => (document.body?.innerText ?? '').includes('Projetos'), null, {
+    timeout: 180_000
+  })
+  log(`Orca de teste aberto (pid ${filho.pid}, porta ${porta})`)
+  return { page, pid: filho.pid, porta, browser, processo: filho }
+}
+
+/** Fecha a janela como o X do canto (o mesmo caminho do `close` da janela) e espera o programa sair. */
+export async function fecharPeloX(orca, { prazoMs = 60_000 } = {}) {
+  await orca.page.evaluate(() => window.close()).catch(() => null)
+  const limite = Date.now() + prazoMs
+  while (orca.processo.exitCode === null && Date.now() < limite) {
+    await esperar(250)
+  }
+  await orca.browser.close().catch(() => null)
+  return orca.processo.exitCode !== null
+}
+
+/** Mata so os processos do mundo (Orca de teste, guarda-terminais e chats dele) e confere. */
+export async function encerrarMundo(raizes = []) {
+  for (let rodada = 0; rodada < 10; rodada++) {
+    const vivos = processosDoMundo(raizes)
+    if (vivos.length === 0) {
+      return []
+    }
+    try {
+      execFileSync('taskkill', ['/F', '/T', ...vivos.flatMap(({ pid }) => ['/PID', String(pid)])], {
+        stdio: 'ignore',
+        windowsHide: true
+      })
+    } catch {
+      // alguns ja sairam
+    }
+    await esperar(800)
+  }
+  return processosDoMundo(raizes)
+}
+
+export function apagarMundo() {
+  rmSync(MUNDO, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 })
+}

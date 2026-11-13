@@ -1,6 +1,6 @@
 // Destrava a ordem cujo chat nasceu sem começar (texto parado na caixa, ou comando que morreu). Chamado pelo vigia do criador.
 import { criarVigia } from './inicio-do-turno.mjs'
-import { escreverNoChat } from './orca-lancador.mjs'
+import { avisarChat } from './avisos-guardados.mjs'
 import { pedidoParaOrca } from './pedido-da-ordem.mjs'
 import { anotar, lerEventos } from './registro.mjs'
 import { montarEstado, ordensSemInicio } from './regras.mjs'
@@ -38,7 +38,9 @@ export async function destravarInicios(projeto, eu, log) {
       vigia.registrar(notar)
     } else {
       vigia.registrar(notar, { desistiu: true })
-      void escreverNoChat(
+      await avisarChat(
+        projeto,
+        eu,
         estado.chats[eu]?.handle ?? process.env.ORCA_TERMINAL_HANDLE,
         `ORDEM ${ordem.id}: ${vigia.resumo()}`
       )

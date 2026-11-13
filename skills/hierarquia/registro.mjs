@@ -1,6 +1,7 @@
 // O registro do projeto (`.hierarquia/registro.jsonl`) e a foto que o fluxograma lê. Usado pelo comando `hierarquia`.
 import { execFileSync } from 'node:child_process'
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { filaDoKaique, montarEstado } from './regras.mjs'
 
@@ -69,11 +70,40 @@ export function lerEventos(projeto) {
     .map((linha) => JSON.parse(linha))
 }
 
+/** Lista de projetos com hierarquia nesta máquina: a porta de reabrir o Orca olha todos. */
+export function arquivoDoIndice() {
+  return process.env.HIERARQUIA_INDICE ?? join(homedir(), '.hierarquia-projetos.json')
+}
+
+export function lembrarProjeto(projeto) {
+  const arquivo = arquivoDoIndice()
+  let lista = []
+  try {
+    lista = JSON.parse(readFileSync(arquivo, 'utf8'))
+  } catch {
+    // Índice ainda não existe.
+  }
+  const certo = resolve(projeto)
+  if (!lista.some((item) => resolve(item).toLowerCase() === certo.toLowerCase())) {
+    try {
+      writeFileSync(arquivo, JSON.stringify([...lista, certo], null, 2), 'utf8')
+    } catch {
+      // Sem o índice a porta ainda acha o projeto pelas abas do Orca.
+    }
+  }
+}
+
 export function anotar(projeto, tipo, dados) {
   const evento = { t: new Date().toISOString(), tipo, ...dados }
   appendFileSync(caminhos(projeto).registro, `${JSON.stringify(evento)}\n`, 'utf8')
   gravarFoto(projeto)
+  lembrarProjeto(projeto)
   return evento
+}
+
+function chatCortado(estado, ordem) {
+  const chat = ordem.chatId ? estado.chats[ordem.chatId] : null
+  return Boolean(ordem.situacao === 'trabalhando' && chat?.cortadoEm && !chat.retomadoEm)
 }
 
 /** `estado.json`: a foto do momento que o fluxograma lê, sempre derivada do registro. */
@@ -87,7 +117,9 @@ export function gravarFoto(projeto) {
         de: ordem.de,
         papel: ordem.papel,
         chatId: ordem.chatId,
-        situacao: ordem.situacao,
+        // Chat cortado que ainda nao voltou aparece "na fila" no card, nunca "trabalhando" (o-041 parte 4).
+        situacao: chatCortado(estado, ordem) ? 'em_espera' : ordem.situacao,
+        ...(chatCortado(estado, ordem) ? { cortado: true } : {}),
         reprovacoes: ordem.reprovacoes,
         titulo: ordem.campos.titulo ?? ordem.campos.objetivo,
         inicio: ordem.inicio

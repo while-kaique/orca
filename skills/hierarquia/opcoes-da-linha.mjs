@@ -14,6 +14,11 @@ export function opcoes(argv) {
         '--teste',
         '--terminados',
         '--json',
+        '--liberar',
+        '--rapido',
+        '--atalho',
+        '--registrar-corte',
+        '--cancelar',
         '--help'
       ].includes(item)
     ) {

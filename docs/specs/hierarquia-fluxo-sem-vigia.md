@@ -139,3 +139,30 @@ medido o pico de `pnpm tc` dentro de um chat). Saída em `.hierarquia/provas/o-0
 ## Fora do escopo
 
 Teto por máquina (vários projetos); aviso ao Kaique quando tudo para.
+
+## Fechar e reabrir o Orca (ordem o-041, 13/11/2026)
+
+- **A porta.** `hierarquia porta` responde se pode fechar ou reabrir o Orca agora, olhando a máquina inteira: todo
+  projeto com `.hierarquia/` (índice `~/.hierarquia-projetos.json`, mais as pastas das abas do Orca) e todo chat,
+  inclusive livre (o estado que o Orca grava em `agent-hooks/*/last-status.json`). Não pode com chat trabalhando ou
+  ordem lançada há menos de 10 min (o Orca leva minutos para ligar o chat nesta máquina). `--liberar` abre a
+  liberação (`~/.hierarquia-liberacao.json`): até o Orca reabrir, ou 30 min, `hierarquia ordem` recusa ordem nova.
+  `--cancelar` desfaz. A primeira linha de `hierarquia estado` diz "Pode reabrir o Orca: sim/nao".
+- **O X.** No Orca do fork (opção `ORCA_FORK_FECHAR_PARA_CHATS=1`, ligada pelo `abrir-orca-montado.bat`), X, Alt+F4,
+  Sair e bandeja passam pela porta (`--rapido`, sem chamar o Orca): com chat trabalhando, pergunta "Fechar e parar
+  todos / Cancelar". Desligar o Windows não pergunta. Fechou: o guarda de terminais para e a árvore dele (claude,
+  claude.exe.old, node, python, shells) é morta pelo processo pai, conferindo pid e hora de nascimento. Queda do
+  programa (sem X) não passa por aí: os chats seguem vivos, como antes.
+- **O atalho.** Orca aberto: só traz a janela. Orca fechado com o guarda de terminais vivo e chat trabalhando: mostra
+  a lista e pergunta se abre. Senão abre direto.
+- **A volta.** O X anota `chat_cortado` para cada chat da hierarquia que trabalhava; chat sem terminal por 2 min com a
+  aba ainda guardada também vira cortado (antes virava "parou"). O vigia (que agora espera o Orca voltar, até 2 h) e
+  o `hierarquia retomar` (o Orca do fork roda 45 s depois de abrir) entregam ao chat, só com o Claude aberto, o
+  aviso para conferir e continuar, um por vez, e contam a quem criou. Até lá o card mostra "na fila". Chat livre
+  cortado não recebe nada: volta dormindo e retoma a conversa ao ser aberto.
+- **Aviso só com o Claude aberto.** Todo texto que o comando digita num chat confere antes a caixa do Claude na tela;
+  sem ela, vira `aviso_guardado` e é entregue quando o Claude volta (ou sai na tela do próximo comando do chat).
+- **Vigia com código novo.** A cada 30 s o vigia compara a data e o tamanho dos `.mjs`; mudou, passa ao vigia novo
+  as mensagens vistas e os pedidos já avisados e sai.
+- **Chat de teste oficial.** `hierarquia ordem --teste --para executor` (título "TESTE …"): vaga própria (2 por
+  projeto), não disputa com trabalho; qualquer papel lança. `criar-po` recusa chat que já é executor ou planejador.

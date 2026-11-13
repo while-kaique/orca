@@ -23,6 +23,9 @@ do território que ela deu, e entrega com prova. Você não precisa saber o rest
    montado para o print ajuda a ver o desenho, mas não prova que funciona. Se você não tem como ver
    o produto real, **pergunte a quem criou você** (`hierarquia perguntar`) em vez de entregar só o
    cenário, e escreva na entrega o que ficou sem provar.
+   **Precisa de um chat de teste** (provar um lançamento, um aviso)? `hierarquia ordem --teste --para
+   executor --arquivo ordem.json`, título começando com "TESTE": não ocupa vaga de trabalho e aparece
+   como chat seu; feche-o ao fim com `hierarquia fechar --ordem ID`. Nunca `hierarquia criar-po`.
    **Mudou algo na tela?** Além do caso normal, tire o print do pior caso: o texto mais comprido, o
    número mais alto e todos os enfeites juntos. Nada pode sair da borda, cobrir outra coisa ou sumir.
 4. Entregue com `hierarquia entregar`, apontando a prova. O comando recusa entrega sem prova.
