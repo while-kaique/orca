@@ -25,6 +25,40 @@ a partir da pasta principal; o código é o mesmo, a falha estava em `chatsSemVi
 tela há 20 min" saiu) e `hierarquia estado` não marca mais ninguém. Ordem parada pelo sistema volta a aceitar `hierarquia
 entregar`. **O vigia que já está rodando só pega isto depois de reiniciado.**
 
+## 13/11/2026 (ordem o-037, parte B da o-034) — vistoria do fluxograma + desenho de linha, seta, texto e selo
+
+**Estado:** código e ferramenta na branch `while-kaique/feat-ordem-o-037` (não enviada; quem junta é o PO). Provas:
+`.hierarquia/provas/o-034/executor-b/` (pasta principal, fora do git). O lugar dos cards é da parte A (outro executor).
+
+**Vistoria obrigatória (trava de defeito visual):** antes de entregar qualquer mudança que toque o fluxograma, rodar
+`node tools/vistoria-fluxograma/vistoria.mjs` e só entregar com `zero achado` (saída 0). Ela abre o Orca de teste
+escondido sobre uma cópia do estado real, tira o print como está e depois do Reorganizar, lê as posições da tela e
+mede: a) linha por dentro, colada ou contornando card; b) ponta de linha ou seta fora do contorno desenhado (4
+unidades); c) texto cortado ou fora da borda; d) card sobre card; e) selo longe do dono (16); f) card fora da grade
+de 196; g) chat a mais de 3 colunas do dono; h) números do Reorganizar (largura do PO em px, margens, maior buraco).
+Guia completo e opções (`--app`, `--posicoes`, `--cordas`, `--cenario`, `--zoom`, `--janela`): `tools/vistoria-fluxograma/LEIAME.md`.
+
+**O que mudou no desenho:**
+
+- Executores do PO anterior: chat cujo criador era um PO que não está aberto fica pendurado no PO ativo aberto do
+  projeto (ou no PO que está nascendo, "Abrindo o PO"), com linha reta; a linha do projeto não contorna mais o PO novo
+  (`canvas-chat-hierarchy.ts`).
+- Chat lançado pela hierarquia não passa mais por "Livre". Causa: a aba abre primeiro, o comando grava o registro
+  (`chat_lancado`) um instante depois e a tela só relia o registro a cada 3 s; até lá o chat era desenhado como
+  Livre, em cima do projeto (medido: o rótulo certo só chegou 2,4 s depois do registro gravado). Agora a tela relê
+  a cada 0,4 s por até 12 s quando surge aba nova (medido: 218 ms) e, nesse intervalo, uma aba nova feita por um
+  chat da hierarquia (agente, ou pasta de trabalho filha da pasta do criador) já nasce embaixo dele, sem etiqueta.
+  Passado o prazo sem registro, é chat livre mesmo (`canvas-chat-hierarchy.ts`).
+- Setas manuais: as pontas usam o contorno desenhado (hexágono, card fino) e são recalculadas das posições
+  desenhadas a cada mudança; com um dos cards fechado a seta some; seta guardada de antes abre grudada.
+- Textos: nome do executor, do planejador, título do PO e nome do projeto quebram e diminuem a letra para caber
+  (`canvas-chat-fit-text.ts`); o card do projeto tem a altura que as linhas esperam (116), antes 107 e a linha
+  começava 8,8 unidades fora do card.
+
+**Aberto (fora do meu território):** o nome do executor é cortado em 24 letras por `executorTitle`
+(`canvas-chat-executor-name.ts`, "Organizador de Fluxogram" do print é isso, não CSS); o selo solto do print não
+tem causa achada no código (a vistoria agora trava qualquer selo a mais de 16 unidades do card).
+
 ## 12/11/2026 (noite, ordem o-032) — `hierarquia ordem` insiste até o chat começar
 
 **Estado:** código e papéis na branch `kaiquebreno-ggp/feat-o-032-executor` (não enviada; quem junta é o PO).

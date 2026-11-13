@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { translate } from '@/i18n/i18n'
-import type { CanvasBox } from './canvas-chats-layout'
+import { chatVisualBox } from './canvas-chat-shape'
+import type { CanvasBox, CanvasProject } from './canvas-chats-layout'
 import {
   addCanvasCord,
   cordPath,
@@ -14,11 +15,13 @@ type LinkDrag = { from: string; point: { x: number; y: number }; target: string 
 
 /** Fork: hand-drawn cords — pull from a card edge, snap blue on a valid chat, X in the middle cuts. */
 export function useCanvasCordLayer({
-  boxes,
+  boxes: slots,
+  projects,
   view,
   rootRef
 }: {
   boxes: Readonly<Record<string, CanvasBox>>
+  projects: readonly CanvasProject[]
   view: { x: number; y: number; s: number }
   rootRef: React.RefObject<HTMLDivElement | null>
 }): {
@@ -28,6 +31,14 @@ export function useCanvasCordLayer({
   cutButton: React.JSX.Element | null
 } {
   const cords = useCanvasCords()
+  // A cord touches what is drawn (hexagon, slim card), worked out again from the drawn places on every change.
+  const boxes: Record<string, CanvasBox> = { ...slots }
+  for (const chat of projects.flatMap((project) => project.chats)) {
+    const slot = slots[chat.key]
+    if (slot) {
+      boxes[chat.key] = chatVisualBox(chat, slot)
+    }
+  }
   const [linkDrag, setLinkDrag] = useState<LinkDrag | null>(null)
   const [hoverCord, setHoverCord] = useState<string | null>(null)
   const cutTimerRef = useRef(0)

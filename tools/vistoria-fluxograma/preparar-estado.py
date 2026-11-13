@@ -1,7 +1,7 @@
 """Monta o "mundo de teste" da vistoria da juncao: copia do estado guardado do Orca em uso, com as pastas
 trocadas por pastas de teste. O Orca de teste nunca enxerga (nem escreve em) a pasta de verdade.
 
-O que copia (sempre so leitura no Orca em uso): o banco de estado do perfil, o indice de perfis, o
+O que copia (sempre so leitura no Orca em uso): o banco de estado do perfil, o log da hierarquia, o indice de perfis, o
 armazenamento local (posicoes arrastadas dos cards) e o ultimo estado dos agentes. O que troca: todo
 caminho sob Desktop\\Projetos e sob orca\\workspaces vira um caminho dentro do mundo de teste, e cada
 projeto que tem chat ganha ali um repositorio git vazio (mais as copias de trabalho dos chats) com a
@@ -129,6 +129,14 @@ def main():
                 conteudo = arquivo.read()
             with open(os.path.join(pasta, ".hierarquia", "estado.json"), "w", encoding="utf-8") as arquivo:
                 arquivo.write(trocar_caminhos(conteudo, mundo))
+        # O comando `hierarquia` refaz o estado a partir do log: sem ele, abrir um PO de teste apagaria os chats antigos.
+        for nome in ("registro.jsonl", "config.json"):
+            origem_arquivo = os.path.join(repo["path"], ".hierarquia", nome)
+            if os.path.exists(origem_arquivo):
+                with open(origem_arquivo, encoding="utf-8") as arquivo:
+                    conteudo = arquivo.read()
+                with open(os.path.join(pasta, ".hierarquia", nome), "w", encoding="utf-8") as arquivo:
+                    arquivo.write(trocar_caminhos(conteudo, mundo))
         for pasta_id in abas:
             if pasta_id.partition("::")[0] != repo["id"]:
                 continue

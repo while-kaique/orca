@@ -40,8 +40,14 @@ export function orderStateLabel(state: CanvasHierarchyOrderState): string {
   }
 }
 
-/** PO, planner or executor beside the chat's name; a chat outside the hierarchy reads 'Livre'. */
-export function CanvasChatRole({ chat }: { chat: CanvasChat }): React.JSX.Element {
+/**
+ * PO, planner or executor beside the chat's name; a chat outside the hierarchy reads 'Livre'. A chat the hierarchy
+ * just launched, whose record is not written yet, has no label for those moments: it is not free.
+ */
+export function CanvasChatRole({ chat }: { chat: CanvasChat }): React.JSX.Element | null {
+  if (!chat.hierarchy && chat.launching) {
+    return null
+  }
   return chat.hierarchy ? (
     <span className="cc-role" data-role={chat.hierarchy.role}>
       {roleLabel(chat.hierarchy.role)}

@@ -33,4 +33,49 @@ describe('linkProjectChats', () => {
     )
     expect(chats.map((c) => c.hierarchy?.role ?? 'livre')).toEqual(['po', 'executor'])
   })
+
+  it('hangs the chats of a closed PO under the open active PO, or under the PO being launched', () => {
+    const registry = {
+      folder: 'C:/p/orca',
+      chats: {
+        'po-antigo': { papel: 'po', pai: null, ativo: true },
+        'po-novo': { papel: 'po', pai: null, ativo: true },
+        exec: { papel: 'executor', pai: 'po-antigo', ativo: true }
+      },
+      ordens: {},
+      fila: []
+    } as unknown as CanvasHierarchySnapshot
+    const withOpenPo = [chat('po-novo'), chat('exec')]
+    linkProjectChats(withOpenPo, new Map(), [registry], ['C:/p/orca'])
+    expect(withOpenPo[1].parentKey).toBe('po-novo')
+
+    const launching = { ...chat('abrindo'), launching: true } as CanvasChat
+    const whileLaunching = [launching, chat('exec')]
+    linkProjectChats(whileLaunching, new Map(), [registry], ['C:/p/orca'])
+    expect(whileLaunching[1].parentKey).toBe('abrindo')
+  })
+
+  it('holds a new tab made by a hierarchy chat under it until its record arrives, and no longer than that', () => {
+    const lineage = new Map([['w-filho', 'w-main']])
+    const build = (): { po: CanvasChat; child: CanvasChat } => ({
+      po: { ...chat('po'), worktreeId: 'w-main' } as CanvasChat,
+      child: { ...chat('filho'), worktreeId: 'w-filho' } as CanvasChat
+    })
+    const registry = [snapshot('C:/p/orca', 'po', 'po')]
+
+    const waiting = build()
+    linkProjectChats(
+      [waiting.po, waiting.child],
+      new Map(),
+      registry,
+      ['C:/p/orca'],
+      lineage,
+      new Set(['filho'])
+    )
+    expect([waiting.child.parentKey, waiting.child.launching]).toEqual(['po', true])
+
+    const settled = build()
+    linkProjectChats([settled.po, settled.child], new Map(), registry, ['C:/p/orca'], lineage)
+    expect([settled.child.parentKey, settled.child.launching ?? false]).toEqual([null, false])
+  })
 })

@@ -1,4 +1,76 @@
-# Vistoria da junção do fluxograma
+# Vistoria do fluxograma (trava de defeito visual)
+
+**Obrigatória antes de qualquer entrega que toque o fluxograma.** Um comando só:
+
+```
+node tools/vistoria-fluxograma/vistoria.mjs
+```
+
+Termina com **saída 0 e `RESULTADO: zero achado`**, ou **saída 1 e a lista do que achou** (tipo, card, coordenada).
+Saída 2 = a vistoria não conseguiu rodar (erro escrito na última linha).
+
+**O que faz:** monta a branch (pela vez da máquina), abre o Orca de teste **escondido** com uma cópia do estado
+real (`preparar-estado.py`), tira o print do fluxograma **como está** e **depois de clicar no Reorganizar**, lê da
+tela a posição de cada card, o contorno desenhado (hexágono incluso), cada texto, selo, linha e seta, e mede:
+
+| Tipo | O que reprova                                                                                                                                                                                    |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| a    | linha de árvore que passa por dentro de card, corre colada (menos de 24 unidades por 40 ou mais) em volta de card que não é ponta dela, ou contorna card (sai para fora do caminho reto e volta) |
+| b    | ponta de linha ou de seta a mais de 4 unidades do contorno **desenhado** do card (hexágono, card fino)                                                                                           |
+| c    | texto cortado (reticências ou maior que a caixa dele) ou com a caixa fora da borda do card                                                                                                       |
+| d    | card sobre card                                                                                                                                                                                  |
+| e    | selo (anexos) a mais de 16 unidades do card dono                                                                                                                                                 |
+| f    | card fora da grade de 196 unidades (origem = card mais à esquerda; só depois do Reorganizar)                                                                                                     |
+| g    | chat a mais de 3 colunas (392 cada, borda a borda) do dono: o criador, ou o projeto (PO e livre)                                                                                                 |
+
+Também imprime os números do Reorganizar: largura do card do PO em px de tela, margem vazia de cada lado em px e
+o maior buraco entre projetos. Esses números não reprovam; servem para comparar antes e depois.
+
+**Fora da conta (de propósito):** o texto de resumo do chat (último pedido, manchete) é resumido de propósito e
+fica de fora do "texto cortado". Setas manuais só entram no tipo b: o caminho delas é livre e pode cruzar card.
+
+| Opção                     | Para quê                                                                                                             |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `--sem-montar`            | usa o `out/` que já está montado (só se a branch não mudou desde a última montagem)                                  |
+| `--app PASTA`             | abre o app montado em outra pasta (precisa de `package.json` e `out/`); serve para rodar a vistoria no código antigo |
+| `--saida PASTA`           | onde guardar prints, `*-fatos.json`, `achados.json` e `relato.txt` (padrão `.cache/vistoria-fluxograma/vistoria/`)   |
+| `--posicoes ARQUIVO.json` | cards arrastados (formato de `orca-fork.canvas-offsets`) para montar cenário de prova                                |
+| `--cordas ARQUIVO.json`   | setas guardadas (chave `orca-fork.canvas-cords`: `[{"a":"<id>","b":"<id>"}]`)                                        |
+| `--cenario ARQUIVO.mjs`   | módulo que monta um cenário de prova no app de teste (ver `cenarios-de-prova/`)                                      |
+| `--zoom 0.35,1`           | mede de novo em cada zoom listado, depois do Reorganizar                                                             |
+| `--manter`                | não apaga o mundo de teste no fim                                                                                    |
+
+**Onde sai o resultado:** `<saida>/como-esta.png`, `reorganizado.png`, `zoom-*.png`, os `*-fatos.json` (o que foi
+lido da tela), `achados.json` e `relato.txt`.
+
+**Quanto demora:** de 3 a 4 minutos com montagem (a montagem é quase tudo e espera a vez da máquina) e cerca de
+1 minuto com `--sem-montar`.
+
+**Cenários de prova (`cenarios-de-prova/`):** montam defeitos de propósito para provar que a vistoria pega cada
+tipo. Rodam só no Orca de teste (`--cenario ARQUIVO.mjs`):
+
+| Arquivo                          | O que monta                                                                                   |
+| -------------------------------- | --------------------------------------------------------------------------------------------- |
+| `print-do-kaique.mjs`            | o print de 13/11: PO anterior fechado, PO novo, setas manuais, nome comprido, selo solto      |
+| `seta-manual.mjs`                | seta entre dois cards (um hexágono) depois de Reorganizar, arrastar e chat novo; card fechado |
+| `chat-lancado-nasce.mjs`         | chat lançado pela hierarquia nascendo: linha do tempo do papel e do lado dele                 |
+| `c-texto-pior-caso.mjs`          | nomes e títulos compridos, modelo, aguardando equipe, 987k e selos em todo tipo de card       |
+| `a-card-no-caminho-da-linha.mjs` | tipo a (e d e g de tabela): card arrastado para o meio de uma linha                           |
+| `d-card-sobre-card.mjs`          | tipo d                                                                                        |
+| `f-fora-da-grade.mjs`            | tipo f: card puxado depois do Reorganizar                                                     |
+| `g-chat-longe-do-dono.mjs`       | tipo g                                                                                        |
+
+Um cenário exporta `default async (page, { lerTela, medir, recarregar, dizer, mundo, saida })`; pode exportar também
+`depoisDoReorganizar(page, ferramentas)` e `limpar()`. O cenário `c-texto-pior-caso` grava um transcrito de teste em
+`~/.claude/projects/TESTE-vistoria-fluxograma/` (o Orca só lê transcritos dali) e o apaga no fim.
+
+**Limites:** o Orca de teste roda escondido, e o Chromium freia os temporizadores de uma janela escondida: um tempo
+medido em segundos aqui (por exemplo, quanto o fluxograma demora para ler o registro) não vale como tempo real do Orca
+em uso. O que vale é a ordem dos fatos. O texto de resumo do chat fica fora do "texto cortado".
+
+---
+
+# Vistoria da junção do fluxograma (comando antigo, `vistoria-juncao.mjs`)
 
 **O que faz:** monta a branch atual, abre um Orca de teste **escondido** com uma cópia do estado guardado do
 Orca em uso, tira o print do fluxograma, confere se cada card está do lado certo (hierarquia embaixo do

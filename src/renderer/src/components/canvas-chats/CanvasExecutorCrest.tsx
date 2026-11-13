@@ -1,4 +1,6 @@
+import { useRef } from 'react'
 import type React from 'react'
+import { useFitText } from './canvas-chat-fit-text'
 import { CanvasChatContextMeter } from './CanvasChatContextMeter'
 import { CanvasChatModel, CanvasChatRole } from './CanvasChatHierarchyBadges'
 import type { CanvasChat } from './canvas-chats-layout'
@@ -26,6 +28,9 @@ export function CanvasExecutorCrest({
   chat: CanvasChat
   name: string
 }): React.JSX.Element {
+  const nameRef = useRef<HTMLElement>(null)
+  // Two lines inside the hexagon; smaller letters when a long word or a third line would not fit.
+  useFitText(nameRef, name, 2, '')
   return (
     // Drawn at full size and scaled as a whole, so text and meter shrink with the outline.
     <div
@@ -36,7 +41,7 @@ export function CanvasExecutorCrest({
         <polygon points={OUTLINE} />
       </svg>
       <CanvasChatRole chat={chat} />
-      <b>{name}</b>
+      <b ref={nameRef}>{name}</b>
       <CanvasChatModel chat={chat} />
       <CanvasChatContextMeter transcriptPath={chat.transcriptPath} />
     </div>
