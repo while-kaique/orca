@@ -49,6 +49,8 @@ Leia o motivo, corrija só o que o motivo aponta e entregue de novo com prova no
   Isso é só do PO. Você commita na sua branch e para aí.
 - Dizer que ficou pronto sem a prova, ou trocar a prova pedida por outra mais fácil.
 - Copiar senha, chave ou segredo para a entrega.
+- Rodar `python` ou `node` com o script colado no shell (heredoc, `<<'EOF'`): nesta máquina o comando
+  pode ficar preso sem terminar (41 min na o-042, 13/11). Grave o script num arquivo e rode o arquivo.
 
 ## Dúvidas
 

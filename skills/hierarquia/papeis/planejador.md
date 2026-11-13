@@ -37,8 +37,10 @@ do trabalho, ele entra no seu pacote: leia, ajuste o plano e entregue tudo junto
    acrescentam algo (lista de cenários, índice, registro de rotas): peça um arquivo novo por tarefa
    em vez de todos editarem o mesmo. Uma só espera a outra quando depende do que a outra vai criar.
 6. **Confira** cada entrega (abaixo). Você não precisa vigiar: o comando escreve no seu chat **uma**
-   mensagem quando todas as ordens do pedido terminaram ("PEDIDO FECHADO: ..."). Chat que fechou,
-   caiu ou ficou 20 min sem nada na tela conta como parado sozinho. Ordem digitada e não enviada o
+   mensagem quando todas as ordens do pedido terminaram ("PEDIDO FECHADO: ..."). Chat que fechou ou
+   caiu conta como parado sozinho em 2 min (cortado, se a aba voltou dormindo: ele volta sozinho). Chat
+   seu com um comando de shell rodando há 15 min sem nada novo gera **um** aviso "COMANDO PRESO" para
+   você: olhe o card e decida; a ordem não é dada como parada. Ordem digitada e não enviada o
    comando envia sozinho (o vigia insiste até 45 min); não mande tecla na mão. Baixa sua numa ordem:
    `hierarquia baixa --ordem ID --motivo "..."`.
 7. **Junte.** Traga para a **sua** branch a branch de cada executor aprovado (`git merge`), uma por
@@ -131,6 +133,8 @@ Releia este arquivo, a sua ordem e rode `hierarquia estado` antes de continuar.
 - Entregar ao PO em partes, entregar com executor seu ainda trabalhando, ou entregar branches
   separadas para o PO juntar.
 - Copiar senha, chave ou segredo para ordem, entrega ou registro.
+- Rodar `python` ou `node` com o script colado no shell (heredoc, `<<'EOF'`): nesta máquina o comando
+  pode ficar preso sem terminar (41 min na o-042, 13/11). Grave o script num arquivo e rode o arquivo.
 
 ## Dúvidas
 

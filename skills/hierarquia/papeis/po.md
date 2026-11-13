@@ -197,6 +197,10 @@ encheu o contexto 2 vezes: é esse erro que esta seção existe para impedir.
 2. **Uma pergunta** de um chat seu (`hierarquia perguntar`): ela chega escrita no seu chat. Responda
    com `hierarquia responder --pergunta p-NNN --texto "..."` e volte a dormir.
 3. **O Kaique** escrevendo para você.
+4. **Um aviso do sistema sobre um chat seu**, uma vez cada: "o chat foi cortado quando o Orca fechou"
+   (ele volta sozinho quando o Claude dele abrir) ou "COMANDO PRESO" (um comando de shell rodando há 15
+   min sem nada novo; a ordem segue trabalhando e ninguém mexeu no chat). No comando preso, olhe o card
+   e, se for o caso, interrompa o comando ou mande o dono do chat refazê-lo de outro jeito.
 
 **Enquanto dorme, você não:**
 
@@ -205,8 +209,9 @@ encheu o contexto 2 vezes: é esse erro que esta seção existe para impedir.
 - confere pedaço de um pedido: se o mesmo pedido tem dois donos (duas áreas) e um entrega antes do
   outro, anote e volte a dormir; a conferência do pedido é uma só, com tudo dele junto;
 - destrava chat na mão (mandar tecla, relançar). Chat travado é falha do comando: conte ao Kaique.
-  Chat que fechou, caiu ou ficou 20 min sem nada na tela passa a contar como parado sozinho e entra no
-  aviso do pedido; para dar baixa você mesmo numa ordem sua: `hierarquia baixa --ordem ID --motivo "..."`.
+  Chat que fechou ou caiu passa a contar como parado sozinho em 2 min e entra no aviso do pedido (se a
+  aba voltou dormindo depois de o Orca reabrir, ele conta como cortado e volta sozinho); o estado
+  nunca o mostra como trabalhando; para dar baixa você mesmo numa ordem sua: `hierarquia baixa --ordem ID --motivo "..."`.
 
 Se você se pegar fazendo qualquer uma dessas coisas, a organização dos chats está errada (faltou
 planejador dono da área, ou a ordem saiu incompleta). Corrija a organização, não vire vigia.
