@@ -467,20 +467,6 @@ test('ordem parada na caixa e enviada uma vez so; chat que ja trabalha nao receb
     decidirInicio(vigia, { atividade: 'working', onde: 'no_historico' }, 12000).acao,
     'comecou'
   )
-  // Chat novo que ja concluiu o turno comecou (tela velha); reaproveitado (correcao) ou com a ordem na caixa, nao.
-  const base = { naCaixaDesde: null, tentouEnviarEm: null, enviadaEm: null, comecouEm: null }
-  assert.equal(
-    decidirInicio({ ...base, chatNovo: true }, { atividade: 'done', onde: 'ausente' }, 1000).acao,
-    'comecou'
-  )
-  assert.equal(
-    decidirInicio({ ...base, chatNovo: false }, { atividade: 'done', onde: 'ausente' }, 1000).acao,
-    'esperar'
-  )
-  assert.equal(
-    decidirInicio({ ...base, chatNovo: true }, { atividade: 'done', onde: 'na_caixa' }, 1000).acao,
-    'esperar'
-  )
   const sozinho = { naCaixaDesde: null, tentouEnviarEm: null, enviadaEm: null, comecouEm: null }
   let carregada = sozinho
   const comFalhas = ['na_caixa', 'desconhecido', 'na_caixa'].map((onde, i) => {

@@ -600,10 +600,28 @@ export function ondeEstaOTexto(linhas, trecho) {
   return emUmaLinha(tela.slice(0, caixa)).includes(trecho) ? 'no_historico' : 'ausente'
 }
 
+/**
+ * Onde está a ordem. O `terminal read` do Orca tira da tela o texto digitado e ainda não enviado e o
+ * devolve à parte, em `rascunho`: a caixa aparece vazia e a ordem inteira está ali (o-033). Rascunho com
+ * o começo ou o fim da ordem, ou o marcador de texto colado que o Claude põe no lugar de texto longo,
+ * conta como ordem parada na caixa; a conversa tem prioridade.
+ */
+export function ondeEstaAOrdem(linhas, rascunho, trechos) {
+  const naTela = linhas ? ondeEstaOTexto(linhas, trechos[0]) : 'desconhecido'
+  const digitado = emUmaLinha([String(rascunho ?? '')]).trim()
+  const ordemNoRascunho =
+    trechos.some((t) => digitado.includes(t)) || digitado.startsWith(MARCA_DE_COLAGEM)
+  if (naTela !== 'no_historico' && digitado !== '' && ordemNoRascunho) {
+    return 'na_caixa'
+  }
+  return naTela
+}
+
 export const ESTABILIDADE_DA_CAIXA_MS = 4000
 /** Depois de enviar, o texto precisa continuar na caixa por este tempo para valer um novo envio (a tecla pode ter se perdido). */
 export const REENVIO_APOS_MS = 20000
-export const MAXIMO_DE_ENVIOS = 6
+/** Enquanto a ordem estiver parada, o Enter segue sendo reenviado (a cada REENVIO_APOS_MS); o prazo de 45 min do vigia é o freio. */
+export const MAXIMO_DE_ENVIOS = 60
 /** O comando que lancou o chat tem ate isto para confirmar o inicio; depois, quem insiste e o vigia do criador. */
 export const JANELA_DO_COMANDO_MS = 10 * 60 * 1000
 /** Quanto tempo o vigia do criador insiste num chat que nao comecou, a contar do lancamento. */
@@ -618,11 +636,10 @@ export function decidirInicio(vigia, visto, agora) {
   if (vigia.comecouEm) {
     return { acao: 'comecou', vigia }
   }
-  // Turno já concluído (a tela lida pode estar velha) vale como começou, mas só em chat novo e sem a ordem parada na caixa.
-  const concluido = vigia.chatNovo && visto.atividade === 'done' && visto.onde !== 'na_caixa'
-  if (visto.atividade === 'working' || visto.onde === 'no_historico' || concluido) {
-    const fonte =
-      visto.atividade === 'working' ? 'atividade' : concluido ? 'turno_concluido' : 'tela'
+  // Só prova positiva vale: trabalhando, ou a ordem já na conversa. 'done' não prova nada (o Orca o marca
+  // também em chat que nunca recebeu a ordem, como o da o-033).
+  if (visto.atividade === 'working' || visto.onde === 'no_historico') {
+    const fonte = visto.atividade === 'working' ? 'atividade' : 'tela'
     return { acao: 'comecou', vigia: { ...vigia, comecouEm: agora, fonte, onde: visto.onde } }
   }
   const proximo = { ...vigia, onde: visto.onde }

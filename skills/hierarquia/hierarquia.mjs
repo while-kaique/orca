@@ -33,11 +33,10 @@ import {
   pedidoDaCorrecao,
   pedidoParaOrca,
   textoDaOrdem,
-  tituloDaTarefa,
-  trechoDoPedido
+  tituloDaTarefa
 } from './pedido-da-ordem.mjs'
 import { criarVigia } from './inicio-do-turno.mjs'
-import { opcoes } from './opcoes-da-linha.mjs'
+import { lerLinhaDeComando } from './uso-dos-comandos.mjs'
 import { comandoEstado } from './estado-na-tela.mjs'
 import { fecharChats, ordensParaFechar } from './fechar-chats.mjs'
 import { foraDoGit, pastaDoGit } from './pasta-fora-do-git.mjs'
@@ -128,7 +127,7 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
       situacaoDoLancamento: situacao
     })
   // O registro nasce junto com a aba: o fluxograma só sabe o papel e o criador depois dele.
-  const vigia = criarVigia(trechoDoPedido(pedido))
+  const vigia = criarVigia(pedido)
   let abaVigiada = null
   const anotarInicio = (tipo, dados) =>
     anotar(projeto, tipo, { ordemId: ordem.id, chatId: abaVigiada, ...dados })
@@ -182,7 +181,12 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
     vigia.ligar(dados.dispatchId, handle, chatId)
     console.log(await vigia.fechar(anotarInicio))
   }
-  return { chatId, dispatchId: dados.dispatchId }
+  return {
+    chatId,
+    dispatchId: dados.dispatchId,
+    comecou: dados.state === 'ready' || vigia.comecou(),
+    motivoSemInicio: vigia.comecou() ? null : vigia.motivo()
+  }
 }
 
 const comandos = {
@@ -271,7 +275,7 @@ const comandos = {
       return
     }
     const novo = montarEstado(lerEventos(projeto))
-    const { chatId, dispatchId } = await lancar(
+    const { chatId, dispatchId, comecou, motivoSemInicio } = await lancar(
       projeto,
       novo,
       novo.ordens[ordemId],
@@ -279,7 +283,9 @@ const comandos = {
       decisao.fechar
     )
     console.log(
-      `Ordem ${ordemId} lançada: ${op.para} (${decisao.modelo}), chat ${chatId}, dispatch ${dispatchId}.`
+      comecou
+        ? `Ordem ${ordemId} lançada: ${op.para} (${decisao.modelo}), chat ${chatId}, dispatch ${dispatchId}.`
+        : `Ordem ${ordemId} criada no chat ${chatId} (${op.para}, ${decisao.modelo}, dispatch ${dispatchId}) mas AINDA NAO COMECOU: ${motivoSemInicio}.`
     )
   },
 
@@ -460,7 +466,7 @@ ${op.motivo}
     }
     console.log(`Ordem ${op.ordem} devolvida ao chat ${ordem.chatId} com o motivo.`)
     if (devolvida.state !== 'ready') {
-      const vigia = criarVigia(trechoDoPedido(pedido), { chatNovo: false })
+      const vigia = criarVigia(pedido)
       vigia.ligar(devolvida.dispatchId, handleDoChat, ordem.chatId)
       console.log(
         await vigia.fechar((tipo, dados) =>
@@ -619,21 +625,7 @@ async function lancarDaEspera(projeto, eu, log) {
   }
 }
 
-const [nome, ...argumentos] = process.argv.slice(2)
-if (!comandos[nome]) {
-  sair(`Uso: hierarquia <${Object.keys(comandos).join(' | ')}> [opções]`)
-}
-const separador = argumentos.indexOf('--')
-const resto = separador === -1 ? argumentos : argumentos.slice(0, separador)
-const op = opcoes(resto)
-// O comando volta a ser uma linha de shell: argumento com espaço ou símbolo vai entre aspas.
-op.comando =
-  separador === -1
-    ? ''
-    : argumentos
-        .slice(separador + 1)
-        .map((arg) => (/[\s"&|<>^()]/u.test(arg) ? `"${arg.replaceAll('"', '\\"')}"` : arg))
-        .join(' ')
+const { nome, op } = lerLinhaDeComando(process.argv.slice(2), Object.keys(comandos))
 if (nome !== 'criar-po' && nome !== 'vez') {
   reconectar(op)
 }
