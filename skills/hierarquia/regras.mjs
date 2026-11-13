@@ -6,6 +6,9 @@ export const PAPEIS = {
   executor: { modelo: 'sonnet', cria: [] }
 }
 
+/** Chat de teste usa o modelo mais leve: so prova que o lancamento funciona (decisao do PO na o-043). */
+export const MODELO_DO_TESTE = 'haiku'
+
 /** Por projeto: chats trabalhando ao mesmo tempo. Executores somam todos os criadores (adendo 2 da o-021). */
 export const TETO = { planejadoresPorProjeto: 2, executoresPorProjeto: 2, testesPorProjeto: 2 }
 
@@ -214,6 +217,11 @@ export function montarEstado(eventos) {
           estado.chats[ev.chatId].corteAvisado = false
         }
         break
+      case 'comando_preso':
+        if (ordem) {
+          ordem.comandoPreso = { ferramentaId: ev.ferramentaId, desde: ev.desde, avisadoEm: ev.t }
+        }
+        break
       case 'chat_retomado':
         if (estado.chats[ev.chatId]) {
           estado.chats[ev.chatId].retomadoEm = ev.t
@@ -300,10 +308,10 @@ export function decidirOrdem(estado, { de, para, campos, teste = false, liberaca
     return { acao: 'recusar', motivo: `Faltam campos na ordem: ${faltando.join(', ')}.` }
   }
   if (!vagaLivre(estado, teste ? 'teste' : para)) {
-    return { acao: 'esperar', modelo: PAPEIS[para].modelo }
+    return { acao: 'esperar', modelo: teste ? MODELO_DO_TESTE : PAPEIS[para].modelo }
   }
   if (teste) {
-    return { acao: 'criar', modelo: PAPEIS[para].modelo }
+    return { acao: 'criar', modelo: MODELO_DO_TESTE }
   }
   const fechar = chatParaFecharAoAbrir(estado, de, para)
   return { acao: 'criar', modelo: PAPEIS[para].modelo, ...(fechar ? { fechar } : {}) }

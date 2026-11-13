@@ -325,6 +325,43 @@ export async function encerrarMundo(raizes = []) {
   return processosDoMundo(raizes)
 }
 
+/** Contagem para o teto de memoria da o-043: Orcas de teste abertos e chats Claude do mundo vivos. */
+export function contarDoMundo(raizes = []) {
+  const vivos = processosDoMundo(raizes)
+  return {
+    orcas: vivos.filter((p) => /--mundo-de-teste=/u.test(p.comando) && !/--type=/u.test(p.comando))
+      .length,
+    claudes: vivos.filter((p) => /^claude/iu.test(p.nome)).length,
+    processos: vivos.length
+  }
+}
+
+/** Confere a contagem a cada 20 s e guarda o maximo visto; `parar()` devolve { orcas, claudes }. */
+export function vigiarTeto(raizes, dizer) {
+  const maximo = { orcas: 0, claudes: 0 }
+  const conferir = () => {
+    try {
+      const agora = contarDoMundo(raizes())
+      if (agora.orcas > maximo.orcas || agora.claudes > maximo.claudes) {
+        maximo.orcas = Math.max(maximo.orcas, agora.orcas)
+        maximo.claudes = Math.max(maximo.claudes, agora.claudes)
+        dizer(`teto: maximo ate aqui ${maximo.orcas} Orca de teste, ${maximo.claudes} Claude vivos`)
+      }
+    } catch {
+      // a contagem e so para o relato
+    }
+  }
+  conferir()
+  const timer = setInterval(conferir, 20_000)
+  return {
+    parar: () => {
+      clearInterval(timer)
+      conferir()
+      return maximo
+    }
+  }
+}
+
 export function apagarMundo() {
   rmSync(MUNDO, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 })
 }

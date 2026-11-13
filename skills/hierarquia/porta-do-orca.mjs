@@ -140,7 +140,8 @@ export function estadosDosAgentes(dados = pastaDeDadosDoOrca()) {
         trabalhando: trabalhando || Boolean(atual?.trabalhando && atual.visto >= visto),
         segundoPlano: item.claudeRunningNonAgentTask ? 1 : 0,
         desde: trabalhando ? (item.turnStartedAt ?? item.stateStartedAt ?? null) : null,
-        visto: Math.max(visto, atual?.visto ?? 0)
+        visto: Math.max(visto, atual?.visto ?? 0),
+        transcript: item.providerSession?.transcriptPath ?? atual?.transcript ?? null
       }
       if (!atual || visto >= atual.visto) {
         porAba.set(item.tabId, novo)

@@ -11,7 +11,8 @@ import {
   pedidosNoEstado
 } from './regras.mjs'
 import { marcarChatsMortos } from './vigia-do-criador.mjs'
-import { olharPorta } from './porta-do-orca.mjs'
+import { ordensComComandoPreso } from './comando-preso.mjs'
+import { estadosDosAgentes, olharPorta } from './porta-do-orca.mjs'
 
 /** `hierarquia estado`: marca os chats mortos, regrava a foto e escreve o estado com a vida de cada chat. */
 export async function comandoEstado(projeto, op) {
@@ -31,13 +32,26 @@ export async function comandoEstado(projeto, op) {
     vidaDosChats(estado),
     olharPorta().catch(() => null)
   ])
+  const presos = ordensComComandoPreso(estado, vidas, estadosDosAgentes())
   if (op.json) {
     const vida = Object.fromEntries(vidas)
-    console.log(JSON.stringify({ estado, vida, fila: filaDoKaique(estado), porta }, null, 2))
+    const comandosPresos = Object.fromEntries(presos)
+    console.log(
+      JSON.stringify({ estado, vida, fila: filaDoKaique(estado), porta, comandosPresos }, null, 2)
+    )
     return
   }
   console.log(linhaDaPorta(porta))
-  imprimirEstado(projeto, estado, filaDoKaique(estado), vidas)
+  imprimirEstado(projeto, estado, filaDoKaique(estado), vidas, presos)
+}
+
+/** A coluna do comando preso: quanto tempo, qual comando e se quem criou ja foi avisado. */
+function colunaDoComandoPreso(ordem, preso) {
+  if (!preso) {
+    return ''
+  }
+  const avisado = ordem.comandoPreso?.ferramentaId === preso.ferramentaId
+  return `COMANDO PRESO? um comando de shell rodando ha ${preso.minutos} min sem nada novo (${preso.comando})${avisado ? '; quem criou ja foi avisado' : ''}`
 }
 
 /** A primeira linha do estado: o PO vê sem pedir se pode reabrir o Orca (detalhe em `hierarquia porta`). */
@@ -91,7 +105,7 @@ function linhaDoTeto(estado) {
 }
 
 /** Pedidos já terminados há tempo ficam numa linha só; os abertos mostram cada ordem. */
-export function imprimirEstado(projeto, estado, fila, vidas) {
+export function imprimirEstado(projeto, estado, fila, vidas, presos = new Map()) {
   console.log(`Projeto: ${projeto}`)
   const po = estado.po ? estado.chats[estado.po] : null
   console.log(`PO: ${estado.po ?? '(nenhum)'}${po ? ` (${vidaComAvisos(estado, po, vidas)})` : ''}`)
@@ -108,7 +122,7 @@ export function imprimirEstado(projeto, estado, fila, vidas) {
   for (const pedido of pedidos.filter((p) => !fechados.includes(p))) {
     console.log(`Pedido ${pedido.pedido}: ${pedido.situacao}`)
     for (const ordem of pedido.ordens) {
-      imprimirOrdem(estado, ordem, vidas)
+      imprimirOrdem(estado, ordem, vidas, presos.get(ordem.id))
     }
   }
   console.log(`Fila do Kaique: ${fila.length}`)
@@ -127,12 +141,13 @@ function vidaComAvisos(estado, chat, vidas) {
     : vidas.get(chat.id)
 }
 
-function imprimirOrdem(estado, ordem, vidas) {
+function imprimirOrdem(estado, ordem, vidas, preso = null) {
   const chat = ordem.chatId ? estado.chats[ordem.chatId] : null
   const colunas = [
     `  - ${ordem.id}`,
     `${ordem.papel}${chat ? ` (${chat.modelo})` : ''}`,
     rotuloDaSituacao(ordem, chat, chat ? vidas.get(chat.id) : null),
+    colunaDoComandoPreso(ordem, preso),
     ordem.posicaoNaFila
       ? `${ordem.posicaoNaFila}o na fila${ordem.prioridade ? ' (passa na frente)' : ''}`
       : '',

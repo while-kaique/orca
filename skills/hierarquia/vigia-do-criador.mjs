@@ -7,12 +7,15 @@ import { avisarChat, entregarGuardados, guardadosDoChat } from './avisos-guardad
 import { esperar, orcaEmSegundoPlano } from './orca-lancador.mjs'
 import { abasGuardadas } from './abas-do-orca.mjs'
 import { retomarUmCortado } from './volta-dos-cortados.mjs'
+import { ordensComComandoPreso, TEXTO_DO_COMANDO_PRESO } from './comando-preso.mjs'
+import { estadosDosAgentes } from './porta-do-orca.mjs'
 import {
   chatsSemVida,
   criadorSemAba,
   mensagemDoPedido,
   pedidosDoCriador,
-  pedidosParaAvisar
+  pedidosParaAvisar,
+  vidaDoChat
 } from './regras.mjs'
 import { criarSeNaoExiste, lerJson, processoVivo } from './trava.mjs'
 
@@ -110,6 +113,66 @@ export function marcarChatsMortos(estado, terminais, anotar, abas = null) {
     marcados.push(morto)
   }
   return marcados
+}
+
+/** A tela de cada chat na conferencia anterior, sem digitos (o relogio do Claude muda sozinho). */
+let telaAnterior = new Map()
+
+/**
+ * Comando preso (complemento da o-043): chat das ordens de `eu` com um comando de shell aberto ha 15 min, nada novo
+ * no transcript e a tela igual a da conferencia anterior. Avisa `eu` uma vez por comando; nao mexe na ordem nem no chat.
+ */
+async function avisarComandosPresos(
+  projeto,
+  eu,
+  estado,
+  terminais,
+  abas,
+  anotar,
+  handleDoCriador,
+  log
+) {
+  const minhas = Object.values(estado.ordens).filter((o) => o.de === eu && estado.chats[o.chatId])
+  const vidas = new Map(
+    minhas.map((o) => [o.chatId, vidaDoChat(estado.chats[o.chatId], terminais, abas)])
+  )
+  const presos = ordensComComandoPreso(
+    { ordens: Object.fromEntries(minhas.map((o) => [o.id, o])) },
+    vidas,
+    estadosDosAgentes()
+  )
+  const telas = new Map()
+  for (const [ordemId, preso] of presos) {
+    const ordem = estado.ordens[ordemId]
+    if (ordem.comandoPreso?.ferramentaId === preso.ferramentaId) {
+      continue
+    }
+    const handle =
+      terminais.find((t) => t.tabId === ordem.chatId && t.connected !== false)?.handle ??
+      estado.chats[ordem.chatId].handle
+    const tela = await orcaEmSegundoPlano(['terminal', 'read', '--terminal', handle])
+      .then((r) => (r.result?.terminal?.tail ?? []).join('\n').replace(/\d+/gu, '#'))
+      .catch(() => null)
+    telas.set(ordem.chatId, tela)
+    if (tela === null || telaAnterior.get(ordem.chatId) !== tela) {
+      continue
+    }
+    anotar('comando_preso', {
+      ordemId,
+      chatId: ordem.chatId,
+      ferramentaId: preso.ferramentaId,
+      desde: preso.desde,
+      comando: preso.comando
+    })
+    const chegou = await avisarChat(
+      projeto,
+      eu,
+      handleDoCriador,
+      TEXTO_DO_COMANDO_PRESO(ordemId, preso)
+    )
+    log(`comando preso ${ordemId}: ${preso.minutos} min sem nada novo (${chegou})`)
+  }
+  telaAnterior = telas
 }
 
 function matarArvore(processo) {
@@ -327,6 +390,7 @@ export async function vigiar({
             `${morto.cortado ? 'chat cortado' : 'parada automatica'} ${morto.ordemId}: ${morto.motivo}`
           )
         }
+        await avisarComandosPresos(projeto, eu, lerEstado(), terminais, abas, anotar, handle(), log)
         await retomarUmCortado(projeto, eu, log)
         const filhos = Object.values(lerEstado().ordens)
           .filter((ordem) => ordem.de === eu && ordem.chatId)
