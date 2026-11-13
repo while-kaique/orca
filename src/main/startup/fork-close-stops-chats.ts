@@ -163,7 +163,7 @@ export function askForkCloseGate(
   })()
 }
 
-type PidDoGuarda = { pid: number; startedAtMs: number | null }
+export type PidDoGuarda = { pid: number; startedAtMs: number | null }
 
 function guardasDeTerminais(): PidDoGuarda[] {
   const pasta = join(app.getPath('userData'), 'daemon')
@@ -195,7 +195,7 @@ function rodar(comando: string, args: string[], prazoMs: number): Promise<string
   })
 }
 
-type Processo = { pid: number; pai: number; nascido: number }
+export type Processo = { pid: number; pai: number; nascido: number }
 
 /** Todos os processos da maquina com pai e hora de nascimento (Windows). */
 async function fotoDosProcessos(): Promise<Processo[]> {
@@ -223,7 +223,7 @@ async function fotoDosProcessos(): Promise<Processo[]> {
  * junto com o guarda daquele arquivo (pid reaproveitado por outro programa nunca entra); o filho tem de ter nascido
  * depois do pai.
  */
-function arvoreDosGuardas(lista: Processo[], guardas: PidDoGuarda[]): Processo[] {
+export function arvoreDosGuardas(lista: Processo[], guardas: PidDoGuarda[]): Processo[] {
   const porPid = new Map(lista.map((p) => [p.pid, p]))
   const dentro = new Set(
     guardas
