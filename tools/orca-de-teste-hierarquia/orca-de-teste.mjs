@@ -294,9 +294,47 @@ export async function abrirOrca({ extraEnv = {}, log = console.log } = {}) {
   return { page, pid: filho.pid, porta, browser, processo: filho }
 }
 
-/** Fecha a janela como o X do canto (o mesmo caminho do `close` da janela) e espera o programa sair. */
-export async function fecharPeloX(orca, { prazoMs = 60_000 } = {}) {
-  await orca.page.evaluate(() => window.close()).catch(() => null)
+const FECHAR_COMO_O_X = `
+Add-Type @"
+using System; using System.Runtime.InteropServices; using System.Text;
+public class FecharComoOX {
+  public delegate bool EnumProc(IntPtr h, IntPtr l);
+  [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc f, IntPtr l);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetClassName(IntPtr h, StringBuilder s, int n);
+  [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
+  public static string Enviar(uint alvo) {
+    var achadas = new StringBuilder();
+    EnumWindows((h, l) => {
+      uint p; GetWindowThreadProcessId(h, out p);
+      if (p != alvo) { return true; }
+      var c = new StringBuilder(256); GetClassName(h, c, 256);
+      var t = new StringBuilder(256); GetWindowText(h, t, 256);
+      if (c.ToString() == "Chrome_WidgetWin_1" && t.Length > 0) {
+        PostMessage(h, 0x0112, (IntPtr)0xF060, IntPtr.Zero);
+        achadas.Append(t.ToString()).Append(";");
+      }
+      return true;
+    }, IntPtr.Zero);
+    return achadas.ToString();
+  }
+}
+"@
+`
+
+/**
+ * Fecha a janela como o X do canto: manda a ela a mensagem do Windows que o botao X e o Alt+F4 mandam (SC_CLOSE),
+ * mesmo com a janela escondida. O `window.close()` da pagina nao passa pelo evento de fechar da janela (o-043).
+ */
+export async function fecharPeloX(orca, { prazoMs = 90_000 } = {}) {
+  const janelas = powershell(`${FECHAR_COMO_O_X}; [FecharComoOX]::Enviar(${orca.pid})`).trim()
+  orca.fechadoPor = janelas
+    ? `SC_CLOSE nas janelas: ${janelas}`
+    : 'window.close (nenhuma janela achada)'
+  if (!janelas) {
+    await orca.page.evaluate(() => window.close()).catch(() => null)
+  }
   const limite = Date.now() + prazoMs
   while (orca.processo.exitCode === null && Date.now() < limite) {
     await esperar(250)

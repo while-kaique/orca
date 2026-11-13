@@ -206,7 +206,9 @@ async function retratoAntes(chats, prefixo = 'antes') {
 async function fecharEContar(fora) {
   const tX = Date.now()
   const fechou = await fecharPeloX(orca, { prazoMs: 90_000 })
-  dizer(`X: programa saiu = ${fechou} em ${((Date.now() - tX) / 1000).toFixed(1)} s`)
+  dizer(
+    `X (${orca.fechadoPor}): programa saiu = ${fechou} em ${((Date.now() - tX) / 1000).toFixed(1)} s`
+  )
   await esperar(Math.max(0, 15_000 - (Date.now() - tX)))
   const vivos = processosDoMundo(pidsDoOrca)
   guardar('depois-x-15s-processos-do-mundo.txt', linhasDosProcessos(vivos))
@@ -315,9 +317,13 @@ async function acordar(chat) {
       .evaluate((id) => {
         const card = document.querySelector(`[data-chat-key="${id}"]`)
         card?.click()
-        return Boolean(card)
+        card?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+        const chaves = [...document.querySelectorAll('[data-chat-key]')].map(
+          (el) => el.dataset.chatKey
+        )
+        return `${Boolean(card)} (${chaves.length} cards na tela; ${chaves.filter((c) => c.length > 30).length} com id de aba)`
       }, chat.tabId)
-      .catch(() => false)
+      .catch((erro) => `erro ${String(erro).slice(0, 80)}`)
     dizer(`acordar ${chat.titulo}: clique no card do fluxograma = ${clicou}`)
   }
 }
