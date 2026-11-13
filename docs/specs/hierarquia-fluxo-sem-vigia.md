@@ -165,4 +165,16 @@ Teto por máquina (vários projetos); aviso ao Kaique quando tudo para.
 - **Vigia com código novo.** A cada 30 s o vigia compara a data e o tamanho dos `.mjs`; mudou, passa ao vigia novo
   as mensagens vistas e os pedidos já avisados e sai.
 - **Chat de teste oficial.** `hierarquia ordem --teste --para executor` (título "TESTE …"): vaga própria (2 por
-  projeto), não disputa com trabalho; qualquer papel lança. `criar-po` recusa chat que já é executor ou planejador.
+  projeto), não disputa com trabalho; qualquer papel lança; usa o modelo mais leve (haiku, decisão do PO na o-043).
+  `criar-po` recusa chat que já é executor ou planejador.
+- **Chat sem terminal não aparece trabalhando** (o-043, caso do reinício de 13/11 14:04). Ordem trabalhando cujo chat
+  está fechado ou dormindo (fora dos 10 min de graça do lançamento) sai em `hierarquia estado` como "SEM CHAT LIGADO",
+  já antes de o vigia passar; em até 2 min o vigia a dá como parada (aba fechada) ou cortada (aba dormindo).
+- **Comando preso** (complemento da o-043, caso da o-042 em 13/11: 41 min num `python` com heredoc). Chat de uma
+  ordem trabalhando com **um** comando de shell (Bash ou PowerShell) aberto há 15 min, nada novo no transcript do
+  Claude nesse tempo e a tela igual entre duas conferências: o vigia de quem criou avisa **uma vez** por comando
+  (`comando_preso` no registro) e `hierarquia estado` mostra "COMANDO PRESO? ... há N min". A ordem continua
+  trabalhando e ninguém mexe no chat. Por que 15 min: o Bash do Claude Code corta sozinho um comando em primeiro
+  plano em no máximo 10 min; passou disso com 5 min de folga, o próprio limite falhou. Comando em segundo plano
+  devolve na hora e não conta; subagente (ferramenta Agent) também não. A regra antiga de "20 min sem nada na tela"
+  (que dava falso parado) não volta: aqui ninguém é dado como parado.
