@@ -48,8 +48,10 @@ function git(pasta, ...args) {
 /** Projeto de teste: repositorio git com `.hierarquia/` vazio; os chats nascem na propria pasta (sem copia de trabalho). */
 export function criarProjeto(nome) {
   const pasta = path.join(PROJETOS, nome)
+  // Sobra de rodada anterior (um .git pela metade) faria o Orca recusar a pasta: sempre do zero.
+  rmSync(pasta, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 })
   mkdirSync(path.join(pasta, '.hierarquia', 'ordens'), { recursive: true })
-  if (!existsSync(path.join(pasta, '.git'))) {
+  {
     git(pasta, 'init', '-q')
     writeFileSync(path.join(pasta, 'LEIAME.txt'), `projeto de teste ${nome}\n`)
     writeFileSync(path.join(pasta, '.gitignore'), '.hierarquia/\n')
@@ -99,10 +101,29 @@ export function ambienteDoMundo(extra = {}) {
   }
 }
 
-export function orcaTeste(args, { tempo = 240_000 } = {}) {
+/** O Orca de teste recem-aberto ainda nao atende (runtime_timeout): tenta de novo, ate 5 vezes. */
+const AINDA_ABRINDO = new Set(['runtime_timeout', 'runtime_unavailable'])
+
+export function orcaTeste(args, opcoes = {}) {
+  for (let tentativa = 1; ; tentativa++) {
+    const resposta = orcaTesteUmaVez(args, opcoes)
+    if (resposta.ok !== false || !AINDA_ABRINDO.has(resposta.error?.code) || tentativa >= 5) {
+      return resposta
+    }
+    execFileSync('powershell.exe', ['-NoProfile', '-Command', 'Start-Sleep -Seconds 10'], {
+      windowsHide: true
+    })
+  }
+}
+
+/** O .cmd roda pelo shell do Windows: argumento com espaco ou simbolo vai entre aspas. */
+const citarArg = (arg) =>
+  /^".*"$/su.test(arg) || !/[\s&|<>^()"]/u.test(arg) ? arg : `"${arg.replaceAll('"', '\\"')}"`
+
+function orcaTesteUmaVez(args, { tempo = 240_000 } = {}) {
   let saida
   try {
-    saida = execFileSync(CLI_DO_MUNDO, [...args, '--json'], {
+    saida = execFileSync(CLI_DO_MUNDO, [...args.map(citarArg), '--json'], {
       encoding: 'utf8',
       shell: true,
       windowsHide: true,

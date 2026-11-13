@@ -8,6 +8,8 @@ import {
   abrirOrca,
   ambienteDoMundo,
   apagarMundo,
+  confiarNoMundo,
+  desconfiarDoMundo,
   CLI_DO_MUNDO,
   criarProjeto,
   encerrarMundo,
@@ -44,9 +46,16 @@ const extraEnv = {
 montarMundo()
 const A = criarProjeto('teste-hierarquia')
 const B = criarProjeto('teste-hierarquia-2')
+// O Claude pergunta se confia na pasta nova: so as pastas do mundo entram, e saem no fim.
+confiarNoMundo()
+process.on('exit', () => desconfiarDoMundo())
 const orca = await abrirOrca({ extraEnv, log: dizer })
+orcaTeste(['status'])
 for (const pasta of [A, B]) {
-  orcaTeste(['repo', 'add', '--path', pasta])
+  const r = orcaTeste(['repo', 'add', '--path', pasta])
+  if (!r.ok) {
+    throw new Error(`repo add falhou: ${JSON.stringify(r).slice(0, 300)}`)
+  }
 }
 const shell = (pasta, titulo) => {
   const r = orcaTeste(['terminal', 'create', '--worktree', `path:${pasta}`, '--title', titulo])

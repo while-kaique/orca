@@ -9,6 +9,8 @@ import {
   abrirOrca,
   ambienteDoMundo,
   apagarMundo,
+  confiarNoMundo,
+  desconfiarDoMundo,
   CLI_DO_MUNDO,
   criarProjeto,
   encerrarMundo,
@@ -56,13 +58,20 @@ const extraEnv = comFork
 montarMundo()
 const A = criarProjeto('teste-hierarquia')
 const B = criarProjeto('teste-hierarquia-2')
+// O Claude pergunta se confia na pasta nova: so as pastas do mundo entram, e saem no fim.
+confiarNoMundo()
+process.on('exit', () => desconfiarDoMundo())
 let orca = await abrirOrca({ extraEnv, log: dizer })
 const foto = async (nome) => {
   await orca.page.setViewportSize({ width: 1500, height: 950 }).catch(() => null)
   await orca.page.screenshot({ path: path.join(saida, `${nome}.png`) }).catch(() => null)
 }
+orcaTeste(['status'])
 for (const pasta of [A, B]) {
-  orcaTeste(['repo', 'add', '--path', pasta])
+  const r = orcaTeste(['repo', 'add', '--path', pasta])
+  if (!r.ok) {
+    throw new Error(`repo add falhou: ${JSON.stringify(r).slice(0, 300)}`)
+  }
 }
 
 /** Abre um Claude (haiku) como chat de terminal no projeto e devolve { handle, tabId }. */
@@ -77,7 +86,10 @@ function abrirClaude(pasta, titulo) {
     '--command',
     'claude --model haiku --dangerously-skip-permissions'
   ])
-  const t = r.result?.terminal ?? r.result
+  const t = r.result?.terminal
+  if (!t) {
+    throw new Error(`terminal create falhou: ${JSON.stringify(r).slice(0, 300)}`)
+  }
   return { handle: t.handle, tabId: t.tabId, titulo }
 }
 
@@ -96,8 +108,8 @@ async function esperarCaixa(chat, prazo = 180_000) {
   while (Date.now() < limite) {
     const tela = ler(chat.handle)?.tail ?? []
     const texto = tela.join('\n')
-    if (/trust this folder|Yes, I trust/iu.test(texto)) {
-      orcaTeste(['terminal', 'send', '--terminal', chat.handle, '--text', '""', '--enter'])
+    if (/Yes, I trust/iu.test(texto)) {
+      return false
     } else if (tela.some((l) => String(l).trim().startsWith('❯'))) {
       return true
     }
