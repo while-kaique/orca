@@ -5,21 +5,32 @@ import { appendFileSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { chavesPorPapel, guardarNoArmazenamento } from './ajudas.mjs'
 
-const PROJETO = 'orca'
 const NOME_LONGO = 'Fluxogramaticamente Organizacional'
 
 export default async function (page, { lerTela, recarregar, mundo, dizer }) {
   const fatos = await lerTela()
-  const doProjeto = (papel) => chavesPorPapel(fatos, papel).filter((c) => c.projeto === PROJETO)
-  const poAntigo = doProjeto('po')[0]
-  // O estado real muda: com um executor so, a segunda seta vai a um planejador (card fino).
-  const executores = doProjeto('executor')
-  const pontas = [...executores, ...doProjeto('planejador')].slice(0, 2)
-  if (!poAntigo || executores.length < 1 || pontas.length < 2) {
+  // O estado real muda: o print era do orca; vale o primeiro projeto (orca antes) com PO e executor.
+  const nomes = [...new Set(fatos.cards.map((c) => c.projeto).filter(Boolean))]
+  const candidatos = [...nomes.filter((n) => n === 'orca'), ...nomes.filter((n) => n !== 'orca')]
+  const papeis = (projeto, papel) =>
+    chavesPorPapel(fatos, papel).filter((c) => c.projeto === projeto)
+  const PROJETO = candidatos.find(
+    (n) =>
+      papeis(n, 'po').length > 0 &&
+      papeis(n, 'executor').length > 0 &&
+      papeis(n, 'executor').length + papeis(n, 'planejador').length >= 2
+  )
+  if (!PROJETO) {
     throw new Error(
-      'o projeto orca da copia do estado precisa de um PO, um executor e mais um executor ou planejador'
+      'a copia do estado precisa de um projeto com PO, um executor e mais um executor ou planejador'
     )
   }
+  const doProjeto = (papel) => papeis(PROJETO, papel)
+  const poAntigo = doProjeto('po')[0]
+  // Com um executor so, a segunda seta vai a um planejador (card fino).
+  const executores = doProjeto('executor')
+  const pontas = [...executores, ...doProjeto('planejador')].slice(0, 2)
+  dizer(`projeto do cenario: ${PROJETO}`)
   await guardarNoArmazenamento(
     page,
     'orca-fork.canvas-executor-names',
