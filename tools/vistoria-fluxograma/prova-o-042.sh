@@ -9,7 +9,7 @@ ANTIGO="$2"
 shift 2
 V="$RAIZ/tools/vistoria-fluxograma"
 C="$V/cenarios-de-prova"
-mkdir -p "$PROVA"
+mkdir -p "$PROVA/casos"
 cd "$RAIZ" || exit 2
 
 vistoria() {
