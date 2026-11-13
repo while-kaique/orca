@@ -8,7 +8,11 @@ import type { MainWindowFocusLifecycle } from './main-window-focus-lifecycle'
 import type { MainWindowStateLifecycle } from './main-window-state-lifecycle'
 import { syncTrafficLightPosition } from './main-window-visual-lifecycle'
 import { consumeUserQuitWindowClose } from './user-quit-window-close'
-import { askForkCloseGate, forkCloseGateHolds } from '../startup/fork-close-stops-chats'
+import {
+  askForkCloseGate,
+  forkCloseGateHolds,
+  forkCloseStopsChatsEnabled
+} from '../startup/fork-close-stops-chats'
 
 export const WINDOW_QUIT_RENDERER_ACK_TIMEOUT_MS = QUIT_RENDERER_ACK_TIMEOUT_MS
 
@@ -133,7 +137,9 @@ export function installMainWindowCloseLifecycle(args: {
       return
     }
     e.preventDefault()
-    const isQuitting = opts?.getIsQuitting?.() ?? false
+    // Fork: the close question with the chat list comes from the fork gate; as on a quit, the renderer skips its own
+    // "terminals running" question for local terminals, so the user sees one question, not two.
+    const isQuitting = (opts?.getIsQuitting?.() ?? false) || forkCloseStopsChatsEnabled()
     const requestId = ++closeRequestSequence
     // User Quit on serve closes windows without quitting the host; still bound frozen-renderer acknowledgement.
     if (isQuitting || userQuitClose) {
