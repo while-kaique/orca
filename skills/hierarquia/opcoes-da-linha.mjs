@@ -13,7 +13,8 @@ export function opcoes(argv) {
         '--na-pasta-do-criador',
         '--teste',
         '--terminados',
-        '--json'
+        '--json',
+        '--help'
       ].includes(item)
     ) {
       saida[item.slice(2)] = true

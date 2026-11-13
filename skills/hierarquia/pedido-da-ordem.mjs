@@ -14,9 +14,10 @@ export function tituloDaTarefa(ordem) {
   return semAcento(`${ordem.papel}: ${ordem.campos.titulo ?? ordem.id}`).slice(0, 70)
 }
 
-/** Começo do texto enviado, como a tela mostra (uma linha, sem acento): serve para achar o texto na caixa do chat. */
-export function trechoDoPedido(texto) {
-  return semAcento(texto).replace(/\s+/gu, ' ').slice(0, 40)
+/** O começo e o fim do pedido: o rascunho do Orca guarda só um pedaço do texto digitado, que sempre inclui o fim. */
+export function trechosDoPedido(texto) {
+  const linha = semAcento(texto).replace(/\s+/gu, ' ').trim()
+  return [linha.slice(0, 40), linha.slice(-40)]
 }
 
 export function pedidoDaCorrecao(ordemId, motivo) {
