@@ -57,9 +57,6 @@
 .cc-project-name {
   font: 700 calc(18px * var(--cc-inv)) system-ui;
   color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .cc-project-detail {
   font:
@@ -326,9 +323,11 @@
   position: relative;
 }
 .cc-crest-body b {
+  max-width: 100%;
   font: 700 calc(15px * var(--cc-inv)) / 1.15 system-ui;
   color: #ececf3;
   text-wrap: balance;
+  overflow-wrap: anywhere;
 }
 /* hover peek: the card widens and shows Claude's last 7 rows, live */
 .cc-peek {
@@ -1219,9 +1218,11 @@
   align-items: center;
   gap: 12px;
 }
+/* a long project name shrinks to fit (canvas-chat-fit-text) and wraps as the last resort; it is never cut */
 .cc-project-name span {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .cc-project-badge {
   flex: none;

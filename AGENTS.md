@@ -10,6 +10,14 @@
 > [!NOTE]
 > **Fork (Kaique, 11/11/2026): small changes use the scoped routine, not `pnpm check:changed`.** Run `pnpm tc`, `pnpm exec oxlint <files>`, `pnpm exec oxfmt --check <files>` and the tests of the files you touched, then push and report what was left out. Keep the full `pnpm check:changed` for merges with upstream Orca and large changes: on this machine it ran 22+ minutes and 2.8 GB for a 12-file change that touched `AppWorkspaceShell.tsx`.
 
+> [!IMPORTANT]
+> **Fork (Kaique, 13/11/2026): vistoria do fluxograma é obrigatória.** Antes de entregar qualquer mudança que
+> toque o fluxograma (`src/renderer/src/components/canvas-chats/**`, linhas, setas, textos, selos, lugar dos cards),
+> rode `node tools/vistoria-fluxograma/vistoria.mjs` e só entregue com `zero achado`. Ela abre o Orca de teste
+> escondido sobre uma cópia do estado real, tira o print como está e depois do Reorganizar, mede linha, seta,
+> texto, selo, card sobre card, grade e distância ao dono, e termina com saída 1 e a lista do que achou. Guia:
+> `tools/vistoria-fluxograma/LEIAME.md`. Rode pela vez (`hierarquia vez --`) quando o comando for pesado (a montagem).
+
 If selection fans out excessively, use scoped checks and report limits. Use the PR base (default `origin/main`; `ORCA_CODE_QUALITY_BASE=<ref>` for stacks). `--base=HEAD` and dirty-only checks provide incremental evidence only.
 
 # Don't Poll the CI

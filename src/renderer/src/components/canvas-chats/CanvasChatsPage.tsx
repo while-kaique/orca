@@ -288,7 +288,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
     })
   }
 
-  const cordLayer = useCanvasCordLayer({ boxes, view, rootRef })
+  const cordLayer = useCanvasCordLayer({ boxes, projects, view, rootRef })
 
   const lines = canvasChatTreeLines(projects, boxes)
 

@@ -39,10 +39,12 @@ type CanvasInputs = Pick<
   | 'migrationUnsupportedByPtyId'
   | 'workspacePortScan'
   | 'sleepingAgentSessionsByPaneKey'
+  | 'worktreeLineageById'
 > & {
   worktreesByRepo: AppState['worktreesByRepo']
   artifactLinks: CanvasArtifactLinks
-  hierarchy: ReturnType<typeof useCanvasHierarchy>
+  hierarchy: ReturnType<typeof useCanvasHierarchy>['snapshots']
+  newTabs: ReadonlySet<string>
 }
 
 function chatStatus(state: CanvasInputs, worktreeId: string, tabId: string): CanvasChatStatus {
@@ -130,6 +132,12 @@ function isSetupPreparationTab(state: CanvasInputs, tab: TerminalTab): boolean {
 export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
   const projects: CanvasProject[] = []
   const portsByWorktree = getWorkspacePortsByWorktreeId(state.workspacePortScan?.result)
+  const parentWorktreeByWorktree = new Map(
+    Object.values(state.worktreeLineageById ?? {}).map((lineage) => [
+      lineage.worktreeId,
+      lineage.parentWorktreeId
+    ])
+  )
   for (const repo of state.repos) {
     const chats: CanvasChat[] = []
     const latestByChat = new Map<string, CanvasChatLatestEntry>()
@@ -211,7 +219,14 @@ export function buildCanvasProjects(state: CanvasInputs): CanvasProject[] {
       }
     }
     const folders = (state.worktreesByRepo[repo.id] ?? []).map((w) => w.path)
-    const queue = linkProjectChats(chats, latestByChat, state.hierarchy, folders)
+    const queue = linkProjectChats(
+      chats,
+      latestByChat,
+      state.hierarchy,
+      folders,
+      parentWorktreeByWorktree,
+      state.newTabs
+    )
     markChatsAwaitingTeam(chats)
     if (chats.length > 0) {
       projects.push({
@@ -241,7 +256,8 @@ export function useCanvasProjects(): CanvasProject[] {
       acknowledgedAgentsByPaneKey: s.acknowledgedAgentsByPaneKey,
       migrationUnsupportedByPtyId: s.migrationUnsupportedByPtyId,
       workspacePortScan: s.workspacePortScan,
-      sleepingAgentSessionsByPaneKey: s.sleepingAgentSessionsByPaneKey
+      sleepingAgentSessionsByPaneKey: s.sleepingAgentSessionsByPaneKey,
+      worktreeLineageById: s.worktreeLineageById
     }))
   )
   const artifactLinks = useCanvasArtifactLinks()
@@ -253,12 +269,16 @@ export function useCanvasProjects(): CanvasProject[] {
         .map((worktree) => worktree.path),
     [inputs.worktreesByRepo]
   )
-  const hierarchy = useCanvasHierarchy(folders)
+  const tabIds = useMemo(
+    () => Object.values(inputs.tabsByWorktree).flatMap((tabs) => tabs.map((tab) => tab.id)),
+    [inputs.tabsByWorktree]
+  )
+  const { snapshots: hierarchy, newTabs } = useCanvasHierarchy(folders, tabIds)
   const launchVersion = useLaunchRecordsVersion()
   return useMemo(
-    () => buildCanvasProjects({ ...inputs, artifactLinks, hierarchy }),
+    () => buildCanvasProjects({ ...inputs, artifactLinks, hierarchy, newTabs }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [inputs, artifactLinks, hierarchy, launchVersion]
+    [inputs, artifactLinks, hierarchy, newTabs, launchVersion]
   )
 }
 
