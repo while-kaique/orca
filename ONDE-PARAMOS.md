@@ -19,8 +19,11 @@ digitada no chat X, falta enviar" e a linha final deixa de dizer "lançada". `hi
 campo obrigatório só mostram a ajuda: nada é gravado e nenhum chat recebe mensagem. `chat_iniciou` agora guarda o que foi
 visto (`visto.atividade`, `visto.onde`).
 
-**Achado, não consertado:** a parada automática de "chat morto" marca como `parou` uma ordem cujo chat acabou de nascer e o Orca
-ainda não ligou o terminal (o-039, 10 s depois do lançamento); o chat começou depois, com a ordem já em `parou`.
+**Chat vivo dado como parado (o-039 aqui, o-002 no social-hub): consertado.** Quem gravou foi o vigia antigo (processo ligado
+a partir da pasta principal; o código é o mesmo, a falha estava em `chatsSemVida`). Agora chat lançado há menos de 10 min nunca
+é dado como parado, a falta de terminal precisa se repetir por 2 min seguidos, terminal ligado nunca conta (a regra "nada na
+tela há 20 min" saiu) e `hierarquia estado` não marca mais ninguém. Ordem parada pelo sistema volta a aceitar `hierarquia
+entregar`. **O vigia que já está rodando só pega isto depois de reiniciado.**
 
 ## 12/11/2026 (noite, ordem o-032) — `hierarquia ordem` insiste até o chat começar
 

@@ -374,44 +374,43 @@ export function pedidosNoEstado(estado) {
   }))
 }
 
+/** Chat recém-lançado: o Orca ainda está ligando o terminal (leva minutos nesta máquina); nunca é dado como parado. */
+export const GRACA_DO_LANCAMENTO_MS = 10 * 60 * 1000
+/** A falta de terminal precisa se repetir por este tempo, em verificações seguidas, antes de a ordem ser dada como parada. */
+export const ESPERA_ANTES_DE_DAR_COMO_PARADO_MS = 2 * 60 * 1000
+
 /**
- * Chat morto: a ordem ocupa vaga, mas a aba não existe mais, o terminal caiu ou não sai nada na tela
- * há mais que `prazoMs` (sem pergunta aberta e sem ordem filha por terminar, que são esperas legítimas).
+ * Chat morto: a ordem ocupa vaga, mas a aba não existe mais ou o terminal caiu. Terminal ligado nunca conta, chat
+ * lançado há pouco nunca conta, e uma lista do Orca que falha uma vez não basta: `semVidaDesde` guarda desde quando cada
+ * ordem aparece sem vida e só vira morta depois de ESPERA_ANTES_DE_DAR_COMO_PARADO_MS. Devolve `mortos` e o novo `semVidaDesde`.
  */
-export function chatsSemVida(estado, terminais, agora, prazoMs) {
+export function chatsSemVida(estado, terminais, agora, semVidaDesde = new Map()) {
+  const agoraSemVida = new Map()
   const mortos = []
   for (const ordem of Object.values(estado.ordens)) {
     const chat = ordem.chatId ? estado.chats[ordem.chatId] : null
-    if (!chat || !OCUPA_VAGA.has(ordem.situacao)) {
+    if (
+      !chat ||
+      !OCUPA_VAGA.has(ordem.situacao) ||
+      agora - Date.parse(ordem.lancadoEm) < GRACA_DO_LANCAMENTO_MS
+    ) {
       continue
     }
     const terminal =
       terminais.find((t) => t.tabId === chat.id) ?? terminais.find((t) => t.handle === chat.handle)
-    if (!terminal) {
-      mortos.push({
-        ordemId: ordem.id,
-        motivo: 'o chat nao tem terminal ligado (aba fechada ou dormindo)'
-      })
+    if (terminal && terminal.connected !== false) {
       continue
     }
-    if (terminal.connected === false) {
-      mortos.push({ ordemId: ordem.id, motivo: 'o terminal do chat caiu' })
-      continue
-    }
-    const esperando =
-      Object.values(estado.perguntas).some((p) => p.de === chat.id && p.resposta === null) ||
-      Object.values(estado.ordens).some(
-        (filha) => filha.de === chat.id && NAO_TERMINADA.has(filha.situacao)
-      )
-    const parado = terminal.lastOutputAt ? agora - terminal.lastOutputAt : 0
-    if (!esperando && parado > prazoMs) {
-      mortos.push({
-        ordemId: ordem.id,
-        motivo: `nada na tela do chat ha ${Math.round(parado / 60000)} min`
-      })
+    const motivo = terminal
+      ? 'o terminal do chat caiu'
+      : 'o chat nao tem terminal ligado (aba fechada ou dormindo)'
+    const desde = semVidaDesde.get(ordem.id) ?? agora
+    agoraSemVida.set(ordem.id, desde)
+    if (agora - desde >= ESPERA_ANTES_DE_DAR_COMO_PARADO_MS) {
+      mortos.push({ ordemId: ordem.id, motivo })
     }
   }
-  return mortos
+  return { mortos, semVidaDesde: agoraSemVida }
 }
 
 /**
@@ -455,7 +454,9 @@ export function decidirEntrega(estado, { ordemId, por, provas }) {
   if (!ordem || ordem.chatId !== por) {
     return { acao: 'recusar', motivo: 'Esta ordem não é deste chat.' }
   }
-  if (!['trabalhando', 'em_prova', 'devolvido'].includes(ordem.situacao)) {
+  // Parada pelo sistema (chat dado como morto) e o chat entrega: a parada foi engano. Baixa de quem criou e lançamento falho não.
+  const paradaPorEngano = ordem.situacao === 'parou' && ordem.paradaAutomatica
+  if (!['trabalhando', 'em_prova', 'devolvido'].includes(ordem.situacao) && !paradaPorEngano) {
     return { acao: 'recusar', motivo: `A ordem está em "${ordem.situacao}" e não aceita entrega.` }
   }
   if (!provas || provas.length === 0) {

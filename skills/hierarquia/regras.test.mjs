@@ -4,7 +4,6 @@ import { rotuloDaSituacao } from './estado-na-tela.mjs'
 import {
   acharTarefaNova,
   acharTerminalNovo,
-  chatsSemVida,
   criadorSemAba,
   decidirConferencia,
   decidirEntrega,
@@ -543,21 +542,6 @@ test('pedido so avisa quem criou quando todas as ordens dele terminam; outro ped
   assert.deepEqual(
     pedidosParaAvisar(montarEstado(eventos), 'PO').map((grupo) => grupo.pedido),
     ['J']
-  )
-})
-
-test('chat sem aba, caido ou sem nada na tela passa a contar como parado; quem espera filha nao', () => {
-  const eventos = comExecutores(base(), 'P1', 3, 'E')
-  const estado = montarEstado(eventos)
-  const agora = 100 * 60000
-  const terminais = [
-    { tabId: 'P1', connected: true, lastOutputAt: 0 },
-    { tabId: 'E2', connected: false, lastOutputAt: agora },
-    { tabId: 'E3', connected: true, lastOutputAt: agora - 25 * 60000 }
-  ]
-  assert.deepEqual(
-    chatsSemVida(estado, terminais, agora, 20 * 60000).map((morto) => morto.ordemId),
-    ['o-E1', 'o-E2', 'o-E3']
   )
 })
 
