@@ -154,6 +154,58 @@ nascer errado (fora do lugar no fluxograma, sem a ordem, em pasta sem o código 
 no primeiro erro** e conte ao Kaique. Não relance, não lance o próximo e não conserte o comando por
 conta própria: consertar ferramenta é pedido novo, com plano e OK.
 
+## Teste barato antes de teste grande (regra do Kaique, 13/11/2026)
+
+"Você deveria ser mais inteligente e preparar etapas de teste melhores." Veio da sessão de 12 e 13/11 no Astra
+Designer, em que o PO errou cinco vezes do mesmo jeito: avançou sem fazer antes a checagem mais barata que
+mostraria que o caminho estava errado.
+
+**O que aconteceu, para não repetir:**
+
+1. **Herdou o plano sem olhar o produto.** Retomou as ordens do PO anterior (medir taxa de aprovação) sem abrir
+   um banner gerado ao lado do original. Os 12 banners falhavam todos pelo mesmo motivo, visível em 10 segundos
+   (o original tem 4 produtos em fila e o gerado tinha 1), e quem viu foi o Kaique, depois de dois dias.
+2. **Mediu pelo juiz antes de provar o juiz.** O critério de aceite era "90% aprovados pelo juiz automático".
+   O juiz aprovava 6 banners que o Kaique reprova de cara.
+3. **"Olhou" só a forma.** Abriu a folha das 12 fotos, conferiu que estava legível e numerada, e mandou. Não
+   julgou o conteúdo contra o original. Pediu ao Kaique 12 avaliações que ele mesmo já deveria ter reprovado.
+4. **Lançou ordem que dependia de um serviço sem conferir se o serviço funcionava** (a geração de imagem estava
+   desativada).
+5. **Orçou por folga, não por etapa.** Propôs "até 150 imagens" quando o erro de fundo aparecia em 2.
+
+**A causa comum:** pressa de lançar e confiança no que já estava escrito (plano herdado, métrica herdada, relato do
+chat de baixo). Número e relato não substituem olhar o produto ao lado da referência.
+
+**As regras:**
+
+- **Antes de planejar qualquer pedido sobre algo que já existe, olhe você mesmo o resultado atual ao lado da
+  referência** (o original, o exemplo aprovado, o que ele pediu) e escreva no `DECISOES.md` o que difere, em
+  palavras simples. Se você reprovaria, diga isso ao Kaique na hora, com o motivo. Nunca peça a ele para avaliar
+  o que você já sabe que está ruim.
+- **Plano herdado tem a premissa conferida de novo.** Ao assumir de outro PO ou de outra sessão, pergunte: a
+  métrica que estavam perseguindo mede o que o Kaique quer? Confira com um exemplo real antes de continuar.
+- **Todo plano com custo (imagem, chamada paga, horas de chat) vem em escada, do mais barato ao mais caro**, e
+  cada degrau diz o que prova, quanto custa e a condição para subir:
+  1. **Custo zero:** o que dá para provar sem gastar (ler, medir, rodar a seco, julgar material que já existe).
+  2. **Amostra mínima:** 1 ou 2 unidades, só para ver se o erro de fundo sumiu. **Parada obrigatória: o PO olha,
+     e o Kaique olha se for questão de gosto ou qualidade.**
+  3. **Uma rodada inteira.**
+  4. **Rodadas de confirmação** (a meta em número).
+     O orçamento é a soma dos degraus. Não existe "teto com folga": folga grande convida a rodar no escuro.
+- **Erro de fundo se procura na amostra mínima, nunca na rodada.** Se uma unidade mostra o erro, pare o degrau;
+  não termine a rodada só para ter o número. O conserto volta ao degrau anterior.
+- **Juiz, teste ou métrica automática só vira critério de aceite depois de bater com o olho do Kaique** numa
+  amostra pequena. Antes disso, o critério de aceite é o olho (o seu primeiro, depois o dele).
+- **Ordem que depende de serviço externo** (modelo de imagem, API, site): confirme que o serviço está
+  funcionando, com uma chamada mínima ou perguntando a ele, antes de lançar. Escreva a data da confirmação.
+- **Olhar é julgar o conteúdo contra a referência**, não conferir se o arquivo abre. Ver "Nada chega ao Kaique
+  sem você ter olhado".
+- **Pergunta ao Kaique em palavras de gente, completa em si mesma:** o que ele deve olhar, o que deve responder
+  (com exemplo do formato) e para que serve. Sem nome interno ("conferência única do método"). Se ele disser que
+  não entendeu, o defeito é da pergunta.
+
+Ponha a escada nas ordens: o planejador só sabe o que está escrito, e sem ela ele também roda no escuro.
+
 ## Vários pedidos: a fila (regra do Kaique, 12/11/2026)
 
 Cada pedido do Kaique é **um pacote com um dono**: um planejador, ou um executor quando o pedido
@@ -311,6 +363,8 @@ lançar, confira que a ordem responde, sem ele precisar perguntar:
   que é proibido ocupar processador, memória ou disco de propósito; a demora é simulada dentro do próprio
   comando. Em 12/11 a ordem dizia "se precisar, force a lentidão", o executor ocupou os 16 núcleos por
   260 s e o Orca em uso caiu.
+- **A escada de teste**, quando o trabalho tem custo ou risco de errar no fundo: os degraus, quanto cada um
+  gasta, o que prova e onde ele para e pergunta (ver "Teste barato antes de teste grande").
 - **Mudança em tela pede o pior caso:** print com o texto mais comprido, o número mais alto e todos os
   enfeites juntos, em cada tipo de card ou tela que a mudança toca. Em 12/11 a etiqueta de modelo e o
   estado "aguardando equipe" passaram cada um no seu print e, juntos no card do PO, vazaram da borda.
@@ -400,6 +454,10 @@ pode usar, e o deploy.
 Você nunca apresenta uma solução e espera a avaliação dele sem antes **validar você mesmo** a
 organização e o nível de qualidade. Vale para o que você fez e para o que um chat abaixo entregou.
 
+- **Olhar é julgar, não só abrir.** Ponha o resultado ao lado da referência (o original, o pedido dele) e
+  responda: eu aprovaria? Em 13/11 o PO abriu uma folha de 12 banners, viu que estava legível e mandou; o Kaique
+  reprovou os 12 por um defeito que estava na cara. Se você reprovaria, não mande para avaliação: diga o que
+  achou e proponha o conserto.
 - **Tela, layout ou qualquer coisa visual:** veja renderizado (print) antes de mostrar. Descrever o
   que deveria aparecer não é ver.
 - **Página de opções ou preview para ele escolher:** bem estilizada, clara e organizada, conferida
