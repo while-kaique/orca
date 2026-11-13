@@ -35,16 +35,10 @@ export type Placed = { item: PackItem; x: number; y: number; rects: Rect[] }
 
 /** Zooms closer than this count as equal, and the tidier arrangement wins. */
 const SAME_ZOOM = 0.005
-/** Up to this many projects every order is tried; above it, a beam search. */
-export const PACK_EXACT_LIMIT = 6
-const BEAM_WIDTH = 6
-/** How many spots are tried for each project, by number of projects. */
-const BRANCHES: Record<number, number> = { 1: 1, 2: 4, 3: 4, 4: 3, 5: 2 }
-
 export const shiftRects = (rects: readonly Rect[], x: number, y: number): Rect[] =>
   rects.map((r) => ({ x: r.x + x, y: r.y + y, w: r.w, h: r.h }))
 
-const union = (rects: readonly Rect[]): Rect => {
+export const union = (rects: readonly Rect[]): Rect => {
   let x0 = Infinity
   let y0 = Infinity
   let x1 = -Infinity
@@ -58,7 +52,7 @@ const union = (rects: readonly Rect[]): Rect => {
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }
 }
 
-const zoomOf = (b: Rect, screen: PackScreen): number =>
+export const zoomOf = (b: Rect, screen: PackScreen): number =>
   b.w <= 0 || b.h <= 0 ? 1 : Math.min(1, screen.w / b.w, screen.h / b.h)
 
 /** Forbidden origin heights (open intervals, merged) for an item whose origin is at column `x`. */
@@ -103,9 +97,9 @@ export function touches(
   return !isFree(y, forbiddenHeights(item, x, fixed, rules))
 }
 
-type Candidate = { x: number; y: number; zoom: number; aligned: number; area: number }
+export type Candidate = { x: number; y: number; zoom: number; aligned: number; area: number }
 
-function better(a: Candidate, b: Candidate): boolean {
+export function better(a: Candidate, b: Candidate): boolean {
   if (Math.abs(a.zoom - b.zoom) > SAME_ZOOM * Math.max(a.zoom, b.zoom)) {
     return a.zoom > b.zoom
   }
@@ -131,17 +125,13 @@ function columnsFor(item: PackItem, bounds: Rect, rules: PackRules): number[] {
   return out
 }
 
-/** The best free origins for one more item among the ones already placed, best first. */
-export function bestSpots(
+/** Every free origin worth trying for one more item among the ones already placed, with what each would make of the drawing. */
+export function candidateSpots(
   item: PackItem,
   placed: readonly Placed[],
   screen: PackScreen,
-  rules: PackRules,
-  count = 1
-): Point[] {
-  if (placed.length === 0) {
-    return [{ x: 0, y: 0 }]
-  }
+  rules: PackRules
+): Candidate[] {
   const fixed = placed.flatMap((p) => p.rects)
   const bounds = union(fixed)
   const own = union(item.rects)
@@ -166,20 +156,37 @@ export function bestSpots(
       }
       const all = union([bounds, ...shiftRects(item.rects, x, y)])
       const mine = y + item.header.y
-      const candidate: Candidate = {
+      found.push({
         x,
         y,
         zoom: zoomOf(all, screen),
         aligned: headerYs.filter((h) => Math.abs(h - mine) < 0.5).length,
         area: all.w * all.h
-      }
-      found.push(candidate)
+      })
     }
   }
+  return found
+}
+
+/** The best free origins for one more item among the ones already placed, best first. */
+export function bestSpots(
+  item: PackItem,
+  placed: readonly Placed[],
+  screen: PackScreen,
+  rules: PackRules,
+  count = 1
+): Point[] {
+  if (placed.length === 0) {
+    return [{ x: 0, y: 0 }]
+  }
+  const found = candidateSpots(item, placed, screen, rules)
   found.sort((a, b) => (better(a, b) ? -1 : better(b, a) ? 1 : 0))
-  return found.length
-    ? found.slice(0, count).map(({ x, y }) => ({ x, y }))
-    : [{ x: 0, y: bounds.y + bounds.h + rules.gapY - own.y }]
+  if (found.length) {
+    return found.slice(0, count).map(({ x, y }) => ({ x, y }))
+  }
+  const bounds = union(placed.flatMap((p) => p.rects))
+  const own = union(item.rects)
+  return [{ x: 0, y: bounds.y + bounds.h + rules.gapY - own.y }]
 }
 
 export const bestSpot = (
@@ -209,118 +216,4 @@ export function nudgeAway(
   }
   const moved = (p: Point): number => Math.abs(p.x - from.x) + Math.abs(p.y - from.y)
   return right === from || moved(down) <= moved(right) ? down : right
-}
-
-type State = { placed: Placed[]; bounds: Rect; order: string[]; zoom: number; aligned: number }
-
-function extend(state: State, item: PackItem, spot: Point, screen: PackScreen): State {
-  const rects = shiftRects(item.rects, spot.x, spot.y)
-  const mine = spot.y + item.header.y
-  const aligned =
-    state.aligned + state.placed.filter((p) => Math.abs(p.y + p.item.header.y - mine) < 0.5).length
-  const bounds = union(state.placed.length ? [state.bounds, ...rects] : rects)
-  return {
-    placed: [...state.placed, { item, x: spot.x, y: spot.y, rects }],
-    bounds,
-    order: [...state.order, item.id],
-    zoom: zoomOf(bounds, screen),
-    aligned
-  }
-}
-
-const area = (s: State): number => s.bounds.w * s.bounds.h
-const stateBetter = (a: State, b: State): boolean =>
-  better(
-    { x: 0, y: 0, zoom: a.zoom, aligned: a.aligned, area: area(a) },
-    { x: 0, y: 0, zoom: b.zoom, aligned: b.aligned, area: area(b) }
-  )
-
-const EMPTY: State = {
-  placed: [],
-  bounds: { x: 0, y: 0, w: 0, h: 0 },
-  order: [],
-  zoom: 1,
-  aligned: 0
-}
-
-function exhaustive(items: readonly PackItem[], screen: PackScreen, rules: PackRules): State {
-  let best: State | null = null
-  // Fewer projects leave room to try more than the single best spot for each one.
-  const branches = BRANCHES[items.length] ?? 1
-  const walk = (state: State, left: readonly PackItem[]): void => {
-    if (best && state.zoom < best.zoom * (1 - SAME_ZOOM)) {
-      return
-    }
-    if (left.length === 0) {
-      if (!best || stateBetter(state, best)) {
-        best = state
-      }
-      return
-    }
-    left.forEach((item, i) => {
-      const rest = [...left.slice(0, i), ...left.slice(i + 1)]
-      for (const spot of bestSpots(item, state.placed, screen, rules, branches)) {
-        walk(extend(state, item, spot, screen), rest)
-      }
-    })
-  }
-  walk(EMPTY, items)
-  return best as unknown as State
-}
-
-function inOrder(items: readonly PackItem[], screen: PackScreen, rules: PackRules): State {
-  return items.reduce(
-    (state, item) => extend(state, item, bestSpot(item, state.placed, screen, rules), screen),
-    EMPTY
-  )
-}
-
-function beam(items: readonly PackItem[], screen: PackScreen, rules: PackRules): State {
-  const heightOf = (i: PackItem): number => union(i.rects).h
-  const widthOf = (i: PackItem): number => union(i.rects).w
-  const seeds = [
-    inOrder(
-      [...items].sort((a, b) => heightOf(b) - heightOf(a)),
-      screen,
-      rules
-    ),
-    inOrder(
-      [...items].sort((a, b) => widthOf(b) - widthOf(a)),
-      screen,
-      rules
-    )
-  ]
-  let level: State[] = [EMPTY]
-  for (let depth = 0; depth < items.length; depth++) {
-    const next: State[] = []
-    for (const state of level) {
-      const used = new Set(state.order)
-      for (const item of items) {
-        if (!used.has(item.id)) {
-          next.push(extend(state, item, bestSpot(item, state.placed, screen, rules), screen))
-        }
-      }
-    }
-    next.sort((a, b) => (stateBetter(a, b) ? -1 : stateBetter(b, a) ? 1 : 0))
-    level = next.slice(0, BEAM_WIDTH)
-  }
-  return [...level, ...seeds].reduce((best, s) => (stateBetter(s, best) ? s : best))
-}
-
-/** The arrangement that makes the cards biggest on the screen; ties go to level headers, then the smaller area, then the sidebar order. */
-export function packProjects(
-  items: readonly PackItem[],
-  screen: PackScreen,
-  rules: PackRules
-): PackResult {
-  if (items.length === 0) {
-    return { spots: {}, bounds: { x: 0, y: 0, w: 0, h: 0 }, zoom: 1 }
-  }
-  const state =
-    items.length <= PACK_EXACT_LIMIT ? exhaustive(items, screen, rules) : beam(items, screen, rules)
-  const spots: Record<string, Point> = {}
-  for (const p of state.placed) {
-    spots[p.item.id] = { x: p.x, y: p.y }
-  }
-  return { spots, bounds: state.bounds, zoom: state.zoom }
 }

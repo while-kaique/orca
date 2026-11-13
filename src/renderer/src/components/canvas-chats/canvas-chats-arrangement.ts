@@ -5,7 +5,8 @@ import {
   type CanvasBox,
   type CanvasProject
 } from './canvas-chats-layout'
-import { packProjects, type PackItem } from './canvas-chats-packing'
+import { packProjects } from './canvas-chats-pack-search'
+import type { PackItem } from './canvas-chats-packing'
 
 /** What each plan asks of the packer: its shape, and where its header sits inside it. */
 export const packItemOf = ({ block, shape, header }: BlockPlan): PackItem => ({

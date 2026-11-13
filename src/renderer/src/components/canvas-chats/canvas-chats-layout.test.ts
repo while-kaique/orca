@@ -2,6 +2,7 @@ import { expect, it } from 'vitest'
 import {
   chatDescendants,
   chipsHeight,
+  planBlocks,
   isFreeChat,
   type CanvasBox,
   type CanvasChat,
@@ -11,6 +12,7 @@ import { layoutCanvas, type CanvasInsets } from './canvas-chats-arrangement'
 import { chatVisualBox } from './canvas-chat-shape'
 import { anchoredPlacement, chatParents, convertLegacyPlacement } from './canvas-chats-anchors'
 import { drawnBounds, fitView } from './canvas-chats-fit'
+import { largestHole } from './canvas-chats-holes'
 import { legacyAutoBoxes } from './canvas-chats-layout-legacy'
 import {
   applyCanvasOffsets,
@@ -71,7 +73,8 @@ it('puts the chats a chat created in a row below it, centered under it', () => {
   expect(boxes.plan2.y).toBe(boxes.plan1.y)
   expect(boxes.plan2.x - boxes.plan1.x).toBe(340 + 52)
   expect(boxes.po.x + 170).toBe((boxes.plan1.x + boxes.plan2.x + 340) / 2)
-  expect(boxes['project:p'].x).toBe(boxes.po.x)
+  // The project card (410 wide) is centered over the PO (340 wide): the line down is straight.
+  expect(boxes['project:p'].x + 205).toBe(boxes.po.x + 170)
 })
 it('stacks three levels and keeps cousins from overlapping', () => {
   const { boxes } = layoutCanvas(
@@ -170,7 +173,7 @@ it('puts every chat above a project that has no PO and nothing below it', () => 
   )
   expect(boxes.a.y).toBe(boxes['project:p'].y - 80 - 230)
   expect(boxes.c.x).toBe(boxes.a.x + 2 * (340 + 52))
-  expect(boxes['project:p'].x).toBe(boxes.a.x)
+  expect(boxes['project:p'].x + 205).toBe(boxes.b.x + 170)
   expect(boxes['project:p'].y).toBe(boxes.a.y + 230 + 80)
 })
 it('keeps the chips that hang above a free chat inside the block, not on the project', () => {
@@ -279,6 +282,45 @@ it('3 projects, case 2 of the hand-arranged prints: the PO card is at least 242 
   expect(poWidthOnScreen([social, orca3, astra])).toBeGreaterThanOrEqual(242)
 })
 
+const emptyCards = (projects: CanvasProject[]): number => {
+  const { headers } = layoutCanvas(projects, board, insets)
+  const outlines = planBlocks(projects).flatMap((plan) => {
+    const h = headers[plan.block.project.id]
+    return plan.shape.map((r) => ({
+      x: r.x + h.x - plan.header.x,
+      y: r.y + h.y - plan.header.y,
+      w: r.w,
+      h: r.h
+    }))
+  })
+  const x0 = Math.min(...outlines.map((r) => r.x))
+  const y0 = Math.min(...outlines.map((r) => r.y))
+  const box = {
+    x: x0,
+    y: y0,
+    w: Math.max(...outlines.map((r) => r.x + r.w)) - x0,
+    h: Math.max(...outlines.map((r) => r.y + r.h)) - y0
+  }
+  return largestHole(outlines, box, { gapX: 104, gapY: 80 }).cards
+}
+it('3 projects, both hand-arranged cases: the empty space left is smaller than in the print (3.76 and 5.89 cards)', () => {
+  const social3a = team('social', [
+    ['po', 'po', undefined, 1],
+    ['plan', 'planejador', 'po'],
+    ['e1', 'executor', 'po']
+  ])
+  const social3b = team('social', [
+    ['po', 'po', undefined, 1],
+    ['plan', 'planejador', 'po'],
+    ['e1', 'executor', 'plan'],
+    ['e2', 'executor', 'plan'],
+    ['e3', 'executor', 'po', 1],
+    ['e4', 'executor', 'po', 1]
+  ])
+  expect(emptyCards([orca3, social3a, astra])).toBeLessThan(3.76)
+  expect(emptyCards([social3b, orca3, astra])).toBeLessThan(5.89)
+})
+
 const drawnBox = (c: CanvasChat, boxes: Record<string, CanvasBox>): CanvasBox => {
   const b = chatVisualBox(c, boxes[c.key])
   const chips = chipsHeight(c)
@@ -331,10 +373,26 @@ it('starts every card on a multiple of half a column (196), counted from the sam
   const { boxes } = layoutCanvas(projects, board, insets)
   const origin = boxes['astra-po'].x
   for (const p of projects) {
-    for (const key of [`project:${p.id}`, ...p.chats.map((c) => c.key)]) {
+    // The project card is not on the grid: it is centered over its top chat.
+    for (const key of p.chats.map((c) => c.key)) {
       expect((((boxes[key].x - origin) % 196) + 196) % 196).toBe(0)
     }
   }
+})
+it('centers every project card over its PO, so the line from the card to the PO is straight', () => {
+  const projects = [astra, orca1, so, social4]
+  const { boxes } = layoutCanvas(projects, board, insets)
+  expect(boxes['project:astra'].x + 205).toBe(boxes['astra-po'].x + 170)
+  expect(boxes['project:orca'].x + 205).toBe(boxes['orca-po'].x + 170)
+  expect(boxes['project:social'].x + 205).toBe(boxes['social-po'].x + 170)
+})
+it('measures the biggest empty space inside a drawing in cards of 340 x 230', () => {
+  const band = [{ x: 0, y: 0, w: 800, h: 120 }]
+  const box = { x: 0, y: 0, w: 800, h: 400 }
+  // Below the band: 800 x 280 free (280 = 7 cells of 40) = 224000 / 78200 cards.
+  expect(largestHole(band, box, { gapX: 0, gapY: 0 }).area).toBe(224000)
+  // With the 80 gap below the band the free part is 800 x 200 = 160000.
+  expect(largestHole(band, box, { gapX: 104, gapY: 80 }).area).toBe(160000)
 })
 it('puts the headers of two alike projects side by side at the same height, in the sidebar order', () => {
   const a = team('a', [['po', 'po']])

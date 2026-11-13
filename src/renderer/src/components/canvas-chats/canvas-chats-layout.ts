@@ -291,11 +291,8 @@ export function planBlocks(projects: readonly CanvasProject[]): BlockPlan[] {
         h: C.h
       }
     })
-    // The project card starts at its first chat's left edge, wherever that chat ended up over its own chats.
-    const first = local[(block.roots[0]?.chat ?? block.free[0])?.key ?? '']
-    if (first) {
-      local[projectKey].x = first.x
-    }
+    // The project card is centered over its top chats (the chats rows are centered on the block too): the line down is straight.
+    local[projectKey].x = (block.w - P.w) / 2
     const header = local[projectKey]
     const shape: CanvasBox[] = []
     if (block.free.length) {

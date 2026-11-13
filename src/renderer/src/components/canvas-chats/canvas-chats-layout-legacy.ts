@@ -73,8 +73,12 @@ export function legacyAutoBoxes(
   const best =
     grids.filter(close).sort((a, b) => squareness(a) - squareness(b) || b.s - a.s)[0] ?? grids[0]
   for (const { plan, x, y } of best.spots) {
+    // The project card started at its first chat's left edge under the old rule (it is centered over the chats now).
+    const { block } = plan
+    const first = plan.local[(block.roots[0]?.chat ?? block.free[0])?.key ?? '']
     for (const [key, box] of Object.entries(plan.local)) {
-      boxes[key] = { ...box, x: box.x + x, y: box.y + y }
+      const left = key === `project:${block.project.id}` && first ? first.x : box.x
+      boxes[key] = { ...box, x: left + x, y: box.y + y }
     }
   }
   return boxes

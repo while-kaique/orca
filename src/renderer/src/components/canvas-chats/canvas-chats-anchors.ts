@@ -223,7 +223,8 @@ export function convertLegacyPlacement(
     for (const chat of plan.block.project.chats) {
       const at = shown(chat.key)
       if (at) {
-        const zone = stored[chat.key]?.zone
+        // What is kept is the distance from the place as it is now: it counts in the zone the chat is in now.
+        const zone = zones.get(chat.key) ?? stored[chat.key]?.zone
         offsets[chat.key] = {
           dx: at.x - auto[chat.key].x,
           dy: at.y - auto[chat.key].y,
