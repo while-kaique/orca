@@ -1,10 +1,23 @@
 import { expect, it } from 'vitest'
 import {
   chatDescendants,
-  layoutCanvas,
+  chipsHeight,
+  isFreeChat,
+  type CanvasBox,
   type CanvasChat,
   type CanvasProject
 } from './canvas-chats-layout'
+import { layoutCanvas, type CanvasInsets } from './canvas-chats-arrangement'
+import { chatVisualBox } from './canvas-chat-shape'
+import { anchoredPlacement, chatParents, convertLegacyPlacement } from './canvas-chats-anchors'
+import { drawnBounds, fitView } from './canvas-chats-fit'
+import { legacyAutoBoxes } from './canvas-chats-layout-legacy'
+import {
+  applyCanvasOffsets,
+  effectiveOffset,
+  type CanvasOffsets,
+  type CanvasZone
+} from './canvas-chats-offsets'
 
 const chat = (key: string, extras = 0, parentKey: string | null = null) => ({
   key,
@@ -47,29 +60,6 @@ const four = [
 ]
 it('does not crash before the viewport is measured', () => {
   expect(() => layoutCanvas(four, { w: 0, h: 0 })).not.toThrow()
-})
-it('puts 4 projects in a 2x2 grid on a wide screen', () => {
-  const { boxes } = layoutCanvas(four, { w: 2065, h: 1350 })
-  expect(boxes['project:cs'].y).toBe(boxes['project:ad'].y)
-  expect(boxes['project:sh'].y).toBeGreaterThan(boxes['project:cs'].y)
-})
-it('stacks a project right under the one above it in its columns, with the column gap', () => {
-  const { boxes } = layoutCanvas(four, { w: 2065, h: 1350 })
-  // cs ends at 426 (header 116 + 80 + chat 230); ad, with chips under a chat, at 464; the gap is 374.
-  expect(boxes['project:sh'].y).toBe(800)
-  // pr is in ad's columns, so it goes under ad, not under cs.
-  expect(boxes['project:pr'].y).toBe(838)
-})
-it('lines every top chat up on one column grid, whatever the project', () => {
-  const { boxes } = layoutCanvas(four, { w: 2065, h: 1350 })
-  for (const key of ['a', 'b', 'c', 'd', 'e', 'f', 'g']) {
-    expect((boxes[key].x - boxes.a.x) % (340 + 52)).toBe(0)
-  }
-  expect(boxes.d.x).toBe(boxes.a.x)
-  expect(boxes.b.x - boxes.a.x).toBe(2 * (340 + 52))
-  expect(boxes['project:cs'].x).toBe(boxes.a.x)
-  expect(boxes['project:sh'].x).toBe(boxes['project:cs'].x)
-  expect(boxes['project:pr'].x).toBe(boxes['project:ad'].x)
 })
 const wide = { w: 4000, h: 3000 }
 it('puts the chats a chat created in a row below it, centered under it', () => {
@@ -197,8 +187,17 @@ it('does not let a project below overlap the free chats of the project above it'
     ],
     { w: 700, h: 2400 }
   )
-  expect(boxes['project:low'].y).toBeGreaterThan(boxes.t.y)
-  expect(boxes.lf.y).toBeGreaterThanOrEqual(boxes.t.y + 230)
+  const [top, low] = [project('top', []), project('low', [])]
+  expect(
+    [top, low].length === 2 &&
+      [boxes.t, boxes.tf, boxes['project:top']].every((a) =>
+        [boxes.l, boxes.lf, boxes['project:low']].every((b) => {
+          const gapX = Math.max(a.x - (b.x + b.w), b.x - (a.x + a.w))
+          const gapY = Math.max(a.y - (b.y + b.h), b.y - (a.y + a.h))
+          return gapX >= 104 || gapY >= 80
+        })
+      )
+  ).toBe(true)
 })
 it('does not drag the chats below a hierarchy chat together with a free chat', () => {
   const chats = [
@@ -208,4 +207,251 @@ it('does not drag the chats below a hierarchy chat together with a free chat', (
   ]
   expect(chatDescendants(chats, 'po').map((c) => c.key)).toEqual(['plan'])
   expect(chatDescendants(chats, 'f')).toEqual([])
+})
+
+// ---- Outline fitting, anchors and the saved-state conversion -------------------------------------------------------
+
+type Spec = [
+  key: string,
+  kind: 'po' | 'planejador' | 'executor' | 'livre',
+  parent?: string,
+  chips?: number
+]
+const team = (id: string, specs: Spec[]): CanvasProject =>
+  project(
+    id,
+    specs.map(([key, kind, parent, chips]) => {
+      const base = chat(`${id}-${key}`, chips ?? 0, parent ? `${id}-${parent}` : null)
+      return kind === 'livre' ? free(base) : role(base, kind)
+    })
+  )
+// The board of the 4-project print: 2151 x 1370 px; the legend and buttons take 64 px at the bottom.
+const board = { w: 2151, h: 1370 }
+const insets: CanvasInsets = { bottom: 64, pad: 32 }
+const astra = team('astra', [
+  ['free', 'livre', undefined, 1],
+  ['po', 'po'],
+  ['plan', 'planejador', 'po'],
+  ['e1', 'executor', 'plan'],
+  ['e2', 'executor', 'plan']
+])
+const social4 = team('social', [
+  ['po', 'po', undefined, 1],
+  ['plan', 'planejador', 'po'],
+  ['e1', 'executor', 'plan'],
+  ['e2', 'executor', 'plan'],
+  ['e3', 'executor', 'po'],
+  ['e4', 'executor', 'po', 1],
+  ['e5', 'executor', 'po', 1]
+])
+const orca1 = team('orca', [['po', 'po']])
+const so = team('so', [['free', 'livre']])
+const poWidthOnScreen = (projects: CanvasProject[]): number => {
+  const { boxes } = layoutCanvas(projects, board, insets)
+  return fitView(drawnBounds(projects, boxes), board, insets).s * 340
+}
+
+it('4 projects of the hand-arranged print: the PO card is at least as big as on the print (209 px)', () => {
+  expect(poWidthOnScreen([astra, orca1, so, social4])).toBeGreaterThanOrEqual(209)
+})
+const orca3 = team('orca', [
+  ['po', 'po', undefined, 1],
+  ['e1', 'executor', 'po'],
+  ['e2', 'executor', 'po']
+])
+it('3 projects, case 1 of the hand-arranged prints: the PO card is at least 278 px', () => {
+  const social = team('social', [
+    ['po', 'po', undefined, 1],
+    ['plan', 'planejador', 'po'],
+    ['e1', 'executor', 'po']
+  ])
+  expect(poWidthOnScreen([orca3, social, astra])).toBeGreaterThanOrEqual(278)
+})
+it('3 projects, case 2 of the hand-arranged prints: the PO card is at least 242 px', () => {
+  const social = team('social', [
+    ['po', 'po', undefined, 1],
+    ['plan', 'planejador', 'po'],
+    ['e1', 'executor', 'plan'],
+    ['e2', 'executor', 'plan'],
+    ['e3', 'executor', 'po', 1],
+    ['e4', 'executor', 'po', 1]
+  ])
+  expect(poWidthOnScreen([social, orca3, astra])).toBeGreaterThanOrEqual(242)
+})
+
+const drawnBox = (c: CanvasChat, boxes: Record<string, CanvasBox>): CanvasBox => {
+  const b = chatVisualBox(c, boxes[c.key])
+  const chips = chipsHeight(c)
+  return isFreeChat(c) ? { ...b, y: b.y - chips, h: b.h + chips } : { ...b, h: b.h + chips }
+}
+const cardsOf = (p: CanvasProject, boxes: Record<string, CanvasBox>): CanvasBox[] => [
+  boxes[`project:${p.id}`],
+  ...p.chats.map((c) => drawnBox(c, boxes))
+]
+const gap = (a: CanvasBox, b: CanvasBox): { x: number; y: number } => ({
+  x: Math.max(a.x - (b.x + b.w), b.x - (a.x + a.w)),
+  y: Math.max(a.y - (b.y + b.h), b.y - (a.y + a.h))
+})
+const apart = (
+  projects: CanvasProject[],
+  boxes: Record<string, CanvasBox>,
+  from: CanvasProject,
+  to: CanvasProject
+): boolean =>
+  projects.length > 0 &&
+  cardsOf(from, boxes).every((a) =>
+    cardsOf(to, boxes).every((b) => {
+      const g = gap(a, b)
+      return g.x >= 104 || g.y >= 80
+    })
+  )
+it('no card of a project comes closer than 104 across and 80 down to a card of another project', () => {
+  const projects = [astra, orca1, so, social4]
+  const { boxes } = layoutCanvas(projects, board, insets)
+  for (const p of projects) {
+    for (const q of projects.filter((o) => o !== p)) {
+      expect(apart(projects, boxes, p, q)).toBe(true)
+    }
+  }
+})
+it("puts a project under or beside another one inside the other's bounding box", () => {
+  const projects = [astra, orca1, so, social4]
+  const { boxes } = layoutCanvas(projects, board, insets)
+  const inside = projects.some((p) =>
+    projects.some((q) => {
+      const a = drawnBounds([p], boxes)
+      const b = drawnBounds([q], boxes)
+      return p !== q && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+    })
+  )
+  expect(inside).toBe(true)
+})
+it('starts every card on a multiple of half a column (196), counted from the same origin', () => {
+  const projects = [astra, orca1, so, social4]
+  const { boxes } = layoutCanvas(projects, board, insets)
+  const origin = boxes['astra-po'].x
+  for (const p of projects) {
+    for (const key of [`project:${p.id}`, ...p.chats.map((c) => c.key)]) {
+      expect((((boxes[key].x - origin) % 196) + 196) % 196).toBe(0)
+    }
+  }
+})
+it('puts the headers of two alike projects side by side at the same height, in the sidebar order', () => {
+  const a = team('a', [['po', 'po']])
+  const b = team('b', [['po', 'po']])
+  const { boxes } = layoutCanvas([a, b], board, insets)
+  expect(boxes['project:a'].y).toBe(boxes['project:b'].y)
+  expect(boxes['project:a'].x).toBeLessThan(boxes['project:b'].x)
+})
+it('fits 8 projects with 40 chats', () => {
+  const eight = Array.from({ length: 8 }, (_, i) =>
+    team(`p${i}`, [
+      ['po', 'po', undefined, 1],
+      ['plan', 'planejador', 'po'],
+      ['e1', 'executor', 'plan'],
+      ['e2', 'executor', 'plan'],
+      ['e3', 'executor', 'po']
+    ])
+  )
+  expect(Object.keys(layoutCanvas(eight, board, insets).boxes)).toHaveLength(48)
+})
+
+const zonesOf = (projects: CanvasProject[]): Map<string, CanvasZone> =>
+  new Map(
+    projects.flatMap((p) =>
+      p.chats.map((c): [string, CanvasZone] => [c.key, isFreeChat(c) ? 'free' : 'tree'])
+    )
+  )
+const shownByOldRule = (
+  projects: CanvasProject[],
+  viewport: { w: number; h: number },
+  stored: CanvasOffsets
+): Record<string, CanvasBox> =>
+  applyCanvasOffsets(legacyAutoBoxes(projects, viewport), stored, zonesOf(projects))
+const shownByNewRule = (
+  projects: CanvasProject[],
+  viewport: { w: number; h: number },
+  stored: CanvasOffsets
+): Record<string, CanvasBox> => {
+  const zones = zonesOf(projects)
+  const converted = convertLegacyPlacement(
+    projects,
+    legacyAutoBoxes(projects, viewport),
+    stored,
+    zones
+  )
+  const placed = anchoredPlacement(projects, converted.anchors, new Set(), { w: 2000, h: 1000 })
+  return applyCanvasOffsets(placed.boxes, converted.offsets, zones, {
+    parents: chatParents(projects),
+    skipProjects: true
+  })
+}
+it('turns the saved places of the previous version into anchors without moving any card (difference 0)', () => {
+  const projects = [astra, orca1, so, social4]
+  const stored: CanvasOffsets = {
+    'project:social': { dx: 120, dy: -40 },
+    'social-po': { dx: 120, dy: -40 },
+    'social-plan': { dx: 300, dy: 210 },
+    'astra-e1': { dx: -75, dy: 12 },
+    'so-free': { dx: 10, dy: 20, zone: 'tree' }
+  }
+  const before = shownByOldRule(projects, board, stored)
+  const after = shownByNewRule(projects, board, stored)
+  for (const key of Object.keys(before)) {
+    expect(after[key]).toEqual(before[key])
+  }
+})
+it('keeps a chat born after its creator was dragged next to it, not at the automatic spot', () => {
+  const base: Spec[] = [
+    ['po', 'po'],
+    ['plan', 'planejador', 'po']
+  ]
+  const grown = team('g', [...base, ['e1', 'executor', 'plan']])
+  const small = team('g', base)
+  const stored: CanvasOffsets = {
+    'g-po': { dx: 900, dy: 700 },
+    'g-plan': { dx: 900, dy: 700 },
+    'project:g': { dx: 900, dy: 700 }
+  }
+  const converted = convertLegacyPlacement(
+    [small],
+    legacyAutoBoxes([small], board),
+    stored,
+    zonesOf([small])
+  )
+  const placed = anchoredPlacement([grown], converted.anchors, new Set(), { w: 2000, h: 1000 })
+  const boxes = applyCanvasOffsets(placed.boxes, converted.offsets, zonesOf([grown]), {
+    parents: chatParents([grown]),
+    skipProjects: true
+  })
+  // Directly under its creator, on the next row, within 3 columns (3 x 392) edge to edge.
+  expect(boxes['g-e1'].y - (boxes['g-plan'].y + 106)).toBe(80)
+  expect(Math.abs(boxes['g-e1'].x - boxes['g-plan'].x)).toBeLessThanOrEqual(3 * 392)
+  expect(effectiveOffset('g-e1', converted.offsets)).toBeUndefined()
+})
+it('pushes the neighbour by the least when a project grows into it, and the grower stays', () => {
+  const left = team('left', [
+    ['po', 'po'],
+    ['e1', 'executor', 'po']
+  ])
+  const right = team('right', [['po', 'po']])
+  const before = layoutCanvas([left, right], board, insets)
+  const anchors = Object.fromEntries(
+    Object.entries(before.headers).map(([id, h]) => [id, { ...h, sig: id }])
+  )
+  const wideLeft = team('left', [
+    ['po', 'po'],
+    ['e1', 'executor', 'po'],
+    ['e2', 'executor', 'po'],
+    ['e3', 'executor', 'po'],
+    ['e4', 'executor', 'po']
+  ])
+  const resolved = anchoredPlacement([wideLeft, right], anchors, new Set(['left']), {
+    w: 2000,
+    h: 1000
+  })
+  expect(resolved.anchors.left.x).toBe(anchors.left.x)
+  expect(resolved.anchors.left.y).toBe(anchors.left.y)
+  expect(apart([wideLeft, right], resolved.boxes, wideLeft, right)).toBe(true)
+  expect((resolved.anchors.right.x - anchors.right.x) % 196).toBe(0)
 })
