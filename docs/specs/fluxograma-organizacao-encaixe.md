@@ -57,6 +57,11 @@ de 12/11 ("deixa tudo parado pra eu apertar o botão mesmo").
 - **Executores do PO anterior:** chat cujo `pai` no registro é um PO que não está aberto passa a ficar
   pendurado no PO ativo aberto do mesmo projeto; enquanto o PO novo está nascendo ("Abrindo o PO"), no chat que
   está nascendo. Linha reta do PO até eles.
+- **Criador fechado em geral (complemento de 13/11, o-042):** chat da hierarquia cujo criador fechou fica embaixo
+  do **ancestral vivo mais próximo** pela cadeia `pai` do registro (ex.: executor da o-036 cujo planejador fechou
+  fica sob o PO). PO fechado na cadeia = o PO que está no lugar dele. Executor e planejador nunca ficam ligados
+  direto ao projeto, nem com a cadeia quebrada; vale depois de reiniciar o Orca e para ordem com baixa (a
+  ligação vem só do registro, não da ordem).
 - **Chat lançado pela hierarquia:** já nasce embaixo de quem o criou; a fase "Livre longe" some (o registro
   `chat_lancado` existe antes de o papel aparecer na tela: o fluxograma relê o registro quando surge uma aba
   nova, em vez de esperar a próxima leitura de 3 s, e um chat cujo criador é da hierarquia não é desenhado como
@@ -85,7 +90,8 @@ lista do que achou, ou saída 0 com "zero achado". Mede, no programa de verdade 
 7. chat a mais de **3 colunas** (borda a borda, coluna = 392 unidades) do dono dele (criador, ou o projeto para
    PO e livre);
 8. números do Reorganizar: largura do card do PO em px, margem vazia de cada lado em px, maior buraco entre
-   projetos.
+   projetos;
+9. (tipo i, o-042) executor ou planejador ligado direto ao projeto.
 
 Obrigatória antes de qualquer entrega que toque o fluxograma (escrito no `AGENTS.md` e no `ONDE-PARAMOS.md`).
 

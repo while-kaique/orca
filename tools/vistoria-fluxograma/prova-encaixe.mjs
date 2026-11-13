@@ -20,7 +20,7 @@ for (const caso of CASOS) {
     projetos,
     Object.fromEntries(Object.entries(headers).map(([id, h]) => [id, [h.x, h.y]]))
   )
-  const buracoMao = buracosEm(calculo, projetos, caso.mao)
+  const buracoMao = caso.mao ? buracosEm(calculo, projetos, caso.mao) : null
   resultado.casos.push({
     nome: caso.nome,
     poPx: po,
@@ -31,7 +31,7 @@ for (const caso of CASOS) {
   })
   console.log(`${caso.nome}: card do PO ${po} px (a mao ${caso.poMao}) zoom ${vista.s.toFixed(3)}`)
   console.log(
-    `   maior buraco em cards (com folgas / sem folgas): novo ${buracoNovo.comFolgas} / ${buracoNovo.semFolgas}; a mao ${buracoMao.comFolgas} / ${buracoMao.semFolgas}`
+    `   maior buraco em cards (com folgas / sem folgas): novo ${buracoNovo.comFolgas} / ${buracoNovo.semFolgas}; a mao ${buracoMao ? `${buracoMao.comFolgas} / ${buracoMao.semFolgas}` : 'sem arrumacao a mao'}`
   )
 }
 

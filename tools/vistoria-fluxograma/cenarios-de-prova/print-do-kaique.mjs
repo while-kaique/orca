@@ -75,13 +75,6 @@ export default async function (page, { lerTela, recarregar, mundo, dizer }) {
     },
     { antigo: poAntigo.chave, novo: 'TESTE-po-novo' }
   )
-  // O selo solto do print nao tem causa achada no codigo: aqui ele e solto de proposito (so para esta prova).
-  if (fatos.selos.length > 0) {
-    await page.addStyleTag({
-      content: '.cc-chips { transform: translate(-340px, 170px) !important; }'
-    })
-    dizer('selo de anexo deslocado de proposito (cenario)')
-  }
   dizer(
     `PO antigo ${poAntigo.chave.slice(0, 8)} fechado, PO novo TESTE-po-novo aberto; setas e nome comprido guardados`
   )

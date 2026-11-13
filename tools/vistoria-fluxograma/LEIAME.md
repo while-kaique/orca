@@ -52,7 +52,8 @@ tipo. Rodam só no Orca de teste (`--cenario ARQUIVO.mjs`):
 
 | Arquivo                          | O que monta                                                                                   |
 | -------------------------------- | --------------------------------------------------------------------------------------------- |
-| `print-do-kaique.mjs`            | o print de 13/11: PO anterior fechado, PO novo, setas manuais, nome comprido, selo solto      |
+| `print-do-kaique.mjs`            | o print de 13/11: PO anterior fechado, PO novo, setas manuais, nome comprido                  |
+| `e-selo-longe.mjs`               | tipo e: selos soltos de propósito longe do card                                               |
 | `seta-manual.mjs`                | seta entre dois cards (um hexágono) depois de Reorganizar, arrastar e chat novo; card fechado |
 | `chat-lancado-nasce.mjs`         | chat lançado pela hierarquia nascendo: linha do tempo do papel e do lado dele                 |
 | `c-texto-pior-caso.mjs`          | nomes e títulos compridos, modelo, aguardando equipe, 987k e selos em todo tipo de card       |

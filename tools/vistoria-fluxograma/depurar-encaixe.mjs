@@ -35,5 +35,5 @@ const saida = (cabecalhos) => {
 }
 writeFileSync(
   process.argv[3] ?? 'esquema.json',
-  JSON.stringify({ novo: saida(cab), mao: saida(caso.mao) })
+  JSON.stringify({ novo: saida(cab), mao: caso.mao ? saida(caso.mao) : saida(cab) })
 )

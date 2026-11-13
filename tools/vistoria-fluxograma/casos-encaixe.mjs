@@ -17,7 +17,13 @@ export async function carregarCalculo() {
   const entrada = path.join(pasta, 'entrada.ts')
   writeFileSync(
     entrada,
-    ['canvas-chats-arrangement', 'canvas-chats-fit', 'canvas-chats-holes', 'canvas-chats-packing']
+    [
+      'canvas-chats-arrangement',
+      'canvas-chats-fit',
+      'canvas-chats-holes',
+      'canvas-chats-packing',
+      'canvas-chats-pack-search'
+    ]
       .map((nome) => `export * from '${base}/${nome}'`)
       .concat(`export { planBlocks, PACK_RULES } from '${base}/canvas-chats-layout'`)
       .join('\n')
@@ -72,6 +78,24 @@ const social3b = [
   ['e4', 'executor', 'po', 1]
 ]
 
+// Print de 13/11 "margens grandes demais" (Reorganizar antigo, 5 projetos; o quinto, Sistemas Operacionais, fica fora do
+// recorte do print e e lido do estado real do dia).
+const orca5 = [
+  ['po', 'po'],
+  ['plan1', 'planejador', 'po'],
+  ['plan2', 'planejador', 'po'],
+  ['e1', 'executor', 'po']
+]
+const social5 = [
+  ['po', 'po', null, 1],
+  ['plan1', 'planejador', 'po'],
+  ['plan2', 'planejador', 'po'],
+  ['e1', 'executor', 'plan1'],
+  ['e2', 'executor', 'plan1'],
+  ['e3', 'executor', 'po', 1],
+  ['e4', 'executor', 'po', 1]
+]
+
 /**
  * `mao`: o cabecalho de cada projeto como o Kaique deixou, em unidades do desenho relativas ao primeiro projeto (medido nos
  * prints exibidos a 2420 px de largura, card do PO = 340 unidades; erro de leitura de cerca de 3 px de tela).
@@ -111,6 +135,19 @@ export const CASOS = [
       { id: 'astra', chats: astra }
     ],
     mao: { social: [0, 0], astra: [1053.7, 329.4], orca: [-13.4, 1045] }
+  },
+  {
+    id: 'caso-5-projetos',
+    nome: '5 projetos (13/11, margens grandes demais)',
+    poMao: null,
+    projetos: [
+      { id: 'orca', chats: orca5 },
+      { id: 'astra', chats: astra },
+      { id: 'social', chats: social5 },
+      { id: 'projetos', chats: [['livre', 'livre']] },
+      { id: 'so', chats: so }
+    ],
+    mao: null
   }
 ]
 

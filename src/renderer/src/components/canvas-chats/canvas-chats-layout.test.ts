@@ -197,7 +197,7 @@ it('does not let a project below overlap the free chats of the project above it'
         [boxes.l, boxes.lf, boxes['project:low']].every((b) => {
           const gapX = Math.max(a.x - (b.x + b.w), b.x - (a.x + a.w))
           const gapY = Math.max(a.y - (b.y + b.h), b.y - (a.y + a.h))
-          return gapX >= 104 || gapY >= 80
+          return gapX >= 52 || gapY >= 52
         })
       )
   ).toBe(true)
@@ -282,6 +282,59 @@ it('3 projects, case 2 of the hand-arranged prints: the PO card is at least 242 
   expect(poWidthOnScreen([social, orca3, astra])).toBeGreaterThanOrEqual(242)
 })
 
+it('5 projects of the 13/11 print: every project sits one column gap (52) from its nearest neighbour', () => {
+  const projects = [
+    team('orca', [
+      ['po', 'po'],
+      ['plan1', 'planejador', 'po'],
+      ['plan2', 'planejador', 'po'],
+      ['e1', 'executor', 'po']
+    ]),
+    astra,
+    team('social', [
+      ['po', 'po', undefined, 1],
+      ['plan1', 'planejador', 'po'],
+      ['plan2', 'planejador', 'po'],
+      ['e1', 'executor', 'plan1'],
+      ['e2', 'executor', 'plan1'],
+      ['e3', 'executor', 'po', 1],
+      ['e4', 'executor', 'po', 1]
+    ]),
+    team('projetos', [['free', 'livre']]),
+    so
+  ]
+  const { headers } = layoutCanvas(projects, board, insets)
+  const outlineOf = new Map(
+    planBlocks(projects).map((plan) => {
+      const h = headers[plan.block.project.id]
+      return [
+        plan.block.project.id,
+        plan.shape.map((r) => ({
+          ...r,
+          x: r.x + h.x - plan.header.x,
+          y: r.y + h.y - plan.header.y
+        }))
+      ]
+    })
+  )
+  const nearest = [...outlineOf].map(([id, own]) => {
+    const others = [...outlineOf].filter(([o]) => o !== id).flatMap(([, r]) => r)
+    return Math.round(
+      Math.min(
+        ...own.flatMap((a) =>
+          others.map((b) =>
+            Math.hypot(
+              Math.max(0, a.x - (b.x + b.w), b.x - (a.x + a.w)),
+              Math.max(0, a.y - (b.y + b.h), b.y - (a.y + a.h))
+            )
+          )
+        )
+      )
+    )
+  })
+  expect(nearest).toEqual([52, 52, 52, 52, 52])
+})
+
 const emptyCards = (projects: CanvasProject[]): number => {
   const { headers } = layoutCanvas(projects, board, insets)
   const outlines = planBlocks(projects).flatMap((plan) => {
@@ -344,10 +397,10 @@ const apart = (
   cardsOf(from, boxes).every((a) =>
     cardsOf(to, boxes).every((b) => {
       const g = gap(a, b)
-      return g.x >= 104 || g.y >= 80
+      return g.x >= 52 || g.y >= 52
     })
   )
-it('no card of a project comes closer than 104 across and 80 down to a card of another project', () => {
+it('no card of a project comes closer than one column gap (52) to a card of another project', () => {
   const projects = [astra, orca1, so, social4]
   const { boxes } = layoutCanvas(projects, board, insets)
   for (const p of projects) {
@@ -368,11 +421,11 @@ it("puts a project under or beside another one inside the other's bounding box",
   )
   expect(inside).toBe(true)
 })
-it('starts every card on a multiple of half a column (196), counted from the same origin', () => {
+it('starts every card of a project on a multiple of half a column (196), counted from its first chat', () => {
   const projects = [astra, orca1, so, social4]
   const { boxes } = layoutCanvas(projects, board, insets)
-  const origin = boxes['astra-po'].x
   for (const p of projects) {
+    const origin = boxes[p.chats[0].key].x
     // The project card is not on the grid: it is centered over its top chat.
     for (const key of p.chats.map((c) => c.key)) {
       expect((((boxes[key].x - origin) % 196) + 196) % 196).toBe(0)

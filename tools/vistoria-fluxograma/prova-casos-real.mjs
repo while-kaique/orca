@@ -41,8 +41,12 @@ const NOME_DO_REPO = {
   astra: 'astra designer',
   orca: 'orca',
   so: 'sistemas operacionais',
-  social: 'social-hub'
+  social: 'social-hub',
+  projetos: 'projetos'
 }
+const repoDoProjeto = (repos, id) =>
+  repos.find((r) => r.nome.toLowerCase() === NOME_DO_REPO[id]) ??
+  repos.find((r) => r.nome.toLowerCase().includes(NOME_DO_REPO[id]))
 const MUNDO = `${MUNDO_PADRAO}-o036c-${rotulo}-${caso.id}`
 montarMundo(MUNDO)
 const orca = await abrirOrcaDeTeste({ registro: dizer, raiz, mundo: MUNDO })
@@ -177,7 +181,7 @@ try {
   })
   await page.waitForTimeout(1500)
   for (const projeto of caso.projetos) {
-    const repo = repos.find((r) => r.nome.toLowerCase().includes(NOME_DO_REPO[projeto.id]))
+    const repo = repoDoProjeto(repos, projeto.id)
     if (!repo) {
       throw new Error(
         `o mundo de teste nao tem o projeto ${projeto.id} (${repos.map((r) => r.nome)})`

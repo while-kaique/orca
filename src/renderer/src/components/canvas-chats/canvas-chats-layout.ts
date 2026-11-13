@@ -95,8 +95,11 @@ export const PROJECT_TO_CHATS = 80
 /** Half a column: every card of every project starts on a multiple of this, counted from the same origin. */
 export const GRID_STEP = (CANVAS_SIZES.chat.w + COLUMN_GAP) / 2
 /** Least empty space between the drawn shapes of two different projects, across and down. */
-export const PROJECT_GAP_X = 104
-export const PROJECT_GAP_Y = 80
+/** Half the width the tree lines are drawn with, for the outline of a project. */
+const LINE_HALF_WIDTH = 1
+// Why: the user wants the smallest margin that still shows between projects, the same as between two cards of a row.
+export const PROJECT_GAP_X = COLUMN_GAP
+export const PROJECT_GAP_Y = COLUMN_GAP
 export const PACK_RULES = { grid: GRID_STEP, gapX: PROJECT_GAP_X, gapY: PROJECT_GAP_Y } as const
 
 /** A chat outside the hierarchy: it sits above its project, never under it. A PO being launched is not free. */
@@ -294,12 +297,21 @@ export function planBlocks(projects: readonly CanvasProject[]): BlockPlan[] {
     // The project card is centered over its top chats (the chats rows are centered on the block too): the line down is straight.
     local[projectKey].x = (block.w - P.w) / 2
     const header = local[projectKey]
+    // The outline is what is drawn: a band per row of cards (with their chips) and, above it, a thin band per family for
+    // the lines from the parent to its chats, so the margin to another project is the one seen on screen.
     const shape: CanvasBox[] = []
+    const centerX = (b: CanvasBox): number => b.x + b.w / 2
+    const lineBand = (xs: readonly number[], top: number, bottom: number): CanvasBox => {
+      const left = Math.min(...xs) - LINE_HALF_WIDTH
+      return { x: left, y: top, w: Math.max(...xs) + LINE_HALF_WIDTH - left, h: bottom - top }
+    }
     if (block.free.length) {
       const boxes = block.free.map((chat) => local[chat.key])
       const left = Math.min(...boxes.map((b) => b.x))
       const right = Math.max(...boxes.map((b) => b.x + b.w))
-      shape.push({ x: left, y: 0, w: right - left, h: projectTop })
+      const cardsBottom = boxes[0].y + boxes[0].h
+      shape.push({ x: left, y: 0, w: right - left, h: cardsBottom })
+      shape.push(lineBand([...boxes.map(centerX), centerX(header)], cardsBottom, projectTop))
     }
     shape.push(header)
     const drawn = (chat: CanvasChat): CanvasBox => chatVisualBox(chat, local[chat.key])
@@ -312,19 +324,23 @@ export function planBlocks(projects: readonly CanvasProject[]): BlockPlan[] {
       const boxes = chats.map(drawn)
       const left = Math.min(...boxes.map((b) => b.x))
       const right = Math.max(...boxes.map((b) => b.x + b.w))
-      // The line gap above starts at the bottom of whoever the chat hangs from (the project card for a top chat).
-      const top = Math.min(
-        ...chats.map((chat) => {
-          const parentKey = parentOf.get(chat.key)
-          const parent = parentKey ? chatByKey.get(parentKey) : undefined
-          const parentBox = parent ? drawn(parent) : header
-          return parentBox.y + parentBox.h
-        })
-      )
+      const top = Math.min(...boxes.map((b) => b.y))
       const bottom = Math.max(
         ...chats.map((chat, i) => boxes[i].y + boxes[i].h + chipsHeight(chat))
       )
       shape.push({ x: left, y: top, w: right - left, h: bottom - top })
+      // The lines start at the bottom of whoever the chats hang from (the project card for a top chat).
+      const parents = chats.map((chat) => {
+        const parent = chatByKey.get(parentOf.get(chat.key) ?? '')
+        return parent ? drawn(parent) : header
+      })
+      shape.push(
+        lineBand(
+          [...parents, ...boxes].map(centerX),
+          Math.min(...parents.map((b) => b.y + b.h)),
+          top
+        )
+      )
     }
     return { block, local, shape, header }
   })

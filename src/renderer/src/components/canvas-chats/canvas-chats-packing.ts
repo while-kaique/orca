@@ -1,6 +1,6 @@
 /**
  * Fits the projects of the flowchart together by their real outlines: each outline is a stack of rectangles, so one project
- * can enter under or beside another inside the other's bounding box. Every project starts on a multiple of `grid`.
+ * can enter under or beside another inside the other's bounding box. Inside a project the chats keep the `grid`; a project starts on it or one margin beside another.
  */
 export type Rect = { x: number; y: number; w: number; h: number }
 export type Point = { x: number; y: number }
@@ -113,16 +113,32 @@ export function better(a: Candidate, b: Candidate): boolean {
   return a.x + a.y !== b.x + b.y ? a.x + a.y > b.x + b.y : a.y < b.y
 }
 
-/** The grid origins that could matter: from one item's width left of everything to one gap right of it. */
-function columnsFor(item: PackItem, bounds: Rect, rules: PackRules): number[] {
+/**
+ * The origins across that could matter: the grid from one item's width left of everything to one gap right of it, and
+ * every place one margin beside a placed rectangle. The grid holds inside a project; between projects the margin wins.
+ */
+function columnsFor(
+  item: PackItem,
+  bounds: Rect,
+  fixed: readonly Rect[],
+  rules: PackRules,
+  beside: boolean
+): number[] {
   const own = union(item.rects)
   const from = Math.floor((bounds.x - own.x - own.w - rules.gapX) / rules.grid)
   const to = Math.ceil((bounds.x + bounds.w - own.x + rules.gapX) / rules.grid)
-  const out: number[] = []
+  const out = new Set<number>()
   for (let k = from; k <= to; k++) {
-    out.push(k * rules.grid)
+    out.add(k * rules.grid)
   }
-  return out
+  // Why: these many more places only pay off when one project is drawn in; the order search stays on the grid.
+  for (const r of beside ? fixed : []) {
+    for (const m of item.rects) {
+      out.add(r.x + r.w + rules.gapX - m.x)
+      out.add(r.x - rules.gapX - m.x - m.w)
+    }
+  }
+  return [...out]
 }
 
 /** Every free origin worth trying for one more item among the ones already placed, with what each would make of the drawing. */
@@ -130,7 +146,8 @@ export function candidateSpots(
   item: PackItem,
   placed: readonly Placed[],
   screen: PackScreen,
-  rules: PackRules
+  rules: PackRules,
+  beside = false
 ): Candidate[] {
   const fixed = placed.flatMap((p) => p.rects)
   const bounds = union(fixed)
@@ -143,7 +160,7 @@ export function candidateSpots(
     bounds.y + bounds.h - own.y - own.h
   ]
   const found: Candidate[] = []
-  for (const x of columnsFor(item, bounds, rules)) {
+  for (const x of columnsFor(item, bounds, fixed, rules, beside)) {
     const merged = forbiddenHeights(item, x, fixed, rules)
     const ys = new Set<number>(extras)
     for (const [lo, hi] of merged) {

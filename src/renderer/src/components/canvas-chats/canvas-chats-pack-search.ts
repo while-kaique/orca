@@ -25,7 +25,13 @@ const HOLE_ZOOM_SLACK = 0.03
 const SAME_HOLE = 0.05
 /** Slide passes over the projects, and how many arrangements get them. */
 const SLIDE_PASSES = 3
+/** Drawing a project in may cost the cards this little, a rounding of the zoom. */
+const SAME_ZOOM_TIGHTEN = 0.001
+/** Empty space, in cards, the user accepts inside the drawing: drawing a project in may leave up to this much. */
+const HOLE_LIMIT = 1
 const SLIDE_SEEDS = 3
+/** Up to this many projects the slide also tries every place one margin beside another (more places, more time). */
+const SLIDE_BESIDE_LIMIT = 5
 /** Candidate places per project that are measured for their hole (the smallest drawings first). */
 const SLIDE_MEASURED = 40
 /** How many spots are tried for each project, by number of projects. */
@@ -117,8 +123,18 @@ function slide(start: State, floor: number, screen: PackScreen, rules: PackRules
   for (let pass = 0; pass < SLIDE_PASSES; pass++) {
     let moved = false
     current.placed.forEach((own, index) => {
+      // Empty space up to one card is accepted: sliding for less would trade level headers for nothing.
+      if (holeOf(current, rules) <= HOLE_LIMIT) {
+        return
+      }
       const others = current.placed.filter((_, i) => i !== index)
-      const options = candidateSpots(own.item, others, screen, rules)
+      const options = candidateSpots(
+        own.item,
+        others,
+        screen,
+        rules,
+        current.placed.length <= SLIDE_BESIDE_LIMIT
+      )
         .filter((c) => c.zoom >= floor && (c.x !== own.x || c.y !== own.y))
         .sort((a, b) => a.area - b.area)
         .slice(0, SLIDE_MEASURED)
@@ -155,8 +171,8 @@ function choose(
   const first = [...pool].sort((a, b) => (stateBetter(a, b) ? -1 : stateBetter(b, a) ? 1 : 0))
   const slid = first.slice(0, seeds).map((s) => slide(s, floor, screen, rules))
   const better2 = (a: State, b: State): boolean => {
-    const ha = holeOf(a, rules)
-    const hb = holeOf(b, rules)
+    const ha = Math.max(HOLE_LIMIT, holeOf(a, rules))
+    const hb = Math.max(HOLE_LIMIT, holeOf(b, rules))
     return Math.abs(ha - hb) > SAME_HOLE ? ha < hb : stateBetter(a, b)
   }
   return [...pool, ...slid].reduce((best, s) => (better2(s, best) ? s : best))
@@ -226,9 +242,68 @@ function beam(items: readonly PackItem[], screen: PackScreen, rules: PackRules):
   return choose([...level, ...seeds], screen, rules, 2)
 }
 
+const rectGap = (a: Rect, b: Rect): number =>
+  Math.hypot(
+    Math.max(0, a.x - (b.x + b.w), b.x - (a.x + a.w)),
+    Math.max(0, a.y - (b.y + b.h), b.y - (a.y + a.h))
+  )
+
+/** Empty space between one outline and the nearest other one. */
+export function nearestGap(own: readonly Rect[], others: readonly Rect[]): number {
+  let best = Infinity
+  for (const a of own) {
+    for (const b of others) {
+      best = Math.min(best, rectGap(a, b))
+    }
+  }
+  return best
+}
+
+/** A project is snug when its nearest neighbour is no farther than the margin the rules ask for. */
+const snugGap = (rules: PackRules): number => Math.max(rules.gapX, rules.gapY) + 0.5
+
+/**
+ * Moves each project left far from every other one to a free place one margin away from a neighbour, keeping the cards
+ * as big; it may leave at most one card more of empty space (the user ranks the even margin first). Nearest place wins.
+ */
+function tighten(start: State, screen: PackScreen, rules: PackRules): State {
+  let current = start
+  for (let pass = 0; pass < SLIDE_PASSES; pass++) {
+    let moved = false
+    current.placed.forEach((own, index) => {
+      const others = current.placed.filter((_, i) => i !== index)
+      const fixed = others.flatMap((p) => p.rects)
+      if (nearestGap(own.rects, fixed) <= snugGap(rules)) {
+        return
+      }
+      const here = holeOf(current, rules)
+      const options = candidateSpots(own.item, others, screen, rules, true)
+        .filter(
+          (c) =>
+            c.zoom >= current.zoom * (1 - SAME_ZOOM_TIGHTEN) &&
+            nearestGap(shiftRects(own.item.rects, c.x, c.y), fixed) <= snugGap(rules)
+        )
+        .sort((a, b) => Math.hypot(a.x - own.x, a.y - own.y) - Math.hypot(b.x - own.x, b.y - own.y))
+      for (const c of options) {
+        const next = withSpot(current, index, c, screen)
+        if (holeOf(next, rules) <= Math.max(here, HOLE_LIMIT) + HOLE_LIMIT) {
+          current = next
+          moved = true
+          return
+        }
+      }
+    })
+    if (!moved) {
+      break
+    }
+  }
+  return current
+}
+
 /**
  * The arrangement that makes the cards biggest on the screen; among those within 3% of it, the one with the least empty
- * space inside the drawing; then level headers, the smaller area, and the sidebar order.
+ * space inside the drawing; then level headers, the smaller area, and the sidebar order. Last, every project is drawn in
+ * to one margin from a neighbour.
  */
 export function packProjects(
   items: readonly PackItem[],
@@ -238,8 +313,13 @@ export function packProjects(
   if (items.length === 0) {
     return { spots: {}, bounds: { x: 0, y: 0, w: 0, h: 0 }, zoom: 1 }
   }
-  const state =
-    items.length <= PACK_EXACT_LIMIT ? exhaustive(items, screen, rules) : beam(items, screen, rules)
+  const state = tighten(
+    items.length <= PACK_EXACT_LIMIT
+      ? exhaustive(items, screen, rules)
+      : beam(items, screen, rules),
+    screen,
+    rules
+  )
   const spots: Record<string, Point> = {}
   for (const p of state.placed) {
     spots[p.item.id] = { x: p.x, y: p.y }
