@@ -12,18 +12,31 @@ export default async function (page, { lerTela, recarregar, mundo, dizer }) {
   const fatos = await lerTela()
   const doProjeto = (papel) => chavesPorPapel(fatos, papel).filter((c) => c.projeto === PROJETO)
   const poAntigo = doProjeto('po')[0]
+  // O estado real muda: com um executor so, a segunda seta vai a um planejador (card fino).
   const executores = doProjeto('executor')
-  if (!poAntigo || executores.length < 2) {
-    throw new Error('o projeto orca da copia do estado precisa de um PO e de dois executores')
+  const pontas = [...executores, ...doProjeto('planejador')].slice(0, 2)
+  if (!poAntigo || executores.length < 1 || pontas.length < 2) {
+    throw new Error(
+      'o projeto orca da copia do estado precisa de um PO, um executor e mais um executor ou planejador'
+    )
   }
-  await guardarNoArmazenamento(page, 'orca-fork.canvas-executor-names', {
-    [executores[0].chave]: 'Executor Implementador',
-    [executores[1].chave]: NOME_LONGO
-  })
-  await guardarNoArmazenamento(page, 'orca-fork.canvas-cords', [
-    { a: 'TESTE-po-novo', b: executores[0].chave },
-    { a: 'TESTE-po-novo', b: executores[1].chave }
-  ])
+  await guardarNoArmazenamento(
+    page,
+    'orca-fork.canvas-executor-names',
+    Object.fromEntries(
+      executores
+        .slice(0, 2)
+        .map((e, i, todos) => [
+          e.chave,
+          i === todos.length - 1 ? NOME_LONGO : 'Executor Implementador'
+        ])
+    )
+  )
+  await guardarNoArmazenamento(
+    page,
+    'orca-fork.canvas-cords',
+    pontas.map((p) => ({ a: 'TESTE-po-novo', b: p.chave }))
+  )
   await recarregar()
 
   // Registro do projeto (no mundo de teste): um PO novo, ativo, que nao e criador de ninguem.

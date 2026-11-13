@@ -1,5 +1,6 @@
 import type { CanvasChatHierarchy, CanvasQueueItem } from './canvas-chat-hierarchy'
 import { chatFootprintHeight, chatVisualBox } from './canvas-chat-shape'
+import { familyLineBoxes, joinStacked } from './canvas-chats-outline'
 
 /** Border states drawn on the flowchart (fork spec: idle gray, working yellow, unseen green, seen dashed green, waiting red). */
 /** 'monitoring' = the turn ended but background agents/tasks are still running. */
@@ -95,8 +96,6 @@ export const PROJECT_TO_CHATS = 80
 /** Half a column: every card of every project starts on a multiple of this, counted from the same origin. */
 export const GRID_STEP = (CANVAS_SIZES.chat.w + COLUMN_GAP) / 2
 /** Least empty space between the drawn shapes of two different projects, across and down. */
-/** Half the width the tree lines are drawn with, for the outline of a project. */
-const LINE_HALF_WIDTH = 1
 // Why: the user wants the smallest margin that still shows between projects, the same as between two cards of a row.
 export const PROJECT_GAP_X = COLUMN_GAP
 export const PROJECT_GAP_Y = COLUMN_GAP
@@ -300,18 +299,19 @@ export function planBlocks(projects: readonly CanvasProject[]): BlockPlan[] {
     // The outline is what is drawn: a band per row of cards (with their chips) and, above it, a thin band per family for
     // the lines from the parent to its chats, so the margin to another project is the one seen on screen.
     const shape: CanvasBox[] = []
-    const centerX = (b: CanvasBox): number => b.x + b.w / 2
-    const lineBand = (xs: readonly number[], top: number, bottom: number): CanvasBox => {
-      const left = Math.min(...xs) - LINE_HALF_WIDTH
-      return { x: left, y: top, w: Math.max(...xs) + LINE_HALF_WIDTH - left, h: bottom - top }
-    }
     if (block.free.length) {
       const boxes = block.free.map((chat) => local[chat.key])
       const left = Math.min(...boxes.map((b) => b.x))
       const right = Math.max(...boxes.map((b) => b.x + b.w))
       const cardsBottom = boxes[0].y + boxes[0].h
       shape.push({ x: left, y: 0, w: right - left, h: cardsBottom })
-      shape.push(lineBand([...boxes.map(centerX), centerX(header)], cardsBottom, projectTop))
+      shape.push(
+        ...familyLineBoxes(
+          header,
+          boxes,
+          boxes.map((b) => (header.y + b.y + b.h) / 2)
+        )
+      )
     }
     shape.push(header)
     const drawn = (chat: CanvasChat): CanvasBox => chatVisualBox(chat, local[chat.key])
@@ -329,19 +329,25 @@ export function planBlocks(projects: readonly CanvasProject[]): BlockPlan[] {
         ...chats.map((chat, i) => boxes[i].y + boxes[i].h + chipsHeight(chat))
       )
       shape.push({ x: left, y: top, w: right - left, h: bottom - top })
-      // The lines start at the bottom of whoever the chats hang from (the project card for a top chat).
-      const parents = chats.map((chat) => {
-        const parent = chatByKey.get(parentOf.get(chat.key) ?? '')
-        return parent ? drawn(parent) : header
+      // Lines from the project bottom bend halfway down; lines from a chat bend PROJECT_TO_CHATS / 2 under it.
+      const families = new Map<string, CanvasBox[]>()
+      chats.forEach((chat, i) => {
+        const parentKey = parentOf.get(chat.key) ?? projectKey
+        families.set(parentKey, [...(families.get(parentKey) ?? []), boxes[i]])
       })
-      shape.push(
-        lineBand(
-          [...parents, ...boxes].map(centerX),
-          Math.min(...parents.map((b) => b.y + b.h)),
-          top
+      for (const [parentKey, kids] of families) {
+        const parentChat = chatByKey.get(parentKey)
+        const parent = parentChat ? drawn(parentChat) : header
+        const below = parent.y + parent.h
+        shape.push(
+          ...familyLineBoxes(
+            parent,
+            kids,
+            kids.map((kid) => (parentChat ? below + PROJECT_TO_CHATS / 2 : (below + kid.y) / 2))
+          )
         )
-      )
+      }
     }
-    return { block, local, shape, header }
+    return { block, local, shape: joinStacked(shape), header }
   })
 }

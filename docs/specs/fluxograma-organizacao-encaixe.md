@@ -18,8 +18,10 @@ de 12/11 ("deixa tudo parado pra eu apertar o botão mesmo").
 ## 2. A regra nova do lugar (encaixe)
 
 1. **Forma real de cada projeto:** o contorno é o que é desenhado: por fileira, uma faixa com os cards e os selos
-   dela e, acima, uma faixa fina só onde passam as linhas (do centro do card de cima aos centros dos de baixo);
-   livres + selos em cima, cabeçalho. Não é mais a caixa retangular do projeto inteiro (o-042).
+   dela e, por família (um pai e os chats dele), as linhas como são desenhadas: o toco fino no centro do pai até a
+   barra, a barra e as descidas até os chats (a barra fica no meio do caminho saindo do projeto e 40 unidades abaixo
+   saindo de um chat); livres + selos em cima, cabeçalho. Não é mais a caixa retangular do projeto inteiro (o-042;
+   a primeira versão reservava a faixa inteira do pai aos filhos e a vistoria mediu 92 em vez de 52).
 2. **Encaixe:** os projetos são postos um a um no quadro; cada um cai na posição em que não encosta em nada já
    posto e que deixa o card maior na tela. Assim um projeto pode entrar por baixo ou ao lado de outro, dentro
    da caixa retangular dele (o social-hub sob o Astra no print a mão).

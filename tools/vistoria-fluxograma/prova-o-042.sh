@@ -66,5 +66,5 @@ fi
 for r in "$@"; do
   rodada "$r"
 done
-echo "processos de teste vivos no fim:"
-powershell.exe -NoProfile -Command "(Get-CimInstance Win32_Process | Where-Object { \$_.CommandLine -match 'vistoria-fluxograma|orca-de-teste' -and \$_.Name -ne 'powershell.exe' } | Measure-Object).Count"
+echo "processos de teste vivos no fim (Orca de teste e vistoria; o shell desta rodada nao conta):"
+powershell.exe -NoProfile -Command "(Get-CimInstance Win32_Process | Where-Object { \$_.CommandLine -match 'vistoria-fluxograma-snipefish|vistoria\.mjs|prova-casos-real|roteiro-po-nascendo' -and \$_.Name -notin @('powershell.exe','bash.exe') } | Measure-Object).Count"

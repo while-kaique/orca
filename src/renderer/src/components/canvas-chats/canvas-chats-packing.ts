@@ -63,13 +63,21 @@ function forbiddenHeights(
   rules: PackRules
 ): [number, number][] {
   const out: [number, number][] = []
+  const own = union(item.rects)
   for (const r of fixed) {
+    if (x + own.x >= r.x + r.w + rules.gapX || r.x >= x + own.x + own.w + rules.gapX) {
+      continue
+    }
     for (const m of item.rects) {
       if (x + m.x < r.x + r.w + rules.gapX && r.x < x + m.x + m.w + rules.gapX) {
         out.push([r.y - rules.gapY - (m.y + m.h), r.y + r.h + rules.gapY - m.y])
       }
     }
   }
+  return mergeIntervals(out)
+}
+
+function mergeIntervals(out: [number, number][]): [number, number][] {
   out.sort((a, b) => a[0] - b[0])
   const merged: [number, number][] = []
   for (const iv of out) {
@@ -81,6 +89,41 @@ function forbiddenHeights(
     }
   }
   return merged
+}
+
+// Why: the order search puts the same project at the same place under many orders; its forbidden heights are reused.
+const heightsCache = new WeakMap<PackItem, WeakMap<PackItem, Map<string, [number, number][]>>>()
+
+/** forbiddenHeights against placed projects, each one's share computed once per column and place. */
+function forbiddenHeightsAmong(
+  item: PackItem,
+  x: number,
+  placed: readonly Placed[],
+  rules: PackRules
+): [number, number][] {
+  let byOther = heightsCache.get(item)
+  if (!byOther) {
+    byOther = new WeakMap()
+    heightsCache.set(item, byOther)
+  }
+  const out: [number, number][] = []
+  for (const p of placed) {
+    let byPlace = byOther.get(p.item)
+    if (!byPlace) {
+      byPlace = new Map()
+      byOther.set(p.item, byPlace)
+    }
+    const key = `${x - p.x},${p.y},${rules.gapX},${rules.gapY}`
+    let share = byPlace.get(key)
+    if (!share) {
+      share = forbiddenHeights(item, x, p.rects, rules)
+      byPlace.set(key, share)
+    }
+    for (const iv of share) {
+      out.push([iv[0], iv[1]])
+    }
+  }
+  return mergeIntervals(out)
 }
 
 const isFree = (y: number, merged: readonly [number, number][]): boolean =>
@@ -161,7 +204,7 @@ export function candidateSpots(
   ]
   const found: Candidate[] = []
   for (const x of columnsFor(item, bounds, fixed, rules, beside)) {
-    const merged = forbiddenHeights(item, x, fixed, rules)
+    const merged = forbiddenHeightsAmong(item, x, placed, rules)
     const ys = new Set<number>(extras)
     for (const [lo, hi] of merged) {
       ys.add(lo)
