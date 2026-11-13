@@ -6,6 +6,7 @@
 //   cena 2: chat que abriu um chat filho (teste com filhos) + ordem recem-lancada ainda nascendo; X; reabre.
 import { execFileSync, spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import {
   abrirOrca,
@@ -182,14 +183,17 @@ const fimDe = (filho) =>
 async function retratoAntes(chats, prefixo = 'antes') {
   guardar(`${prefixo}-terminais.json`, orcaTeste(['terminal', 'list']).result?.terminals ?? [])
   for (const [nome, chat] of Object.entries(chats)) {
-    guardar(`antes-tela-${nome}.txt`, (ler(chat.handle)?.tail ?? []).join('\n'))
+    guardar(`${prefixo}-tela-${nome}.txt`, (ler(chat.handle)?.tail ?? []).join('\n'))
   }
-  guardar('antes-porta.txt', hierarquia(['porta']))
-  await foto('antes')
+  guardar(`${prefixo}-porta.txt`, hierarquia(['porta']))
+  await foto(prefixo)
   const doMundo = processosDoMundo(pidsDoOrca)
-  guardar('antes-processos-do-mundo.txt', linhasDosProcessos(doMundo))
+  guardar(`${prefixo}-processos-do-mundo.txt`, linhasDosProcessos(doMundo))
   const fora = processos().filter(
-    (p) => /^(claude|electron|orca)/iu.test(p.nome) && !doMundo.some((q) => q.pid === p.pid)
+    (p) =>
+      /^(claude|electron|orca)/iu.test(p.nome) &&
+      !/[\\/]out[\\/]cli[\\/]/u.test(p.comando) &&
+      !doMundo.some((q) => q.pid === p.pid)
   )
   guardar(`${prefixo}-fora-do-mundo.txt`, linhasDosProcessos(fora))
   dizer(
@@ -227,9 +231,19 @@ async function atalho(nome, marca) {
       path.join(RAIZ, 'abrir-orca-fork.vbs'),
       `/dados:${PERFIL}`,
       `/pasta:${RAIZ}`,
-      `/abrir:cmd /c echo aberto > "${marca}"`
+      `/abrir:cmd /c echo aberto > ${marca}`
     ],
     { detached: true, stdio: 'ignore' }
+  )
+  guardar(
+    `${nome}-porta-do-atalho.txt`,
+    hierarquia(['porta', '--rapido', '--atalho'], {
+      // Como o atalho roda: o indice real da maquina (so leitura) e os dados do Orca de teste.
+      extra: {
+        HIERARQUIA_INDICE: path.join(os.homedir(), '.hierarquia-projetos.json'),
+        HIERARQUIA_ORCA_DADOS: PERFIL
+      }
+    })
   )
   let perguntou = false
   while (Date.now() - t0 < 60_000 && !existsSync(marca) && !perguntou) {
@@ -298,12 +312,13 @@ async function acordar(chat) {
   )
   if (r.ok === false) {
     const clicou = await orca.page
-      .getByText(chat.titulo, { exact: false })
-      .first()
-      .click({ timeout: 10_000 })
-      .then(() => true)
+      .evaluate((id) => {
+        const card = document.querySelector(`[data-chat-key="${id}"]`)
+        card?.click()
+        return Boolean(card)
+      }, chat.tabId)
       .catch(() => false)
-    dizer(`acordar ${chat.titulo}: clique na aba = ${clicou}`)
+    dizer(`acordar ${chat.titulo}: clique no card do fluxograma = ${clicou}`)
   }
 }
 

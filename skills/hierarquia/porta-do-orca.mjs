@@ -99,6 +99,25 @@ export function orcaOuGuardaVivo(dados = pastaDeDadosDoOrca()) {
   })
 }
 
+/**
+ * Desde quando o guarda de terminais vivo deste Orca roda (o mais antigo): chat com sinal depois disso pode estar
+ * vivo. Vale mais que a abertura do Orca porque o chat sobrevive a uma queda e o Orca reaberto se reconecta a ele
+ * sem receber sinal novo (o-043: o X depois de uma queda fechava sem perguntar). null sem guarda vivo.
+ */
+export function guardaVivoDesde(dados = pastaDeDadosDoOrca()) {
+  let arquivos = []
+  try {
+    arquivos = readdirSync(join(dados, 'daemon')).filter((nome) => nome.endsWith('.pid'))
+  } catch {
+    return null
+  }
+  const desde = arquivos
+    .map((nome) => lerJson(join(dados, 'daemon', nome), null))
+    .filter((guarda) => guarda?.pid && guarda.startedAtMs && processoVivo(guarda.pid))
+    .map((guarda) => Number(guarda.startedAtMs))
+  return desde.length > 0 ? Math.min(...desde) : null
+}
+
 /** A liberacao em aberto, ou null (vencida, cancelada, ou o Orca ja reabriu depois dela). */
 export function liberacaoEmAberto(agora = Date.now()) {
   const liberacao = lerJson(arquivoDaLiberacao(), null)
@@ -171,7 +190,7 @@ export async function olharPorta({
   }
   const abas = await abasGuardadas()
   const agentes = estadosDosAgentes()
-  const abertoEm = orcaAbertoEm() ?? 0
+  const abertoEm = guardaVivoDesde() ?? orcaAbertoEm() ?? 0
   const ligados = (terminais ?? []).filter((t) => t.connected !== false)
   // Sem o Orca e sem o guarda de terminais, nenhum chat dele pode estar rodando.
   const algumVivo = terminais !== null || orcaOuGuardaVivo()
