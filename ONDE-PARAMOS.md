@@ -20,6 +20,9 @@ da o-041 em `provas/o-041/`), pasta principal, fora do git. Entrega e tabela cri
   coluna "COMANDO PRESO?" no `estado`; a ordem segue trabalhando (caso real da o-042, 41 min num `python` com heredoc).
 - **Chats esperando o Kaique confirmar o fechamento**: topo do `estado` com cada chat de pedido entregue (ou parado com o
   criador caído) ainda aberto, o que ele fez e a frase que o PO repete em toda mensagem; some quando a aba fecha.
+- **Chat perdido avisa com o comando de retomar**: chat que sumiu no fechar/cair gera um aviso a quem criou com
+  `claude --resume <sessão>`; chat que rodava escondido sem aba depois de uma queda é encerrado ao reabrir e avisado.
+- **Uma pergunta só no X**: com a opção do fork, a pergunta "terminais rodando" do Orca sai e fica a lista do fork.
 - **O PO atual herda ordem sem dono**: criador que caiu ou PO antigo não trava mais `fechar` nem `baixa`; o PO de agora
   cuida da ordem (registro diz "fechado pelo PO atual, herdeiro de ...").
 - **Aviso só com o Claude aberto**: texto que a hierarquia digitaria num shell sem Claude fica guardado e chega depois.

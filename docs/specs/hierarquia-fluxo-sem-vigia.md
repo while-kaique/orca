@@ -187,3 +187,17 @@ Teto por máquina (vários projetos); aviso ao Kaique quando tudo para.
   planejador da o-034 que caiu e o-001/o-014/o-015/o-018 de POs antigos). `hierarquia fechar` e `hierarquia baixa`
   aceitam quem criou a ordem **ou** o PO atual do projeto quando o criador não existe mais: chat encerrado no registro,
   aba fechada, ou PO antigo trocado por outro. Ninguém mais herda; com o criador vivo, só ele cuida da ordem.
+- **Chat perdido** (reprovação da o-043, ponto 1). Se o chat de uma ordem trabalhando some (a aba não voltou depois de o
+  Orca reabrir, ou ele rodava escondido e foi encerrado), a ordem para sozinha e quem criou (ou o PO herdeiro) recebe
+  **uma vez** "CHAT PERDIDO", com o comando para retomar a conversa: `claude --resume <sessão>` na pasta do chat. A
+  sessão é achada pelo `dispatchId` da ordem em `~/.claude/projects/<pasta>/*.jsonl`. Chat que voltou dormindo segue
+  pela volta dos cortados (aviso quando o Claude dele abre).
+- **Nenhum chat escondido** (ponto 2). Uns 45 s depois de o Orca do fork abrir, toda sessão viva no guarda de terminais
+  que nasceu antes dessa abertura e que nenhuma aba guardada cita é encerrada, e a lista vai para
+  `fork-chats-escondidos.json`; o `hierarquia retomar` para as ordens delas (aviso de chat perdido) e conta ao PO os
+  chats livres encerrados. Sessão nova nunca é tocada.
+- **Uma pergunta só no X** (ponto 3). Com a opção do fork, o pedido de fechar vai à tela do Orca como numa saída do
+  programa: o Orca não pergunta pelos terminais locais e fica só a pergunta do fork, com a lista dos chats.
+- **Enter do Orca** (ponto 5). A repetição do Enter do próprio Orca para o Claude fica ligada (só repete enquanto o
+  rascunho guarda a ordem, até 30 s), mas não basta nesta máquina: em 3 lançamentos reais, 1 começou só com ela. A
+  garantia continua sendo o Enter do comando `hierarquia ordem`, que insiste até o chat começar (vigia, até 45 min).
