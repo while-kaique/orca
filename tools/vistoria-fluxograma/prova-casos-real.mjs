@@ -50,7 +50,11 @@ const repoDoProjeto = (repos, id) =>
   repos.find((r) => r.nome.toLowerCase() === NOME_DO_REPO[id]) ??
   repos.find((r) => r.nome.toLowerCase().includes(NOME_DO_REPO[id]))
 const MUNDO = `${MUNDO_PADRAO}-o036c-${rotulo}-${caso.id}`
-montarMundo(MUNDO)
+// O estado real muda: os projetos do caso entram no mundo mesmo sem chat aberto hoje (as abas do caso sao criadas abaixo).
+montarMundo(
+  MUNDO,
+  caso.projetos.map((p) => NOME_DO_REPO[p.id])
+)
 const orca = await abrirOrcaDeTeste({ registro: dizer, raiz, mundo: MUNDO })
 const { page } = orca
 const resultado = { caso: caso.id, rotulo, quadro: QUADRO, etapas: {} }

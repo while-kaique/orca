@@ -75,6 +75,9 @@ def main():
     repos = json.loads(documentos["repos"])
     abas = {pasta: lista for pasta, lista in (sessao.get("tabsByWorktree") or {}).items() if lista}
     repos_com_chat = {pasta.partition("::")[0] for pasta in abas}
+    # Projetos que um caso de prova pede mesmo sem chat aberto hoje (nomes separados por virgula).
+    manter = [n.strip().lower() for n in os.environ.get("VISTORIA_MANTER_REPOS", "").split(",") if n.strip()]
+    repos_com_chat |= {r["id"] for r in repos if (r.get("displayName") or "").lower() in manter}
 
     # So os projetos que tem chat entram: o resto da lista nao muda o desenho do fluxograma.
     documentos["repos"] = json.dumps([r for r in repos if r["id"] in repos_com_chat])

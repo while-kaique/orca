@@ -66,11 +66,12 @@ ${resultado.stderr}
   }
 }
 
-export function montarMundo(mundo = MUNDO_PADRAO) {
+/** `manter`: nomes de projetos que entram no mundo mesmo sem chat aberto no estado real (casos de prova). */
+export function montarMundo(mundo = MUNDO_PADRAO, manter = []) {
   const saida = execFileSync(
     'python',
     [path.join(RAIZ, 'tools', 'vistoria-fluxograma', 'preparar-estado.py'), mundo],
-    { encoding: 'utf8' }
+    { encoding: 'utf8', env: { ...process.env, VISTORIA_MANTER_REPOS: manter.join(',') } }
   )
   return saida.trim()
 }
