@@ -1,7 +1,14 @@
-import type { CanvasBox } from './canvas-chats-layout'
+import type { CanvasBox, CanvasChat } from './canvas-chats-layout'
 
 /** Half the width the tree lines are drawn with, for the outline of a project. */
 const LINE_HALF_WIDTH = 1
+
+/**
+ * Executors and planners hang from a chat, never from the project: with no open chat above them (the PO closed and the
+ * next one is not open yet) they are drawn without a line.
+ */
+export const hangsFromChatsOnly = (chat: CanvasChat): boolean =>
+  chat.hierarchy !== null && chat.hierarchy.role !== 'po'
 
 const centerX = (b: CanvasBox): number => b.x + b.w / 2
 

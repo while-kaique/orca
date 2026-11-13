@@ -1,6 +1,6 @@
 import type { CanvasChatHierarchy, CanvasQueueItem } from './canvas-chat-hierarchy'
 import { chatFootprintHeight, chatVisualBox } from './canvas-chat-shape'
-import { familyLineBoxes, joinStacked } from './canvas-chats-outline'
+import { familyLineBoxes, hangsFromChatsOnly, joinStacked } from './canvas-chats-outline'
 
 /** Border states drawn on the flowchart (fork spec: idle gray, working yellow, unseen green, seen dashed green, waiting red). */
 /** 'monitoring' = the turn ended but background agents/tasks are still running. */
@@ -333,6 +333,9 @@ export function planBlocks(projects: readonly CanvasProject[]): BlockPlan[] {
       const families = new Map<string, CanvasBox[]>()
       chats.forEach((chat, i) => {
         const parentKey = parentOf.get(chat.key) ?? projectKey
+        if (parentKey === projectKey && hangsFromChatsOnly(chat)) {
+          return
+        }
         families.set(parentKey, [...(families.get(parentKey) ?? []), boxes[i]])
       })
       for (const [parentKey, kids] of families) {
