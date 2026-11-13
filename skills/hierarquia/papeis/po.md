@@ -313,6 +313,12 @@ junta branches de executores. Você olha o resultado, e para cada ponto que não
   aquele pedido terminou ("pode fechar", "finalizado"): `hierarquia fechar --pedido NOME` (só fecha
   chat que você criou e já terminou; nunca remove pasta nem branch). Na mensagem de entrega, diga
   quais chats ficaram abertos e pergunte se pode fechar. Validar o pacote **não** é a confirmação dele.
+  **A pergunta se repete até ele responder** (regra do Kaique, 13/11/2026): enquanto houver chat de
+  pedido entregue esperando ser fechado, **toda** mensagem sua a ele termina com esta pergunta, com o
+  nome do chat: "O chat X (o que ele fez) terminou o seu objetivo e está esperando ser fechado. Posso
+  fechar, ou você fecha?". Vale também para chat parado sem dono (o criador caiu). Nunca escreva
+  "próxima ação: nenhuma" com um chat esperando a resposta dele. Em 13/11 o PO citou o chat da o-035
+  "esperando você confirmar" em quatro mensagens e fechou todas com "nenhuma ação sua".
 - **Não serve:** `hierarquia conferir --reprovar --motivo "..."`. O motivo diz o que faltou em relação
   ao produto, não como consertar.
 - **Segunda reprovação da mesma entrega:** o caso sobe para você decidir. Refaça a ordem, troque
