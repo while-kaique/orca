@@ -183,3 +183,7 @@ Teto por máquina (vários projetos); aviso ao Kaique quando tudo para.
   aberta e cada chat parado cujo criador caiu (aba do criador fechada), com o id da ordem, o que fez e a frase pronta
   que o PO repete em toda mensagem. Aberto = a aba existe, mesmo que o registro já dê o chat como encerrado. A linha
   some quando a aba fecha.
+- **O PO atual herda ordem sem dono** (complemento 3 da o-043, caso real de 13/11: `fechar` recusou o-036/o-037 do
+  planejador da o-034 que caiu e o-001/o-014/o-015/o-018 de POs antigos). `hierarquia fechar` e `hierarquia baixa`
+  aceitam quem criou a ordem **ou** o PO atual do projeto quando o criador não existe mais: chat encerrado no registro,
+  aba fechada, ou PO antigo trocado por outro. Ninguém mais herda; com o criador vivo, só ele cuida da ordem.

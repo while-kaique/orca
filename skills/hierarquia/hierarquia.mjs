@@ -11,7 +11,8 @@ import {
   destinoDaPergunta,
   montarEstado,
   ordensLiberadasDaEspera,
-  pedidoDaOrdemNova
+  pedidoDaOrdemNova,
+  podeCuidarDaOrdem
 } from './regras.mjs'
 import {
   abaDoChat,
@@ -296,8 +297,10 @@ const comandos = {
     const estado = montarEstado(lerEventos(projeto))
     const eu = quemSou()
     const ordem = estado.ordens[op.ordem]
-    if (!ordem || ordem.de !== eu) {
-      sair('Só quem criou a ordem dá baixa nela. Uso: hierarquia baixa --ordem ID --motivo "..."')
+    if (!podeCuidarDaOrdem(estado, eu, ordem)) {
+      sair(
+        'Só quem criou a ordem dá baixa nela (ou o PO atual, quando quem criou não existe mais). Uso: hierarquia baixa --ordem ID --motivo "..."'
+      )
     }
     if (!['trabalhando', 'em_prova', 'devolvido', 'em_espera'].includes(ordem.situacao)) {
       sair(`A ordem ${op.ordem} já terminou (${ordem.situacao}).`)

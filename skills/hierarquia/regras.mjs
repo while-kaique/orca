@@ -273,6 +273,28 @@ export function ocupacao(estado) {
   }
 }
 
+/**
+ * O criador da ordem nao existe mais: o chat dele foi encerrado (ou a aba fechou, com `vidas`) ou ele e um PO antigo,
+ * trocado por outro (complemento 3 da o-043: o-036/o-037 do planejador que caiu, o-001/o-014/o-015/o-018 de POs antigos).
+ */
+export function criadorSumiu(estado, ordem, vidas = null) {
+  const criador = estado.chats[ordem.de]
+  return (
+    !criador ||
+    !criador.ativo ||
+    (criador.papel === 'po' && estado.po !== criador.id) ||
+    vidas?.get(criador.id) === 'fechado'
+  )
+}
+
+/** Quem pode dar baixa e fechar o chat da ordem: quem a criou, ou o PO atual quando o criador sumiu (ele herda). */
+export function podeCuidarDaOrdem(estado, eu, ordem, vidas = null) {
+  if (!ordem) {
+    return false
+  }
+  return ordem.de === eu || (eu === estado.po && criadorSumiu(estado, ordem, vidas))
+}
+
 /** FR-3, FR-4, FR-5, FR-10, FR-20: quem cria quem, modelo por papel, cinco campos e teto. */
 export function decidirOrdem(estado, { de, para, campos, teste = false, liberacao = null }) {
   const criador = estado.chats[de]

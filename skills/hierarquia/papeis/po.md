@@ -326,7 +326,8 @@ junta branches de executores. Você olha o resultado, e para cada ponto que não
   "esperando você confirmar" em quatro mensagens e fechou todas com "nenhuma ação sua".
   **A trava está no comando** (o-043): enquanto houver chat assim, o topo de `hierarquia estado` mostra
   "ESPERANDO O KAIQUE CONFIRMAR O FECHAMENTO", com cada chat, o que ele fez e a frase pronta para
-  repetir. A linha some quando a aba do chat fecha.
+  repetir. A linha some quando a aba do chat fecha. Chat cujo criador não existe mais (planejador que
+  caiu, PO antigo) é seu: `hierarquia fechar --ordem ID` e `hierarquia baixa` aceitam você como herdeiro.
 - **Não serve:** `hierarquia conferir --reprovar --motivo "..."`. O motivo diz o que faltou em relação
   ao produto, não como consertar.
 - **Segunda reprovação da mesma entrega:** o caso sobe para você decidir. Refaça a ordem, troque
