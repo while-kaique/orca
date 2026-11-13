@@ -38,6 +38,8 @@ const SAME_ZOOM = 0.005
 /** Up to this many projects every order is tried; above it, a beam search. */
 export const PACK_EXACT_LIMIT = 6
 const BEAM_WIDTH = 6
+/** How many spots are tried for each project, by number of projects. */
+const BRANCHES: Record<number, number> = { 1: 1, 2: 4, 3: 4, 4: 3, 5: 2 }
 
 export const shiftRects = (rects: readonly Rect[], x: number, y: number): Rect[] =>
   rects.map((r) => ({ x: r.x + x, y: r.y + y, w: r.w, h: r.h }))
@@ -129,15 +131,16 @@ function columnsFor(item: PackItem, bounds: Rect, rules: PackRules): number[] {
   return out
 }
 
-/** The best free origin for one more item among the ones already placed, or null when `placed` is empty-handed. */
-export function bestSpot(
+/** The best free origins for one more item among the ones already placed, best first. */
+export function bestSpots(
   item: PackItem,
   placed: readonly Placed[],
   screen: PackScreen,
-  rules: PackRules
-): Point {
+  rules: PackRules,
+  count = 1
+): Point[] {
   if (placed.length === 0) {
-    return { x: 0, y: 0 }
+    return [{ x: 0, y: 0 }]
   }
   const fixed = placed.flatMap((p) => p.rects)
   const bounds = union(fixed)
@@ -149,7 +152,7 @@ export function bestSpot(
     bounds.y - own.y,
     bounds.y + bounds.h - own.y - own.h
   ]
-  let best: Candidate | null = null
+  const found: Candidate[] = []
   for (const x of columnsFor(item, bounds, rules)) {
     const merged = forbiddenHeights(item, x, fixed, rules)
     const ys = new Set<number>(extras)
@@ -170,13 +173,21 @@ export function bestSpot(
         aligned: headerYs.filter((h) => Math.abs(h - mine) < 0.5).length,
         area: all.w * all.h
       }
-      if (!best || better(candidate, best)) {
-        best = candidate
-      }
+      found.push(candidate)
     }
   }
-  return best ? { x: best.x, y: best.y } : { x: 0, y: bounds.y + bounds.h + rules.gapY - own.y }
+  found.sort((a, b) => (better(a, b) ? -1 : better(b, a) ? 1 : 0))
+  return found.length
+    ? found.slice(0, count).map(({ x, y }) => ({ x, y }))
+    : [{ x: 0, y: bounds.y + bounds.h + rules.gapY - own.y }]
 }
+
+export const bestSpot = (
+  item: PackItem,
+  placed: readonly Placed[],
+  screen: PackScreen,
+  rules: PackRules
+): Point => bestSpots(item, placed, screen, rules)[0]
 
 /** The nearest free origin for an item that came to touch something: straight down, or right on the grid; the smaller move wins. */
 export function nudgeAway(
@@ -202,8 +213,7 @@ export function nudgeAway(
 
 type State = { placed: Placed[]; bounds: Rect; order: string[]; zoom: number; aligned: number }
 
-function extend(state: State, item: PackItem, screen: PackScreen, rules: PackRules): State {
-  const spot = bestSpot(item, state.placed, screen, rules)
+function extend(state: State, item: PackItem, spot: Point, screen: PackScreen): State {
   const rects = shiftRects(item.rects, spot.x, spot.y)
   const mine = spot.y + item.header.y
   const aligned =
@@ -235,6 +245,8 @@ const EMPTY: State = {
 
 function exhaustive(items: readonly PackItem[], screen: PackScreen, rules: PackRules): State {
   let best: State | null = null
+  // Fewer projects leave room to try more than the single best spot for each one.
+  const branches = BRANCHES[items.length] ?? 1
   const walk = (state: State, left: readonly PackItem[]): void => {
     if (best && state.zoom < best.zoom * (1 - SAME_ZOOM)) {
       return
@@ -245,16 +257,22 @@ function exhaustive(items: readonly PackItem[], screen: PackScreen, rules: PackR
       }
       return
     }
-    left.forEach((item, i) =>
-      walk(extend(state, item, screen, rules), [...left.slice(0, i), ...left.slice(i + 1)])
-    )
+    left.forEach((item, i) => {
+      const rest = [...left.slice(0, i), ...left.slice(i + 1)]
+      for (const spot of bestSpots(item, state.placed, screen, rules, branches)) {
+        walk(extend(state, item, spot, screen), rest)
+      }
+    })
   }
   walk(EMPTY, items)
   return best as unknown as State
 }
 
 function inOrder(items: readonly PackItem[], screen: PackScreen, rules: PackRules): State {
-  return items.reduce((state, item) => extend(state, item, screen, rules), EMPTY)
+  return items.reduce(
+    (state, item) => extend(state, item, bestSpot(item, state.placed, screen, rules), screen),
+    EMPTY
+  )
 }
 
 function beam(items: readonly PackItem[], screen: PackScreen, rules: PackRules): State {
@@ -279,7 +297,7 @@ function beam(items: readonly PackItem[], screen: PackScreen, rules: PackRules):
       const used = new Set(state.order)
       for (const item of items) {
         if (!used.has(item.id)) {
-          next.push(extend(state, item, screen, rules))
+          next.push(extend(state, item, bestSpot(item, state.placed, screen, rules), screen))
         }
       }
     }
