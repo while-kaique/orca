@@ -61,7 +61,8 @@ const NOME_DO_TIPO = {
   d: 'd) card sobre card',
   e: 'e) selo longe do card',
   f: 'f) card fora da grade de 196',
-  g: 'g) chat a mais de 3 colunas do dono'
+  g: 'g) chat a mais de 3 colunas do dono',
+  i: 'i) executor ou planejador ligado direto ao projeto'
 }
 
 const pedirPagina = async (page, chave, arquivo) => {

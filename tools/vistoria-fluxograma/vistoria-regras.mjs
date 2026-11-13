@@ -354,5 +354,22 @@ export function analisar(fatos, { depoisDoReorganizar }) {
     }
   }
 
+  // i) executor ou planejador pendurado direto no projeto: so pode estar ligado a um chat.
+  for (const { linha, de, para } of ligacoes) {
+    if (linha.tipo === 'seta' || !de || !para) {
+      continue
+    }
+    const [projeto, chat] = de.tipo === 'projeto' ? [de, para] : [para, de]
+    if (projeto.tipo === 'projeto' && (chat.papel === 'executor' || chat.papel === 'planejador')) {
+      achar(
+        'i',
+        'chat da hierarquia ligado ao projeto',
+        chat.rotulo,
+        linha.pontos.at(-1),
+        `${chat.papel} pendurado direto em ${projeto.rotulo}; deveria ficar sob o chat vivo mais proximo`
+      )
+    }
+  }
+
   return { achados, origemDaGrade }
 }

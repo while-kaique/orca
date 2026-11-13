@@ -140,6 +140,35 @@ function openPoStandingIn(
   return newest
 }
 
+/**
+ * Where a chat whose creator closed hangs: the nearest open ancestor in the registry; a closed PO's place is taken by
+ * the PO standing in. Executors and planners never hang from the project, so a broken chain also ends at that PO.
+ */
+function livingAncestor(
+  firstParent: string,
+  role: CanvasHierarchyRole,
+  snapshot: CanvasHierarchySnapshot,
+  chatByKey: ReadonlyMap<string, CanvasChat>,
+  standIn: CanvasChat | null
+): CanvasChat | null {
+  const seen = new Set<string>()
+  for (
+    let id: string | null = firstParent;
+    id && !seen.has(id);
+    id = snapshot.chats[id]?.pai ?? null
+  ) {
+    seen.add(id)
+    const open = chatByKey.get(id)
+    if (open) {
+      return open
+    }
+    if (snapshot.chats[id]?.papel === 'po') {
+      return standIn
+    }
+  }
+  return role === 'po' ? null : standIn
+}
+
 /** Marks each chat with its role and order, fills in creators the status feed lost, and returns the user's queue. */
 export function applyCanvasHierarchy(
   chats: CanvasChat[],
@@ -176,8 +205,10 @@ export function applyCanvasHierarchy(
     if (!chat.parentKey && creator && creator !== chat) {
       chat.parentKey = creator.key
     }
-    // The creator was a PO that is no longer open: its chats hang from the PO that stands in its place.
-    const heir = !creator && known.pai && snapshot.chats[known.pai]?.papel === 'po' ? standIn : null
+    const heir =
+      !creator && known.pai
+        ? livingAncestor(known.pai, known.papel, snapshot, chatByKey, standIn)
+        : null
     if (!chat.parentKey && heir && heir !== chat) {
       chat.parentKey = heir.key
     }

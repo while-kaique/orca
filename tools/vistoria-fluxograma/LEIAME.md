@@ -22,6 +22,7 @@ tela a posição de cada card, o contorno desenhado (hexágono incluso), cada te
 | e    | selo (anexos) a mais de 16 unidades do card dono                                                                                                                                                 |
 | f    | card fora da grade de 196 unidades (origem = card mais à esquerda; só depois do Reorganizar)                                                                                                     |
 | g    | chat a mais de 3 colunas (392 cada, borda a borda) do dono: o criador, ou o projeto (PO e livre)                                                                                                 |
+| i    | executor ou planejador ligado direto ao projeto (só pode estar ligado a um chat; criador fechado = fica sob o chat vivo mais próximo)                                                            |
 
 Também imprime os números do Reorganizar: largura do card do PO em px de tela, margem vazia de cada lado em px e
 o maior buraco entre projetos. Esses números não reprovam; servem para comparar antes e depois.

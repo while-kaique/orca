@@ -55,6 +55,23 @@ describe('linkProjectChats', () => {
     expect(whileLaunching[1].parentKey).toBe('abrindo')
   })
 
+  it('hangs an executor whose planner closed under the nearest open ancestor, never the project', () => {
+    const registry = {
+      folder: 'C:/p/orca',
+      chats: {
+        po: { papel: 'po', pai: null, ativo: true },
+        'plan-fechado': { papel: 'planejador', pai: 'po', ativo: false },
+        exec: { papel: 'executor', pai: 'plan-fechado', ativo: true },
+        orfao: { papel: 'executor', pai: 'sumiu-do-registro', ativo: true }
+      },
+      ordens: {},
+      fila: []
+    } as unknown as CanvasHierarchySnapshot
+    const chats = [chat('po'), chat('exec'), chat('orfao')]
+    linkProjectChats(chats, new Map(), [registry], ['C:/p/orca'])
+    expect(chats.map((c) => c.parentKey)).toEqual([null, 'po', 'po'])
+  })
+
   it('holds a new tab made by a hierarchy chat under it until its record arrives, and no longer than that', () => {
     const lineage = new Map([['w-filho', 'w-main']])
     const build = (): { po: CanvasChat; child: CanvasChat } => ({
