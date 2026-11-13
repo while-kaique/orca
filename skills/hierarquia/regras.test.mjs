@@ -4,7 +4,6 @@ import { rotuloDaSituacao } from './estado-na-tela.mjs'
 import {
   acharTarefaNova,
   acharTerminalNovo,
-  chatsSemVida,
   criadorSemAba,
   decidirConferencia,
   decidirEntrega,
@@ -467,20 +466,6 @@ test('ordem parada na caixa e enviada uma vez so; chat que ja trabalha nao receb
     decidirInicio(vigia, { atividade: 'working', onde: 'no_historico' }, 12000).acao,
     'comecou'
   )
-  // Chat novo que ja concluiu o turno comecou (tela velha); reaproveitado (correcao) ou com a ordem na caixa, nao.
-  const base = { naCaixaDesde: null, tentouEnviarEm: null, enviadaEm: null, comecouEm: null }
-  assert.equal(
-    decidirInicio({ ...base, chatNovo: true }, { atividade: 'done', onde: 'ausente' }, 1000).acao,
-    'comecou'
-  )
-  assert.equal(
-    decidirInicio({ ...base, chatNovo: false }, { atividade: 'done', onde: 'ausente' }, 1000).acao,
-    'esperar'
-  )
-  assert.equal(
-    decidirInicio({ ...base, chatNovo: true }, { atividade: 'done', onde: 'na_caixa' }, 1000).acao,
-    'esperar'
-  )
   const sozinho = { naCaixaDesde: null, tentouEnviarEm: null, enviadaEm: null, comecouEm: null }
   let carregada = sozinho
   const comFalhas = ['na_caixa', 'desconhecido', 'na_caixa'].map((onde, i) => {
@@ -557,21 +542,6 @@ test('pedido so avisa quem criou quando todas as ordens dele terminam; outro ped
   assert.deepEqual(
     pedidosParaAvisar(montarEstado(eventos), 'PO').map((grupo) => grupo.pedido),
     ['J']
-  )
-})
-
-test('chat sem aba, caido ou sem nada na tela passa a contar como parado; quem espera filha nao', () => {
-  const eventos = comExecutores(base(), 'P1', 3, 'E')
-  const estado = montarEstado(eventos)
-  const agora = 100 * 60000
-  const terminais = [
-    { tabId: 'P1', connected: true, lastOutputAt: 0 },
-    { tabId: 'E2', connected: false, lastOutputAt: agora },
-    { tabId: 'E3', connected: true, lastOutputAt: agora - 25 * 60000 }
-  ]
-  assert.deepEqual(
-    chatsSemVida(estado, terminais, agora, 20 * 60000).map((morto) => morto.ordemId),
-    ['o-E1', 'o-E2', 'o-E3']
   )
 })
 

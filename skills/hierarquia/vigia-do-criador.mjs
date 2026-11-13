@@ -13,8 +13,6 @@ import {
 } from './regras.mjs'
 import { criarSeNaoExiste, lerJson, processoVivo } from './trava.mjs'
 
-/** Chat sem nada na tela por mais que isso, sem pergunta aberta nem filha trabalhando, conta como parado. */
-export const PRAZO_SEM_ATIVIDADE_MS = 20 * 60 * 1000
 const PASSO_MS = 5000
 const SOBRA_DEPOIS_DO_ULTIMO_MS = 3 * 60 * 1000
 const VIDA_MS = 30000
@@ -48,13 +46,17 @@ export function garantirVigia(base, chatId, script, projeto) {
   return filho.pid
 }
 
+/** Desde quando cada ordem aparece sem vida: vale por processo, então só o vigia (que vive) chega a marcar. */
+let semVidaDesde = new Map()
+
 /** Marca como parada a ordem cujo chat morreu (B). Devolve as marcadas. */
 export function marcarChatsMortos(estado, terminais, anotar) {
-  const mortos = chatsSemVida(estado, terminais, Date.now(), PRAZO_SEM_ATIVIDADE_MS)
-  for (const morto of mortos) {
+  const visto = chatsSemVida(estado, terminais, Date.now(), semVidaDesde)
+  semVidaDesde = visto.semVidaDesde
+  for (const morto of visto.mortos) {
     anotar('parou_sem_entregar', { ...morto, automatico: true })
   }
-  return mortos
+  return visto.mortos
 }
 
 function matarArvore(processo) {

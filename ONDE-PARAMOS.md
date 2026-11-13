@@ -1,5 +1,30 @@
 # Onde paramos — fork do Orca "PC como mesa"
 
+## 13/11/2026 (ordem o-035) — o comando só diz "começou" com prova; Enter insiste; `--help` não grava
+
+**Estado:** código na branch `while-kaique/feat-o-035-executor` (não enviada; quem junta é o PO). Provas em
+`.hierarquia/provas/o-035/` (pasta principal, fora do git). **Visto no Orca em uso:** 3 lançamentos seguidos (o-038, o-039,
+o-040), os 3 começaram sem tecla de ninguém; em 2 o comando enviou o Enter, em 1 o chat começou sozinho. Resumo em
+`provas/o-035/ENTREGA.md`.
+
+**Causa (confirmada rodando o código de hoje, prova `01`).** Com o texto da ordem no rascunho do Claude e a caixa vazia na
+tela, o comando lia "ausente" e, como o Orca marca `done` também em chat que nunca rodou, a regra "turno concluído em chat
+novo vale como começou" dizia "Chat começou" (o-033 em 12/11, o-034 em 13/11). O ajuste que já estava pronto na branch da
+o-032 (adendo 3, commit `da5a464799`) nunca tinha sido juntado: veio junto agora.
+
+**O que mudou para quem usa:** só vale "começou" com prova positiva (chat trabalhando, ou a ordem na conversa); `done` não
+prova nada; rascunho com a ordem conta como ordem parada. Ordem parada recebe Enter de novo a cada 20 s (até 60 vezes, e o
+vigia do criador segue por 45 min) sem digitar a ordem outra vez. Se desistir, a saída e o registro dizem "a ordem esta
+digitada no chat X, falta enviar" e a linha final deixa de dizer "lançada". `hierarquia <comando> --help` e comando sem
+campo obrigatório só mostram a ajuda: nada é gravado e nenhum chat recebe mensagem. `chat_iniciou` agora guarda o que foi
+visto (`visto.atividade`, `visto.onde`).
+
+**Chat vivo dado como parado (o-039 aqui, o-002 no social-hub): consertado.** Quem gravou foi o vigia antigo (processo ligado
+a partir da pasta principal; o código é o mesmo, a falha estava em `chatsSemVida`). Agora chat lançado há menos de 10 min nunca
+é dado como parado, a falta de terminal precisa se repetir por 2 min seguidos, terminal ligado nunca conta (a regra "nada na
+tela há 20 min" saiu) e `hierarquia estado` não marca mais ninguém. Ordem parada pelo sistema volta a aceitar `hierarquia
+entregar`. **O vigia que já está rodando só pega isto depois de reiniciado.**
+
 ## 12/11/2026 (noite, ordem o-032) — `hierarquia ordem` insiste até o chat começar
 
 **Estado:** código e papéis na branch `kaiquebreno-ggp/feat-o-032-executor` (não enviada; quem junta é o PO).

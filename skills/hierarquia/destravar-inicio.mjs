@@ -1,7 +1,7 @@
 // Destrava a ordem cujo chat nasceu sem começar (texto parado na caixa, ou comando que morreu). Chamado pelo vigia do criador.
 import { criarVigia } from './inicio-do-turno.mjs'
 import { escreverNoChat } from './orca-lancador.mjs'
-import { pedidoParaOrca, trechoDoPedido } from './pedido-da-ordem.mjs'
+import { pedidoParaOrca } from './pedido-da-ordem.mjs'
 import { anotar, lerEventos } from './registro.mjs'
 import { montarEstado, ordensSemInicio } from './regras.mjs'
 
@@ -12,7 +12,7 @@ const conferidores = new Map()
 function conferidorDa(projeto, ordem, chat) {
   let vigia = conferidores.get(ordem.id)
   if (!vigia) {
-    vigia = criarVigia(trechoDoPedido(pedidoParaOrca(projeto, ordem.id, ordem.papel, ordem.campos)))
+    vigia = criarVigia(pedidoParaOrca(projeto, ordem.id, ordem.papel, ordem.campos))
     conferidores.set(ordem.id, vigia)
   }
   vigia.ligar(ordem.dispatchId, chat.handle, chat.id)

@@ -89,7 +89,8 @@ export async function abrirOrcaDeTeste({
   mundo = MUNDO_PADRAO,
   porta,
   registro,
-  manter = false
+  manter = false,
+  raiz = RAIZ
 } = {}) {
   const perfil = path.join(mundo, 'perfil')
   const portaCdp = porta ?? 9560 + Math.floor(Math.random() * 300)
@@ -110,7 +111,7 @@ export async function abrirOrcaDeTeste({
   mkdirSync(path.join(mundo, 'logs'), { recursive: true })
   const log = openSync(path.join(mundo, 'logs', 'orca-de-teste.log'), 'a')
   const filho = spawn(require('electron'), ['.', `--remote-debugging-port=${portaCdp}`], {
-    cwd: RAIZ,
+    cwd: raiz,
     env,
     windowsHide: true,
     stdio: ['ignore', log, log]
