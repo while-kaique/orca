@@ -2,7 +2,14 @@
 import { vidaDosChats } from './fechar-chats.mjs'
 import { orca } from './orca-lancador.mjs'
 import { anotar, gravarFoto, lerEventos } from './registro.mjs'
-import { filaDoKaique, montarEstado, ocupacao, pedidosNoEstado } from './regras.mjs'
+import {
+  filaDoKaique,
+  GRACA_DO_LANCAMENTO_MS,
+  montarEstado,
+  OCUPA_VAGA,
+  ocupacao,
+  pedidosNoEstado
+} from './regras.mjs'
 import { marcarChatsMortos } from './vigia-do-criador.mjs'
 import { olharPorta } from './porta-do-orca.mjs'
 
@@ -60,9 +67,17 @@ const SEM_INICIO = {
 }
 
 /** `trabalhando` só vale para chat que comecou: sem a confirmação, a linha diz o que falta. */
-export function rotuloDaSituacao(ordem, chat = null) {
+export function rotuloDaSituacao(ordem, chat = null, vida = null, agora = Date.now()) {
   if (chat?.cortadoEm && !chat.retomadoEm && ordem.situacao === 'trabalhando') {
     return `CORTADO quando o Orca fechou: volta sozinho quando o Claude do chat abrir${chat.corteAvisado ? ' (aviso guardado)' : ''}`
+  }
+  // Caso de 13/11: antes de o vigia passar, chat sem terminal nao aparece como trabalhando (chat novo tem a graca).
+  if (
+    ['fechado', 'dormindo'].includes(vida) &&
+    OCUPA_VAGA.has(ordem.situacao) &&
+    agora - Date.parse(ordem.lancadoEm) >= GRACA_DO_LANCAMENTO_MS
+  ) {
+    return `SEM CHAT LIGADO (${vida}): nao esta trabalhando; o vigia de quem criou da como ${vida === 'dormindo' ? 'cortada' : 'parada'} em ate 2 min`
   }
   if (ordem.situacao === 'trabalhando' && ordem.inicio !== 'confirmado') {
     return (SEM_INICIO[ordem.inicio] ?? SEM_INICIO.pendente)(ordem)
@@ -117,7 +132,7 @@ function imprimirOrdem(estado, ordem, vidas) {
   const colunas = [
     `  - ${ordem.id}`,
     `${ordem.papel}${chat ? ` (${chat.modelo})` : ''}`,
-    rotuloDaSituacao(ordem, chat),
+    rotuloDaSituacao(ordem, chat, chat ? vidas.get(chat.id) : null),
     ordem.posicaoNaFila
       ? `${ordem.posicaoNaFila}o na fila${ordem.prioridade ? ' (passa na frente)' : ''}`
       : '',
