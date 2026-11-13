@@ -60,6 +60,18 @@ rodada() {
         echo "casos $caso: EXIT $?"
       done
       ;;
+    antigo-arrastes)
+      hierarquia vez -- node "$V/prova-encaixe-real.mjs" --rotulo antigo --arrastes --raiz "$ANTIGO" --saida "$PROVA/antigo-arrastes" >"$PROVA/antigo-arrastes-saida.txt" 2>&1
+      echo "antigo-arrastes: EXIT $?"
+      ;;
+    novo-arrastes)
+      hierarquia vez -- node "$V/prova-encaixe-real.mjs" --rotulo novo --arrastes --semente "$PROVA/antigo-arrastes/fatos.json" --saida "$PROVA/novo-arrastes" >"$PROVA/novo-arrastes-saida.txt" 2>&1
+      echo "novo-arrastes: EXIT $?"
+      ;;
+    nascer)
+      hierarquia vez -- node "$V/prova-encaixe-real.mjs" --rotulo novo --nascer --saida "$PROVA/nascimentos" >"$PROVA/nascimentos-saida.txt" 2>&1
+      echo "nascer: EXIT $?"
+      ;;
     caso5-antigo)
       hierarquia vez -- node "$V/prova-casos-real.mjs" --caso caso-5-projetos --rotulo antigo --raiz "$ANTIGO" --saida "$PROVA/casos/caso-5-projetos/antigo" >"$PROVA/casos/log-caso-5-projetos-antigo.txt" 2>&1
       echo "caso5-antigo: EXIT $?"
