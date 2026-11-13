@@ -23,6 +23,14 @@ vistoria() {
 
 rodada() {
   case "$1" in
+    tipos)
+      hierarquia vez -- pnpm tc:web >"$PROVA/saida-tc.txt" 2>&1
+      echo "tipos: EXIT $?"
+      ;;
+    testes)
+      hierarquia vez -- node config/scripts/run-vitest.mjs run --config config/vitest.config.ts src/renderer/src/components/canvas-chats --maxWorkers=2 >"$PROVA/saida-testes.txt" 2>&1
+      echo "testes: EXIT $?"
+      ;;
     montar)
       for v in $(env | grep -oE '^(ORCA_|CLAUDE|AI_AGENT)[A-Za-z0-9_]*'); do unset "$v"; done
       VITE_EXPOSE_STORE=true hierarquia vez -- node config/scripts/build-workspace-packages.mjs >"$PROVA/montagem.log" 2>&1 &&

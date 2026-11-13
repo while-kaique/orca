@@ -1,5 +1,25 @@
 # Onde paramos — fork do Orca "PC como mesa"
 
+## 13/11/2026 (ordem o-042, fecha a o-034) — fluxograma: partes A e B juntas, margem de 52 entre projetos
+
+**Estado:** branch `while-kaique/snipefish` (não enviada; quem junta é o PO). Junta a parte A (lugar dos cards, o-036) e a
+parte B (vistoria e desenho, o-037). Provas e entrega em `.hierarquia/provas/o-042/` (pasta principal, fora do git). Spec:
+`docs/specs/fluxograma-organizacao-encaixe.md`.
+
+**O que mudou para quem usa:**
+
+- **Margem entre projetos:** 52 unidades (o vão entre dois cards de uma fileira), igual em todo lugar; nada de um projeto
+  chega mais perto que isso de outro e nenhum fica longe. O contorno de cada projeto é o desenhado: cards, selos e as
+  linhas como são desenhadas (toco no centro do pai, barra, descidas). A grade de 196 vale dentro de cada projeto.
+- **Criador fechado:** chat da hierarquia cujo criador fechou fica sob o ancestral vivo mais próximo pela cadeia `pai` do
+  registro (PO fechado = o PO no lugar dele). Executor e planejador nunca ficam ligados direto ao projeto.
+- **Nome do executor** não é mais cortado no meio da palavra.
+- **Tempo do Reorganizar:** 8 projetos e 40 chats 58 ms; 6 projetos (todas as ordens) 189 ms.
+
+**Vistoria:** tipos novos i (executor ou planejador ligado ao projeto) e j (margem entre projetos fora de 52 ± 4); f
+(grade) conta por projeto. Roteiro de todas as provas da ordem: `bash tools/vistoria-fluxograma/prova-o-042.sh PASTA APP_ANTIGO [rodadas]`.
+Prova intermediária pode ser teste ou cálculo (`vaos-encaixe.mjs`, `prova-encaixe.mjs`); o Orca de teste só na rodada final.
+
 ## 13/11/2026 (ordem o-035) — o comando só diz "começou" com prova; Enter insiste; `--help` não grava
 
 **Estado:** código na branch `while-kaique/feat-o-035-executor` (não enviada; quem junta é o PO). Provas em
