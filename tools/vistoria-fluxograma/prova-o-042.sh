@@ -47,10 +47,14 @@ rodada() {
       echo "po-nascendo: EXIT $?"
       ;;
     casos)
-      for caso in caso-4-projetos caso-3-projetos-a caso-3-projetos-b; do
+      for caso in caso-4-projetos caso-3-projetos-a caso-3-projetos-b caso-5-projetos; do
         hierarquia vez -- node "$V/prova-casos-real.mjs" --caso "$caso" --rotulo novo --saida "$PROVA/casos/$caso/novo" >"$PROVA/casos/log-$caso-novo.txt" 2>&1
         echo "casos $caso: EXIT $?"
       done
+      ;;
+    caso5-antigo)
+      hierarquia vez -- node "$V/prova-casos-real.mjs" --caso caso-5-projetos --rotulo antigo --raiz "$ANTIGO" --saida "$PROVA/casos/caso-5-projetos/antigo" >"$PROVA/casos/log-caso-5-projetos-antigo.txt" 2>&1
+      echo "caso5-antigo: EXIT $?"
       ;;
     *) echo "rodada desconhecida: $1" ;;
   esac

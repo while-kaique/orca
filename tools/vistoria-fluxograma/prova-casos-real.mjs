@@ -8,6 +8,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { CASOS } from './casos-encaixe.mjs'
+import { lerTela } from './vistoria-leitura-da-tela.mjs'
+import { analisar } from './vistoria-regras.mjs'
 import {
   abrirFluxograma,
   abrirOrcaDeTeste,
@@ -144,10 +146,15 @@ const medidas = (fatos) => {
 }
 const registrar = async (nome) => {
   const fatos = await lerQuadro()
-  resultado.etapas[nome] = { ...medidas(fatos), fatos }
+  // A vistoria le a mesma tela: vao entre projetos vizinhos (em unidades e px) e o que ela reprova.
+  const tela = await lerTela(page)
+  const { achados, vaos } = analisar(tela, { depoisDoReorganizar: true })
+  const emPx = (d) => Math.round(d * tela.escala * 10) / 10
+  const vaosPx = Object.fromEntries(vaos.map((v) => [v.projeto, emPx(v.distancia)]))
+  resultado.etapas[nome] = { ...medidas(fatos), fatos, vaosPx, achados }
   await foto(nome)
   dizer(
-    `${nome}: card do PO ${resultado.etapas[nome].poLarguraPx} px; margens ${JSON.stringify(resultado.etapas[nome].margensPx)}`
+    `${nome}: card do PO ${resultado.etapas[nome].poLarguraPx} px; margens ${JSON.stringify(resultado.etapas[nome].margensPx)}; vao ao vizinho em px ${JSON.stringify(vaosPx)}; achados da vistoria ${achados.length} ${JSON.stringify([...new Set(achados.map((a) => a.tipo))])}`
   )
 }
 

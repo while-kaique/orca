@@ -15,7 +15,8 @@
 > toque o fluxograma (`src/renderer/src/components/canvas-chats/**`, linhas, setas, textos, selos, lugar dos cards),
 > rode `node tools/vistoria-fluxograma/vistoria.mjs` e só entregue com `zero achado`. Ela abre o Orca de teste
 > escondido sobre uma cópia do estado real, tira o print como está e depois do Reorganizar, mede linha, seta,
-> texto, selo, card sobre card, grade e distância ao dono, e termina com saída 1 e a lista do que achou. Guia:
+> texto, selo, card sobre card, grade, distância ao dono, executor ligado ao projeto e margem de 52 entre projetos,
+> e termina com saída 1 e a lista do que achou. Guia:
 > `tools/vistoria-fluxograma/LEIAME.md`. Rode pela vez (`hierarquia vez --`) quando o comando for pesado (a montagem).
 
 If selection fans out excessively, use scoped checks and report limits. Use the PR base (default `origin/main`; `ORCA_CODE_QUALITY_BASE=<ref>` for stacks). `--base=HEAD` and dirty-only checks provide incremental evidence only.
