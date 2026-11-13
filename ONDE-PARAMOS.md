@@ -3,7 +3,8 @@
 ## 13/11/2026 (ordem o-035) — o comando só diz "começou" com prova; Enter insiste; `--help` não grava
 
 **Estado:** código na branch `while-kaique/feat-o-035-executor` (não enviada; quem junta é o PO). Provas em
-`.hierarquia/provas/o-035/` (pasta principal, fora do git). **Prova no Orca em uso (3 lançamentos reais): pendente**, ver
+`.hierarquia/provas/o-035/` (pasta principal, fora do git). **Visto no Orca em uso:** 3 lançamentos seguidos (o-038, o-039,
+o-040), os 3 começaram sem tecla de ninguém; em 2 o comando enviou o Enter, em 1 o chat começou sozinho. Resumo em
 `provas/o-035/ENTREGA.md`.
 
 **Causa (confirmada rodando o código de hoje, prova `01`).** Com o texto da ordem no rascunho do Claude e a caixa vazia na
@@ -17,6 +18,9 @@ vigia do criador segue por 45 min) sem digitar a ordem outra vez. Se desistir, a
 digitada no chat X, falta enviar" e a linha final deixa de dizer "lançada". `hierarquia <comando> --help` e comando sem
 campo obrigatório só mostram a ajuda: nada é gravado e nenhum chat recebe mensagem. `chat_iniciou` agora guarda o que foi
 visto (`visto.atividade`, `visto.onde`).
+
+**Achado, não consertado:** a parada automática de "chat morto" marca como `parou` uma ordem cujo chat acabou de nascer e o Orca
+ainda não ligou o terminal (o-039, 10 s depois do lançamento); o chat começou depois, com a ordem já em `parou`.
 
 ## 12/11/2026 (noite, ordem o-032) — `hierarquia ordem` insiste até o chat começar
 
