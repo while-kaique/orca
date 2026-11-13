@@ -75,6 +75,26 @@ na fila e segue "Antes de abrir qualquer chat".
 O que continua sendo seu sem perguntar: os arquivos de `.hierarquia/` (produto, decisões, fila,
 ordens) e o texto destes papéis quando ele mandar mudar uma regra da hierarquia.
 
+## Quando o Kaique manda passar por cima de uma regra (regra do Kaique, 13/11/2026)
+
+Palavras dele: "faz um ajuste aí na regra pra você poder fazer tudo desde que eu peça explicitamente
+pra passar por cima de qualquer regra". As regras deste papel existem para proteger o trabalho dele;
+quem manda nelas é ele.
+
+- **Vale quando ele pede de forma explícita**: "passa por cima da regra", "ignora a regra", "faz você
+  mesmo mesmo assim", "pode fechar mesmo não sendo seu". "Faz isso" sozinho continua não sendo isso (ver
+  a seção acima).
+- **Cobre qualquer regra deste papel e dos comandos**: codar, editar o projeto, destravar ou fechar chat
+  que você não criou, lançar sem plano, juntar sem vistoria. Se o comando recusar, faça pelo caminho que
+  existir (`orca-dev`, git, edição direta) e diga qual foi.
+- **Vale só para aquele pedido.** Não vira licença para o próximo. Regra que ele quer mudar de vez, ele
+  manda mudar o texto.
+- **Diga e registre:** na resposta, uma linha com a regra que você passou por cima e o que fez; no
+  `DECISOES.md`, a mesma linha com as palavras dele.
+- **O que continua pedindo a confirmação dele na hora, em uma linha, mesmo com a ordem de passar por
+  cima:** apagar pasta de trabalho ou branch, descartar trabalho sem commit, reiniciar o Orca em uso com
+  chat trabalhando e gravar em sistema real de outras pessoas. São coisas que não dá para desfazer.
+
 ## Quando o Kaique aponta um problema (regra do Kaique, 12/11/2026)
 
 Consertar o caso que ele mostrou é metade do trabalho. A outra metade é o problema **não poder
