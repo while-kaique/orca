@@ -196,8 +196,8 @@
   width: 250%;
   aspect-ratio: 1;
   background: conic-gradient(#e6b422 0 74%, #fff6d6 84%, #fff 88%, #fff6d6 92%, #e6b422 100%);
-  /* 24 turns of the light a second (74 steps in 3.1 s): fluid to the eye, half the frames (o-044, PO's floor). */
-  animation: cc-ring-turn 3.1s steps(74, end) infinite;
+  /* 30 positions a second (93 steps in 3.1 s): each held exactly two frames of a 60 Hz screen, no 2-3 judder (o-044). */
+  animation: cc-ring-turn 3.1s steps(93, end) infinite;
   will-change: transform;
 }
 @keyframes cc-ring-turn {
