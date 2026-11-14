@@ -17,8 +17,8 @@ de 12/11 ("deixa tudo parado pra eu apertar o botão mesmo").
 
 ## 2. A regra nova do lugar (encaixe)
 
-1. **Forma real de cada projeto:** o contorno é o que é desenhado: por fileira, uma faixa com os cards e os selos
-   dela e, por família (um pai e os chats dele), as linhas como são desenhadas: o toco fino no centro do pai até a
+1. **Forma real de cada projeto:** o contorno é o que é desenhado: por fileira, uma caixa por grupo de cards vizinhos de mesma
+   altura, com os selos deles (o selo de um card não desce a fileira inteira), e, por família (um pai e os chats dele), as linhas como são desenhadas: o toco fino no centro do pai até a
    barra, a barra e as descidas até os chats (a barra fica no meio do caminho saindo do projeto e 40 unidades abaixo
    saindo de um chat); livres + selos em cima, cabeçalho. Não é mais a caixa retangular do projeto inteiro (o-042;
    a primeira versão reservava a faixa inteira do pai aos filhos e a vistoria mediu 92 em vez de 52).
@@ -69,7 +69,8 @@ de 12/11 ("deixa tudo parado pra eu apertar o botão mesmo").
   do **ancestral vivo mais próximo** pela cadeia `pai` do registro (ex.: executor da o-036 cujo planejador fechou
   fica sob o PO). PO fechado na cadeia = o PO que está no lugar dele. Executor e planejador nunca ficam ligados
   direto ao projeto, nem com a cadeia quebrada; vale depois de reiniciar o Orca e para ordem com baixa (a
-  ligação vem só do registro, não da ordem).
+  ligação vem só do registro, não da ordem). Sem nenhum chat vivo acima (PO fechado e o próximo ainda sem abrir),
+  ficam embaixo do projeto sem linha.
 - **Chat lançado pela hierarquia:** já nasce embaixo de quem o criou; a fase "Livre longe" some (o registro
   `chat_lancado` existe antes de o papel aparecer na tela: o fluxograma relê o registro quando surge uma aba
   nova, em vez de esperar a próxima leitura de 3 s, e um chat cujo criador é da hierarquia não é desenhado como
