@@ -1,18 +1,25 @@
 // Abre um Orca de teste escondido (janela oculta, sem foco) sobre um "mundo de teste" e o fecha sem sobra.
 // Usado por vistoria-juncao.mjs; as provas avulsas importam as mesmas funcoes.
-import { execFileSync, spawn } from 'node:child_process'
-import { closeSync, mkdirSync, openSync, readFileSync, rmSync } from 'node:fs'
+import { execFileSync, spawn, spawnSync } from 'node:child_process'
+import { closeSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { chromium } from 'playwright-core'
 
 const require = createRequire(import.meta.url)
 export const RAIZ = path.resolve(import.meta.dirname, '..', '..')
-export const MUNDO_PADRAO = path.join(
-  process.env.TEMP ?? process.env.TMPDIR ?? '/tmp',
-  'vistoria-fluxograma',
-  'mundo'
-)
+// Pasta propria desta copia do projeto: duas vistorias de copias diferentes rodando juntas (como dois executores)
+// nao podem dividir o mundo de teste, porque cada uma apaga e mata o que cita a pasta dele.
+export const MUNDO_PADRAO =
+  process.env.VISTORIA_MUNDO ??
+  path.join(
+    process.env.TEMP ?? process.env.TMPDIR ?? '/tmp',
+    `vistoria-fluxograma-${path
+      .basename(RAIZ)
+      .toLowerCase()
+      .replaceAll(/[^a-z0-9]+/gu, '-')}`,
+    'mundo'
+  )
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const powershell = (comando) =>
@@ -21,11 +28,50 @@ const powershell = (comando) =>
     windowsHide: true
   })
 
-export function montarMundo(mundo = MUNDO_PADRAO) {
+/** Monta a branch atual em RAIZ/out (um comando pesado por vez na maquina, pela vez do comando hierarquia). */
+export function montarBranch(pastaDoLog) {
+  const env = { ...process.env, VITE_EXPOSE_STORE: 'true' }
+  for (const nome of Object.keys(env)) {
+    if (/^(ORCA_|CLAUDE|AI_AGENT)/u.test(nome)) {
+      delete env[nome]
+    }
+  }
+  const comVez = spawnSync('hierarquia', ['--ajuda'], { shell: true, stdio: 'ignore' }).status === 0
+  // Cada passo pesado entra na fila da maquina sozinho (um `&&` fora da vez deixaria o segundo passo furar a fila).
+  let saida = ''
+  let status = 0
+  for (const passo of [
+    'node config/scripts/build-workspace-packages.mjs',
+    'node config/scripts/run-electron-vite-build.mjs'
+  ]) {
+    const resultado = spawnSync(comVez ? `hierarquia vez -- ${passo}` : passo, {
+      cwd: RAIZ,
+      env,
+      shell: true,
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024
+    })
+    saida += `${resultado.stdout}
+${resultado.stderr}
+`
+    status = resultado.status ?? 1
+    if (status !== 0) {
+      break
+    }
+  }
+  const log = path.join(pastaDoLog, 'montagem.log')
+  writeFileSync(log, saida)
+  if (status !== 0) {
+    throw new Error(`A montagem falhou (veja ${log}).`)
+  }
+}
+
+/** `manter`: nomes de projetos que entram no mundo mesmo sem chat aberto no estado real (casos de prova). */
+export function montarMundo(mundo = MUNDO_PADRAO, manter = []) {
   const saida = execFileSync(
     'python',
     [path.join(RAIZ, 'tools', 'vistoria-fluxograma', 'preparar-estado.py'), mundo],
-    { encoding: 'utf8' }
+    { encoding: 'utf8', env: { ...process.env, VISTORIA_MANTER_REPOS: manter.join(',') } }
   )
   return saida.trim()
 }
@@ -55,10 +101,15 @@ export function janelasVisiveisDoMundo(mundo = MUNDO_PADRAO, raizes = []) {
   if (pids.length === 0) {
     return []
   }
-  const saida = powershell(
-    `Get-Process -Id ${pids.join(',')} -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle } | ForEach-Object { "$($_.Id)\`t$($_.MainWindowTitle)" }`
-  )
-  return saida.split(/\r?\n/u).filter(Boolean)
+  try {
+    const saida = powershell(
+      `Get-Process -Id ${pids.join(',')} -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle } | ForEach-Object { "$($_.Id)\`t$($_.MainWindowTitle)" }`
+    )
+    return saida.split(/\r?\n/u).filter(Boolean)
+  } catch {
+    // Um processo do teste saiu enquanto a lista era lida: sem janela visivel para contar.
+    return []
+  }
 }
 
 export async function encerrarMundo(mundo = MUNDO_PADRAO, raizes = []) {
@@ -82,14 +133,15 @@ export async function encerrarMundo(mundo = MUNDO_PADRAO, raizes = []) {
 }
 
 /**
- * Abre o Orca montado em RAIZ/out, escondido, com o perfil do mundo. Devolve { page, fechar, porta }.
+ * Abre o Orca montado em `raizDoApp`/out (padrao RAIZ/out), escondido, com o perfil do mundo. Devolve { page, fechar, porta }.
  * `fechar()` desconecta, mata a arvore de processos do mundo e apaga o mundo (a menos que manter).
  */
 export async function abrirOrcaDeTeste({
   mundo = MUNDO_PADRAO,
   porta,
   registro,
-  manter = false
+  manter = false,
+  raiz = RAIZ
 } = {}) {
   const perfil = path.join(mundo, 'perfil')
   const portaCdp = porta ?? 9560 + Math.floor(Math.random() * 300)
@@ -110,7 +162,7 @@ export async function abrirOrcaDeTeste({
   mkdirSync(path.join(mundo, 'logs'), { recursive: true })
   const log = openSync(path.join(mundo, 'logs', 'orca-de-teste.log'), 'a')
   const filho = spawn(require('electron'), ['.', `--remote-debugging-port=${portaCdp}`], {
-    cwd: RAIZ,
+    cwd: raiz,
     env,
     windowsHide: true,
     stdio: ['ignore', log, log]
@@ -124,7 +176,11 @@ export async function abrirOrcaDeTeste({
     }
     const sobras = await encerrarMundo(mundo, [filho.pid])
     if (!manter) {
-      rmSync(mundo, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 })
+      try {
+        rmSync(mundo, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 })
+      } catch {
+        // Um arquivo ainda preso pelo sistema: a proxima rodada apaga o mundo antes de montar o dela.
+      }
     }
     return sobras
   }
@@ -150,7 +206,7 @@ export async function abrirOrcaDeTeste({
       }
       await sleep(500)
     }
-    browser = await chromium.connectOverCDP(`http://127.0.0.1:${portaCdp}`)
+    browser = await chromium.connectOverCDP(`http://127.0.0.1:${portaCdp}`, { timeout: 180_000 })
     let page
     while (!page) {
       page = browser

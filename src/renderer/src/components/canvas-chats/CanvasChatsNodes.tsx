@@ -22,6 +22,7 @@ import { CanvasExecutorCrest } from './CanvasExecutorCrest'
 import { useCanvasExecutorName } from './canvas-chat-executor-name'
 import { chatShape, chatVisualBox } from './canvas-chat-shape'
 import { CanvasChatGate, CanvasChatModel, CanvasChatRole } from './CanvasChatHierarchyBadges'
+import { useFitText } from './canvas-chat-fit-text'
 import { CanvasProjectClose } from './CanvasProjectClose'
 import { CanvasChatLaunchMask } from './CanvasChatLaunchMask'
 import { useCanvasLaunchRecord } from './canvas-chat-launch-mask'
@@ -64,11 +65,20 @@ export function ProjectNode({
     }
   }
   const agents = project.chats.reduce((n, c) => n + c.agents.length, 0)
+  const projectNameRef = useRef<HTMLSpanElement>(null)
+  useFitText(projectNameRef, project.name, 1, '')
   return (
     <div
       className="cc-node cc-project"
       style={
-        { left: box.x, top: box.y, width: box.w, '--cc-pc': project.color } as React.CSSProperties
+        {
+          left: box.x,
+          top: box.y,
+          width: box.w,
+          // The lines start at the box's bottom edge: the drawn card is exactly that tall.
+          height: box.h,
+          '--cc-pc': project.color
+        } as React.CSSProperties
       }
       onPointerDown={onDragStart}
     >
@@ -105,7 +115,7 @@ export function ProjectNode({
       ) : null}
       <div className="cc-project-name">
         <i className="cc-project-badge">{project.initials}</i>
-        <span>{project.name}</span>
+        <span ref={projectNameRef}>{project.name}</span>
       </div>
       {project.detail ? <div className="cc-project-detail">{project.detail}</div> : null}
       <div className="cc-pills">
@@ -204,6 +214,10 @@ export function ChatNode({
   // A planner is a slim card and an executor a hexagon, inside the same slot; open or peeking they are full cards.
   const shape = open || peek ? 'card' : chatShape(chat)
   const visual = shape === 'card' ? box : chatVisualBox(chat, box)
+  const headNameRef = useRef<HTMLElement>(null)
+  const headName = chat.hierarchy?.role === 'planejador' ? executorName : chat.title
+  // Two lines at most inside the card head; smaller letters when a long title would not fit the card's height.
+  useFitText(headNameRef, headName, 2, `${shape}${open ? 'open' : ''}`, open ? undefined : cardRef)
   const style = open
     ? {
         left: box.x + box.w / 2 - openSize.w / 2,
@@ -299,7 +313,7 @@ export function ChatNode({
         <div className="cc-head-row">
           <span className="cc-dot" />
           {shape === 'slim' ? null : <CanvasChatRole chat={chat} />}
-          <b>{chat.hierarchy?.role === 'planejador' ? executorName : chat.title}</b>
+          <b ref={headNameRef}>{headName}</b>
           {open ? (
             <>
               <button

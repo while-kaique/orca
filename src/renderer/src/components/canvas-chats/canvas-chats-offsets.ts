@@ -1,5 +1,5 @@
-import { useMemo, useSyncExternalStore } from 'react'
-import { isFreeChat, type CanvasBox, type CanvasProject } from './canvas-chats-layout'
+import { useSyncExternalStore } from 'react'
+import type { CanvasBox } from './canvas-chats-layout'
 
 /**
  * Fork: how far the user dragged each card from its automatic spot; "Reorganizar" clears it. `zone` is where a
@@ -8,22 +8,22 @@ import { isFreeChat, type CanvasBox, type CanvasProject } from './canvas-chats-l
  * pushed by a drag measured from another place.
  */
 export type CanvasZone = 'free' | 'tree'
-type Offsets = Readonly<Record<string, { dx: number; dy: number; zone?: CanvasZone }>>
+export type CanvasOffsets = Readonly<Record<string, { dx: number; dy: number; zone?: CanvasZone }>>
 
 const STORAGE_KEY = 'orca-fork.canvas-offsets'
 const listeners = new Set<() => void>()
-let offsets: Offsets = readStored()
+let offsets: CanvasOffsets = readStored()
 
-function readStored(): Offsets {
+function readStored(): CanvasOffsets {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as Offsets) : {}
+    return raw ? (JSON.parse(raw) as CanvasOffsets) : {}
   } catch {
     return {}
   }
 }
 
-function save(next: Offsets): void {
+function save(next: CanvasOffsets): void {
   offsets = next
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
@@ -33,7 +33,7 @@ function save(next: Offsets): void {
   listeners.forEach((listener) => listener())
 }
 
-export function useCanvasOffsets(): Offsets {
+export function useCanvasOffsets(): CanvasOffsets {
   return useSyncExternalStore(
     (listener) => {
       listeners.add(listener)
@@ -43,13 +43,13 @@ export function useCanvasOffsets(): Offsets {
   )
 }
 
-export function readCanvasOffsets(): Offsets {
+export function readCanvasOffsets(): CanvasOffsets {
   return offsets
 }
 
 /** Moves a group of cards (a project with its chats, or a chat with its agents) together. */
 export function setCanvasOffsets(
-  start: Offsets,
+  start: CanvasOffsets,
   keys: readonly string[],
   dx: number,
   dy: number,
@@ -68,42 +68,43 @@ export function clearCanvasOffsets(): void {
   save({})
 }
 
+export function setAllCanvasOffsets(next: CanvasOffsets): void {
+  save(next)
+}
+
+/** What the user dragged a card by, unless the card changed zone since (then it is back at its automatic spot). */
+export function effectiveOffset(
+  key: string,
+  current: CanvasOffsets,
+  zones?: ReadonlyMap<string, CanvasZone>
+): { dx: number; dy: number } | undefined {
+  const stored = current[key]
+  const now = zones?.get(key)
+  return stored?.zone && now && stored.zone !== now ? undefined : stored
+}
+
+type PlacementRules = {
+  /** The chat each chat hangs from: a chat with no drag of its own moves with the one that created it. */
+  parents?: ReadonlyMap<string, string>
+  /** Project cards sit where their anchor says; a drag offset stored for one is ignored. */
+  skipProjects?: boolean
+}
+
 export function applyCanvasOffsets(
   boxes: Readonly<Record<string, CanvasBox>>,
-  current: Offsets,
-  zones?: ReadonlyMap<string, CanvasZone>
+  current: CanvasOffsets,
+  zones?: ReadonlyMap<string, CanvasZone>,
+  rules: PlacementRules = {}
 ): Record<string, CanvasBox> {
   const out: Record<string, CanvasBox> = {}
+  const resolve = (key: string, depth = 0): { dx: number; dy: number } | undefined => {
+    const own = effectiveOffset(key, current, zones)
+    const parent = rules.parents?.get(key)
+    return own ?? (parent && depth < 60 ? resolve(parent, depth + 1) : undefined)
+  }
   for (const [key, box] of Object.entries(boxes)) {
-    const stored = current[key]
-    const now = zones?.get(key)
-    const offset = stored?.zone && now && stored.zone !== now ? undefined : stored
+    const offset = rules.skipProjects && key.startsWith('project:') ? undefined : resolve(key)
     out[key] = offset ? { ...box, x: box.x + offset.dx, y: box.y + offset.dy } : box
   }
   return out
-}
-
-/** Where each card is drawn: its automatic spot plus what the user dragged, and which side of its project each chat is on. */
-export function useCanvasPlacement(
-  autoBoxes: Readonly<Record<string, CanvasBox>>,
-  projects: readonly CanvasProject[]
-): { boxes: Record<string, CanvasBox>; zones: ReadonlyMap<string, CanvasZone> } {
-  const current = useCanvasOffsets()
-  const zones = useMemo(
-    () =>
-      new Map(
-        projects.flatMap((project) =>
-          project.chats.map((chat): [string, CanvasZone] => [
-            chat.key,
-            isFreeChat(chat) ? 'free' : 'tree'
-          ])
-        )
-      ),
-    [projects]
-  )
-  const boxes = useMemo(
-    () => applyCanvasOffsets(autoBoxes, current, zones),
-    [autoBoxes, current, zones]
-  )
-  return { boxes, zones }
 }

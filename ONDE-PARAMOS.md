@@ -1,5 +1,31 @@
 # Onde paramos — fork do Orca "PC como mesa"
 
+## 13/11/2026 (ordem o-042, fecha a o-034) — fluxograma: partes A e B juntas, margem de 52 entre projetos
+
+**Estado:** branch `while-kaique/snipefish` (não enviada; quem junta é o PO). Junta a parte A (lugar dos cards, o-036) e a
+parte B (vistoria e desenho, o-037). Provas e entrega em `.hierarquia/provas/o-042/` (pasta principal, fora do git). Spec:
+`docs/specs/fluxograma-organizacao-encaixe.md`.
+
+**O que mudou para quem usa:**
+
+- **Margem entre projetos:** 52 unidades (o vão entre dois cards de uma fileira), igual em todo lugar; nada de um projeto
+  chega mais perto que isso de outro e nenhum fica longe. O contorno de cada projeto é o desenhado: cards, selos e as
+  linhas como são desenhadas (toco no centro do pai, barra, descidas). A grade de 196 vale dentro de cada projeto.
+- **Criador fechado:** chat da hierarquia cujo criador fechou fica sob o ancestral vivo mais próximo pela cadeia `pai` do
+  registro (PO fechado = o PO no lugar dele). Executor e planejador nunca ficam ligados direto ao projeto; sem nenhum
+  chat vivo acima (PO fechado, o próximo ainda sem abrir) ficam sem linha.
+- **Nome do executor** não é mais cortado no meio da palavra.
+- **Tempo do Reorganizar:** 8 projetos e 40 chats 73 ms; 6 projetos (todas as ordens) 201 ms.
+
+**Prova final (14/11, `provas/o-042/final/`):** estado real e os 4 casos à mão com zero achado e vão de 52; card do PO
+maior que o arrumado à mão nos 3 casos dele; print do Kaique remontado: antigo 21 achados, novo zero. **Não provado:** o PO
+novo de verdade nascendo (máscara de 3 etapas): no Orca de teste o chat do PO apareceu como Livre ou nem apareceu; a máscara
+e o registro vêm do comando `hierarquia` (outro planejador). Resumo em `provas/o-042/ENTREGA.md`.
+
+**Vistoria:** tipos novos i (executor ou planejador ligado ao projeto) e j (margem entre projetos fora de 52 ± 4); f
+(grade) conta por projeto. Roteiro de todas as provas da ordem: `bash tools/vistoria-fluxograma/prova-o-042.sh PASTA APP_ANTIGO [rodadas]`.
+Prova intermediária pode ser teste ou cálculo (`vaos-encaixe.mjs`, `prova-encaixe.mjs`); o Orca de teste só na rodada final.
+
 ## 13/11/2026 (ordem o-035) — o comando só diz "começou" com prova; Enter insiste; `--help` não grava
 
 **Estado:** código na branch `while-kaique/feat-o-035-executor` (não enviada; quem junta é o PO). Provas em
@@ -24,6 +50,40 @@ a partir da pasta principal; o código é o mesmo, a falha estava em `chatsSemVi
 é dado como parado, a falta de terminal precisa se repetir por 2 min seguidos, terminal ligado nunca conta (a regra "nada na
 tela há 20 min" saiu) e `hierarquia estado` não marca mais ninguém. Ordem parada pelo sistema volta a aceitar `hierarquia
 entregar`. **O vigia que já está rodando só pega isto depois de reiniciado.**
+
+## 13/11/2026 (ordem o-037, parte B da o-034) — vistoria do fluxograma + desenho de linha, seta, texto e selo
+
+**Estado:** código e ferramenta na branch `while-kaique/feat-ordem-o-037` (não enviada; quem junta é o PO). Provas:
+`.hierarquia/provas/o-034/executor-b/` (pasta principal, fora do git). O lugar dos cards é da parte A (outro executor).
+
+**Vistoria obrigatória (trava de defeito visual):** antes de entregar qualquer mudança que toque o fluxograma, rodar
+`node tools/vistoria-fluxograma/vistoria.mjs` e só entregar com `zero achado` (saída 0). Ela abre o Orca de teste
+escondido sobre uma cópia do estado real, tira o print como está e depois do Reorganizar, lê as posições da tela e
+mede: a) linha por dentro, colada ou contornando card; b) ponta de linha ou seta fora do contorno desenhado (4
+unidades); c) texto cortado ou fora da borda; d) card sobre card; e) selo longe do dono (16); f) card fora da grade
+de 196; g) chat a mais de 3 colunas do dono; h) números do Reorganizar (largura do PO em px, margens, maior buraco).
+Guia completo e opções (`--app`, `--posicoes`, `--cordas`, `--cenario`, `--zoom`, `--janela`): `tools/vistoria-fluxograma/LEIAME.md`.
+
+**O que mudou no desenho:**
+
+- Executores do PO anterior: chat cujo criador era um PO que não está aberto fica pendurado no PO ativo aberto do
+  projeto (ou no PO que está nascendo, "Abrindo o PO"), com linha reta; a linha do projeto não contorna mais o PO novo
+  (`canvas-chat-hierarchy.ts`).
+- Chat lançado pela hierarquia não passa mais por "Livre". Causa: a aba abre primeiro, o comando grava o registro
+  (`chat_lancado`) um instante depois e a tela só relia o registro a cada 3 s; até lá o chat era desenhado como
+  Livre, em cima do projeto (medido: o rótulo certo só chegou 2,4 s depois do registro gravado). Agora a tela relê
+  a cada 0,4 s por até 12 s quando surge aba nova (medido: 218 ms) e, nesse intervalo, uma aba nova feita por um
+  chat da hierarquia (agente, ou pasta de trabalho filha da pasta do criador) já nasce embaixo dele, sem etiqueta.
+  Passado o prazo sem registro, é chat livre mesmo (`canvas-chat-hierarchy.ts`).
+- Setas manuais: as pontas usam o contorno desenhado (hexágono, card fino) e são recalculadas das posições
+  desenhadas a cada mudança; com um dos cards fechado a seta some; seta guardada de antes abre grudada.
+- Textos: nome do executor, do planejador, título do PO e nome do projeto quebram e diminuem a letra para caber
+  (`canvas-chat-fit-text.ts`); o card do projeto tem a altura que as linhas esperam (116), antes 107 e a linha
+  começava 8,8 unidades fora do card.
+
+**Aberto (fora do meu território):** o nome do executor é cortado em 24 letras por `executorTitle`
+(`canvas-chat-executor-name.ts`, "Organizador de Fluxogram" do print é isso, não CSS); o selo solto do print não
+tem causa achada no código (a vistoria agora trava qualquer selo a mais de 16 unidades do card).
 
 ## 12/11/2026 (noite, ordem o-032) — `hierarquia ordem` insiste até o chat começar
 

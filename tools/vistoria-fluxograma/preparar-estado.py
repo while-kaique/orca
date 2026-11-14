@@ -1,7 +1,7 @@
 """Monta o "mundo de teste" da vistoria da juncao: copia do estado guardado do Orca em uso, com as pastas
 trocadas por pastas de teste. O Orca de teste nunca enxerga (nem escreve em) a pasta de verdade.
 
-O que copia (sempre so leitura no Orca em uso): o banco de estado do perfil, o indice de perfis, o
+O que copia (sempre so leitura no Orca em uso): o banco de estado do perfil, o log da hierarquia, o indice de perfis, o
 armazenamento local (posicoes arrastadas dos cards) e o ultimo estado dos agentes. O que troca: todo
 caminho sob Desktop\\Projetos e sob orca\\workspaces vira um caminho dentro do mundo de teste, e cada
 projeto que tem chat ganha ali um repositorio git vazio (mais as copias de trabalho dos chats) com a
@@ -75,6 +75,9 @@ def main():
     repos = json.loads(documentos["repos"])
     abas = {pasta: lista for pasta, lista in (sessao.get("tabsByWorktree") or {}).items() if lista}
     repos_com_chat = {pasta.partition("::")[0] for pasta in abas}
+    # Projetos que um caso de prova pede mesmo sem chat aberto hoje (nomes separados por virgula).
+    manter = [n.strip().lower() for n in os.environ.get("VISTORIA_MANTER_REPOS", "").split(",") if n.strip()]
+    repos_com_chat |= {r["id"] for r in repos if (r.get("displayName") or "").lower() in manter}
 
     # So os projetos que tem chat entram: o resto da lista nao muda o desenho do fluxograma.
     documentos["repos"] = json.dumps([r for r in repos if r["id"] in repos_com_chat])
@@ -129,6 +132,14 @@ def main():
                 conteudo = arquivo.read()
             with open(os.path.join(pasta, ".hierarquia", "estado.json"), "w", encoding="utf-8") as arquivo:
                 arquivo.write(trocar_caminhos(conteudo, mundo))
+        # O comando `hierarquia` refaz o estado a partir do log: sem ele, abrir um PO de teste apagaria os chats antigos.
+        for nome in ("registro.jsonl", "config.json"):
+            origem_arquivo = os.path.join(repo["path"], ".hierarquia", nome)
+            if os.path.exists(origem_arquivo):
+                with open(origem_arquivo, encoding="utf-8") as arquivo:
+                    conteudo = arquivo.read()
+                with open(os.path.join(pasta, ".hierarquia", nome), "w", encoding="utf-8") as arquivo:
+                    arquivo.write(trocar_caminhos(conteudo, mundo))
         for pasta_id in abas:
             if pasta_id.partition("::")[0] != repo["id"]:
                 continue

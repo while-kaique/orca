@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { RotateCcw } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
@@ -13,41 +13,24 @@ import { useCanvasContextTokensRefresh } from './canvas-chat-context-tokens'
 import {
   canvasStructureKey,
   chatDescendants,
-  layoutCanvas,
-  type CanvasBox,
   type CanvasChat,
   type CanvasExtra
 } from './canvas-chats-layout'
+import { drawnBounds, fitView, readCanvasInsets, type CanvasView } from './canvas-chats-fit'
+import { moveCanvasAnchor, readCanvasAnchors } from './canvas-chats-anchors'
 import { canvasChatTreeLines } from './CanvasChatTreeLines'
 import { CanvasUserQueue } from './CanvasUserQueue'
 import { ChatNode, ProjectNode, STATUS_LABEL } from './CanvasChatsNodes'
 import { CanvasChatAttachments, CanvasImagePreview } from './CanvasChatAttachments'
 import { finishActiveCanvasVoice, useCanvasListenMode } from './canvas-voice-preference'
-import {
-  type CanvasZone,
-  clearCanvasOffsets,
-  readCanvasOffsets,
-  setCanvasOffsets,
-  useCanvasPlacement
-} from './canvas-chats-offsets'
+import { type CanvasZone, readCanvasOffsets, setCanvasOffsets } from './canvas-chats-offsets'
+import { useCanvasPlacement } from './use-canvas-placement'
 import { useCanvasCordLayer } from './use-canvas-cord-layer'
 import { CanvasWebPreview } from './CanvasChatExtras'
 import { CanvasAddProjectButton } from './CanvasAddProjectButton'
 import './canvas-chats.css'
 
-type View = { x: number; y: number; s: number }
-
-function fitView(bounds: CanvasBox, viewport: { w: number; h: number }, pad = 60): View {
-  if (bounds.w === 0 || viewport.w === 0) {
-    return { x: 0, y: 0, s: 1 }
-  }
-  const s = Math.min((viewport.w - 2 * pad) / bounds.w, (viewport.h - 2 * pad) / bounds.h, 1)
-  return {
-    s,
-    x: viewport.w / 2 - (bounds.x + bounds.w / 2) * s,
-    y: viewport.h / 2 - (bounds.y + bounds.h / 2) * s
-  }
-}
+type View = CanvasView
 
 export default function CanvasChatsPage(): React.JSX.Element {
   const projects = useCanvasProjects()
@@ -58,7 +41,8 @@ export default function CanvasChatsPage(): React.JSX.Element {
   const [openKey, setOpenKey] = useState<string | null>(null)
   const [expandedExtra, setExpandedExtra] = useState<CanvasExtra | null>(null)
   const savedViewRef = useRef<View | null>(null)
-  const fittedRef = useRef(false)
+  // The first pictures keep fitting the screen while the hierarchy is still arriving; touching the view stops it.
+  const autoFitRef = useRef(true)
   const animRef = useRef(0)
 
   useLayoutEffect(() => {
@@ -72,26 +56,27 @@ export default function CanvasChatsPage(): React.JSX.Element {
     return () => ro.disconnect()
   }, [])
 
-  // Layout is recomputed on demand (first load / Reorganizar) so cards don't jump while you look at them.
-  const [layoutVersion, setLayoutVersion] = useState(0)
+  // Each project sits at its anchor; the biggest arrangement only comes with Reorganizar so cards don't jump while you look at them.
   const structureKey = canvasStructureKey(projects)
-  const layout = useMemo(
-    () => layoutCanvas(projects, viewport),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [structureKey, layoutVersion, viewport.w > 0]
-  )
-  const { boxes, zones } = useCanvasPlacement(layout.boxes, projects)
+  const {
+    boxes,
+    zones,
+    convertNow,
+    reorganize: placeAgain
+  } = useCanvasPlacement(projects, viewport)
   const justDraggedRef = useRef(false)
-  /** Drag a group of cards; a press without movement stays a click. */
+  /** Drag a group of cards, or with `moveBy` a project's anchor; a press without movement stays a click. */
   const startCardDrag = (
     keys: readonly string[],
     e: React.PointerEvent,
-    stampZones?: ReadonlyMap<string, CanvasZone>
+    stampZones?: ReadonlyMap<string, CanvasZone>,
+    moveBy?: (dx: number, dy: number) => void
   ): void => {
     if (e.button !== 0) {
       return
     }
     e.stopPropagation()
+    autoFitRef.current = false
     const sx = e.clientX
     const sy = e.clientY
     const start = readCanvasOffsets()
@@ -103,13 +88,17 @@ export default function CanvasChatsPage(): React.JSX.Element {
       }
       moved = true
       justDraggedRef.current = true
-      setCanvasOffsets(
-        start,
-        keys,
-        (ev.clientX - sx) / view.s,
-        (ev.clientY - sy) / view.s,
-        stampZones
-      )
+      if (moveBy) {
+        moveBy((ev.clientX - sx) / view.s, (ev.clientY - sy) / view.s)
+      } else {
+        setCanvasOffsets(
+          start,
+          keys,
+          (ev.clientX - sx) / view.s,
+          (ev.clientY - sy) / view.s,
+          stampZones
+        )
+      }
     }
     const up = (): void => {
       window.removeEventListener('pointermove', move)
@@ -141,11 +130,13 @@ export default function CanvasChatsPage(): React.JSX.Element {
   }, [])
 
   useEffect(() => {
-    if (!fittedRef.current && viewport.w > 0 && layout.bounds.w > 0) {
-      fittedRef.current = true
-      setView(fitView(layout.bounds, viewport))
+    const bounds = drawnBounds(projects, boxes)
+    if (autoFitRef.current && !openKey && viewport.w > 0 && bounds.w > 0) {
+      setView(fitView(bounds, viewport, readCanvasInsets(rootRef.current)))
     }
-  }, [layout, viewport])
+    // The drawing is fitted again when chats come or go, until the user takes the view into their own hands.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [structureKey, viewport])
 
   const listenMode = useCanvasListenMode()
   // Big enough that the chat's terminal fits without spilling out of the card.
@@ -208,6 +199,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
       if (!box) {
         return
       }
+      autoFitRef.current = false
       if (!openKey) {
         savedViewRef.current = view
       } else if (openKey !== chat.key) {
@@ -239,9 +231,10 @@ export default function CanvasChatsPage(): React.JSX.Element {
       setOpenKey(null)
       savedViewRef.current = null
     }
-    setLayoutVersion((v) => v + 1)
-    clearCanvasOffsets()
-    animateTo(fitView(layoutCanvas(projects, viewport).bounds, viewport))
+    autoFitRef.current = false
+    const insets = readCanvasInsets(rootRef.current)
+    const placed = placeAgain(insets)
+    animateTo(fitView(drawnBounds(projects, placed), viewport, insets))
   }
 
   const onPointerDown = (e: React.PointerEvent): void => {
@@ -260,6 +253,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
         return
       }
       moved = true
+      autoFitRef.current = false
       cancelAnimationFrame(animRef.current)
       setView({ ...origin, x: origin.x + ev.clientX - sx, y: origin.y + ev.clientY - sy })
     }
@@ -281,6 +275,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
     const rect = rootRef.current!.getBoundingClientRect()
     const mx = e.clientX - rect.left
     const my = e.clientY - rect.top
+    autoFitRef.current = false
     cancelAnimationFrame(animRef.current)
     setView((v) => {
       const s = Math.min(2.5, Math.max(0.2, v.s * Math.exp(-e.deltaY * 0.0015)))
@@ -288,7 +283,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
     })
   }
 
-  const cordLayer = useCanvasCordLayer({ boxes, view, rootRef })
+  const cordLayer = useCanvasCordLayer({ boxes, projects, view, rootRef })
 
   const lines = canvasChatTreeLines(projects, boxes)
 
@@ -322,15 +317,14 @@ export default function CanvasChatsPage(): React.JSX.Element {
                 <ProjectNode
                   project={project}
                   box={pbox}
-                  onDragStart={(e) =>
-                    startCardDrag(
-                      [
-                        `project:${project.id}`,
-                        ...project.chats.flatMap((c) => [c.key, ...c.agents.map((a) => a.id)])
-                      ],
-                      e
+                  onDragStart={(e) => {
+                    // The project card is the anchor of its chats: moving it moves them all, and what a chat was dragged by stays.
+                    convertNow()
+                    const start = readCanvasAnchors()?.[project.id]
+                    startCardDrag([], e, undefined, (dx, dy) =>
+                      moveCanvasAnchor(project.id, start, dx, dy)
                     )
-                  }
+                  }}
                 />
               ) : null}
               {project.chats.map((chat) => {
