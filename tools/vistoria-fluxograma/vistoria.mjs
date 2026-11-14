@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url'
 import {
   abrirFluxograma,
   abrirOrcaDeTeste,
+  conectarOrcaDeTeste,
   janelasVisiveisDoMundo,
   montarBranch,
   montarMundo,
@@ -36,7 +37,9 @@ if (tem('--ajuda')) {
       '  --cenario ARQUIVO.mjs   modulo com `export default async (page, ferramentas) => {}` que monta um cenario de prova no app de teste',
       '  --janela 2400x1500      tamanho da janela escondida em px (padrao 1500x950)',
       '  --zoom 0.35,1           alem das duas passadas, mede de novo em cada zoom listado (depois do Reorganizar)',
-      '  --manter                nao apaga o mundo de teste no fim'
+      '  --manter                nao apaga o mundo de teste no fim',
+      '  --reusar                conecta no Orca de teste que ja esta aberto (orca-de-teste.mjs abrir) e o deixa aberto; sem ele, abre um',
+      '  --esperar-min N         se outro usa o Orca de teste, espera ate N minutos (padrao 30); 0 recusa na hora com saida 3'
     ].join('\n')
   )
   process.exit(0)
@@ -168,6 +171,7 @@ let sobras = []
 let janelas = []
 let erro = null
 let moduloDoCenario = null
+let reusado = false
 try {
   if (tem('--sem-montar') || tem('--app')) {
     dizer('montagem pulada: usando o app ja montado')
@@ -176,9 +180,23 @@ try {
     montarBranch(saida)
     dizer('montagem pronta')
   }
-  dizer(`mundo de teste montado em ${montarMundo()}`)
   const raizDoApp = valor('--app') ? path.resolve(valor('--app')) : RAIZ
-  const orca = await abrirOrcaDeTeste({ registro: dizer, manter: tem('--manter'), raiz: raizDoApp })
+  const jaAberto = tem('--reusar')
+    ? await conectarOrcaDeTeste({ registro: dizer, reusar: true })
+    : null
+  if (tem('--reusar') && !jaAberto) {
+    dizer('nao ha Orca de teste aberto para reusar: abro um (ele fecha no fim)')
+  }
+  reusado = Boolean(jaAberto)
+  const orca =
+    jaAberto ??
+    (await abrirOrcaDeTeste({
+      registro: dizer,
+      manter: tem('--manter'),
+      raiz: raizDoApp,
+      esperarMin: valor('--esperar-min') === undefined ? undefined : Number(valor('--esperar-min')),
+      prepararMundo: () => dizer(`mundo de teste montado em ${montarMundo()}`)
+    }))
   try {
     const { page } = orca
     const trocouPosicoes = await pedirPagina(page, 'orca-fork.canvas-offsets', valor('--posicoes'))
@@ -272,7 +290,8 @@ try {
 }
 // O sistema leva alguns segundos para terminar de fechar o que foi morto: so conta o que ainda vive depois disso.
 await new Promise((pronto) => setTimeout(pronto, 4000))
-sobras = processosDoMundo()
+// Orca reusado fica vivo de proposito (dono: orca-de-teste.mjs fechar): nao conta como sobra.
+sobras = reusado ? [] : processosDoMundo()
 dizer(`depois de fechar: ${sobras.length} processos do teste ainda vivos`)
 for (const sobra of sobras) {
   dizer(`SOBROU: ${sobra.pid} ${sobra.comando}`)
@@ -305,4 +324,4 @@ dizer(
         : 'RESULTADO: zero achado'
 )
 writeFileSync(path.join(saida, 'relato.txt'), relato.join('\n'))
-process.exit(erro ? 2 : reprovou ? 1 : 0)
+process.exit(erro ? (erro.codigoDeSaida ?? 2) : reprovou ? 1 : 0)

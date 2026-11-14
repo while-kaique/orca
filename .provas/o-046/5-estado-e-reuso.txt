@@ -1,0 +1,27 @@
+[23:19:03] CASO 5: orca-de-teste.mjs estado / abrir / estado / conectar / fechar / estado (simulado)
+[23:19:03] $ node tools/vistoria-fluxograma/orca-de-teste.mjs estado   (SEM Orca de teste)
+Trava: nenhuma (nenhum Orca de teste aberto por esta ferramenta).
+Processos de teste vivos: 0
+[23:19:08] $ node tools/vistoria-fluxograma/orca-de-teste.mjs abrir
+[23:19:13] Orca de teste SIMULADO aberto (porta 9662, 42412)
+[23:19:13] Orca de teste ficou aberto (porta 9662, PID 42412). Use --reusar nas vistorias; para fechar: node tools/vistoria-fluxograma/orca-de-teste.mjs fechar
+[23:19:13] $ node tools/vistoria-fluxograma/orca-de-teste.mjs estado   (COM Orca de teste vivo)
+Trava: DONO VIVO
+  dono: C:\Users\User\orca\workspaces\orca\jaeger (while-kaique/feat-o-046-executor)
+  pasta: C:\Users\User\orca\workspaces\orca\jaeger
+  mundo: C:\Users\User\AppData\Local\Temp\vistoria-fluxograma-prova-o046\mundo
+  aberto desde 23:19 (ha 0 min) [SIMULADO]
+  PID do node: 33812 (morto); PID do Electron: 42412 (vivo); porta CDP: 9662
+  comando: C:\Users\User\orca\workspaces\orca\jaeger\tools\vistoria-fluxograma\orca-de-teste.mjs abrir
+Processos de teste vivos: 2 (PIDs 42412, 26004)
+[23:19:15] $ conectarOrcaDeTeste({ reusar: true }) por outro processo
+[23:19:15] Conectado no Orca de teste ja aberto (porta 9662, PID 42412, dono C:\Users\User\orca\workspaces\orca\jaeger (while-kaique/feat-o-046-executor)); ele continua aberto no fim.
+[23:19:15] conectou (reusado=true)
+[23:19:15] $ pedido de outro chat com esperarMin 0 enquanto esse Orca esta aberto
+[23:19:16] Chat B: pedindo o Orca de teste
+[23:19:16] Chat B: RECUSADO/ERRO (saida 3): Orca de teste em uso por C:\Users\User\orca\workspaces\orca\jaeger (while-kaique/feat-o-046-executor) (pasta C:\Users\User\orca\workspaces\orca\jaeger, desde 23:19, PID 42412); recusado (nao espero, esperarMin 0).
+[23:19:16] $ node tools/vistoria-fluxograma/orca-de-teste.mjs fechar
+[23:19:20] Orca de teste de C:\Users\User\orca\workspaces\orca\jaeger (while-kaique/feat-o-046-executor) fechado; sobraram 0 processos do mundo dele.
+[23:19:20] $ node tools/vistoria-fluxograma/orca-de-teste.mjs estado   (depois de fechar)
+Trava: nenhuma (nenhum Orca de teste aberto por esta ferramenta).
+Processos de teste vivos: 0
