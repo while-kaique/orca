@@ -40,7 +40,8 @@ export function CanvasChatCloseDialog({
   return (
     <span onClick={keepOffCard} onPointerDown={keepOffCard}>
       <Dialog open={choose} onOpenChange={(open) => !open && onStage(null)}>
-        <DialogContent size="compact" showCloseButton={false}>
+        {/* Three buttons do not fit the compact width: the default width, and the footer wraps on narrow windows. */}
+        <DialogContent showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>
               {translate('fork.canvas.closeChatAsk', 'O que fazer com o chat "{{name}}"?', {
@@ -62,7 +63,7 @@ export function CanvasChatCloseDialog({
                 : ''}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="flex-wrap">
             <Button variant="ghost" onClick={() => onStage(null)}>
               {translate('fork.canvas.closeChatNo', 'Cancelar')}
             </Button>
@@ -106,7 +107,7 @@ export function CanvasChatCloseDialog({
                   )}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="flex-wrap">
             <Button variant="ghost" onClick={() => onStage(null)}>
               {translate('fork.canvas.closeChatNo', 'Cancelar')}
             </Button>
