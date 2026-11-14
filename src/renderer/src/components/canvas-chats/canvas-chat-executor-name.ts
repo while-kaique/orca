@@ -4,7 +4,8 @@ import type { CanvasChat } from './canvas-chats-layout'
 /** Fork: Haiku's short job title per executor (two words) or planner (four) chat, asked once and kept. */
 const STORAGE_KEY = 'orca-fork.canvas-executor-names'
 const WORD_LIMIT = { executor: 2, planejador: 4 } as const
-const MAX_LENGTH = { executor: 24, planejador: 40 } as const
+// Why: names used to be cut at these lengths mid-word; a stored name this long is asked again.
+const OLD_CUT_LENGTH = { executor: 24, planejador: 40 } as const
 type NamedRole = keyof typeof WORD_LIMIT
 const CONNECTORS = new Set(['de', 'da', 'do', 'das', 'dos', 'e'])
 
@@ -52,14 +53,15 @@ export function executorTitle(raw: string, role: NamedRole = 'executor'): string
   while (kept.length > 0 && CONNECTORS.has(kept.at(-1)!.toLowerCase())) {
     kept.pop()
   }
-  return kept.join(' ').slice(0, MAX_LENGTH[role]).trim()
+  return kept.join(' ')
 }
 
 /** The executor's or planner's title for its card; its chat title until Haiku answers. */
 export function useCanvasExecutorName(chat: CanvasChat, firstPrompt: string): string {
   const order = [chat.hierarchy?.order?.title, firstPrompt].filter(Boolean).join('\n')
-  const name = useSyncExternalStore(subscribe, () => names[chat.tabId] ?? null)
   const role = chat.hierarchy?.role === 'planejador' ? 'planejador' : 'executor'
+  const stored = useSyncExternalStore(subscribe, () => names[chat.tabId] ?? null)
+  const name = stored !== null && stored.length === OLD_CUT_LENGTH[role] ? null : stored
   const named = chat.hierarchy?.role === 'executor' || chat.hierarchy?.role === 'planejador'
   const wanted = named && name === null && order.trim() !== ''
   useEffect(() => {

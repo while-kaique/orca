@@ -1,5 +1,6 @@
 import type { CanvasChatHierarchy, CanvasQueueItem } from './canvas-chat-hierarchy'
-import { chatFootprintHeight } from './canvas-chat-shape'
+import { chatFootprintHeight, chatVisualBox } from './canvas-chat-shape'
+import { familyLineBoxes, hangsFromChatsOnly, joinStacked, rowBands } from './canvas-chats-outline'
 
 /** Border states drawn on the flowchart (fork spec: idle gray, working yellow, unseen green, seen dashed green, waiting red). */
 /** 'monitoring' = the turn ended but background agents/tasks are still running. */
@@ -82,11 +83,6 @@ export type CanvasProject = {
 
 export type CanvasBox = { x: number; y: number; w: number; h: number }
 
-export type CanvasLayout = {
-  boxes: Record<string, CanvasBox>
-  bounds: CanvasBox
-}
-
 export const CANVAS_SIZES = {
   project: { w: 410, h: 116 },
   chat: { w: 340, h: 230 }
@@ -95,23 +91,21 @@ export const CANVAS_SIZES = {
 /** The thin row of chips under a chat: one per kind of thing it left (agents, artifacts, servers, images). */
 export const CANVAS_ATTACHMENTS_ROW = { gap: 8, h: 30 } as const
 
-// Gaps are 30% over the first version, leaving room for what hangs off each chat.
-const COLUMN_GAP = 52
+export const COLUMN_GAP = 52
 export const PROJECT_TO_CHATS = 80
-// One empty chat column between projects, so every chat of every row sits on the same column grid.
-const PROJECT_GAP = CANVAS_SIZES.chat.w + 2 * COLUMN_GAP
-// The header starts at its first chat's left edge; wider than one chat, it overhangs a single-chat block on the right.
-const HEADER_OVERHANG = CANVAS_SIZES.project.w - CANVAS_SIZES.chat.w
-// Same empty space down as across (header to header), so a short project does not leave a hole under it.
-const ROW_GAP = PROJECT_GAP - HEADER_OVERHANG
-// A squarer grid may cost up to 15% of zoom.
-const SQUARE_GRID_TOLERANCE = 0.85
+/** Half a column: every card of every project starts on a multiple of this, counted from the same origin. */
+export const GRID_STEP = (CANVAS_SIZES.chat.w + COLUMN_GAP) / 2
+/** Least empty space between the drawn shapes of two different projects, across and down. */
+// Why: the user wants the smallest margin that still shows between projects, the same as between two cards of a row.
+export const PROJECT_GAP_X = COLUMN_GAP
+export const PROJECT_GAP_Y = COLUMN_GAP
+export const PACK_RULES = { grid: GRID_STEP, gapX: PROJECT_GAP_X, gapY: PROJECT_GAP_Y } as const
 
 /** A chat outside the hierarchy: it sits above its project, never under it. A PO being launched is not free. */
 export const isFreeChat = (chat: CanvasChat): boolean => chat.hierarchy === null && !chat.launching
 
 export type ChatTree = { chat: CanvasChat; children: ChatTree[] }
-type Block = {
+export type Block = {
   project: CanvasProject
   roots: ChatTree[]
   /** Chats outside the hierarchy, side by side above the project. */
@@ -192,16 +186,24 @@ export const canvasStructureKey = (projects: readonly CanvasProject[]): string =
     )
     .join('|')
 
-/** Project in the middle: hierarchy chats below it (each chat's own chats under it, agents under each chat), free chats side by side above it with their agents stacked above; blocks wrap into rows that best fit the viewport. */
-export function layoutCanvas(
-  projects: readonly CanvasProject[],
-  viewport: { w: number; h: number }
-): CanvasLayout {
+export type BlockPlan = {
+  block: Block
+  /** Every box of the block (header, chats, free chats), measured from the block's origin (a multiple of GRID_STEP). */
+  local: Record<string, CanvasBox>
+  /** What the block really covers: one rectangle per row (drawn cards, chips, and the line gap above), not the whole box. */
+  shape: CanvasBox[]
+  /** The project card, where the project's anchor sits. */
+  header: CanvasBox
+}
+
+export const chipsHeight = (chat: CanvasChat): number =>
+  chat.agents.length + chat.extras.length > 0
+    ? CANVAS_ATTACHMENTS_ROW.gap + CANVAS_ATTACHMENTS_ROW.h
+    : 0
+
+/** Each project laid out on its own, before it is given a place among the others. */
+export function planBlocks(projects: readonly CanvasProject[]): BlockPlan[] {
   const { project: P, chat: C } = CANVAS_SIZES
-  const hangingHeight = (chat: CanvasChat): number =>
-    chat.agents.length + chat.extras.length > 0
-      ? CANVAS_ATTACHMENTS_ROW.gap + CANVAS_ATTACHMENTS_ROW.h
-      : 0
   const drawnHeight = (chat: CanvasChat): number => chatFootprintHeight(chat, C.h)
   const rowWidth = (nodes: readonly ChatTree[]): number =>
     nodes.reduce((sum, node) => sum + treeWidth(node), 0) +
@@ -226,7 +228,7 @@ export function layoutCanvas(
         // Only what hangs off a chat with chats below it pushes the next row down; the rest has its own column.
         hanging[tier] = Math.max(
           hanging[tier] ?? 0,
-          node.children.length ? hangingHeight(node.chat) : 0
+          node.children.length ? chipsHeight(node.chat) : 0
         )
         assign(node.children, tier)
       }
@@ -243,10 +245,10 @@ export function layoutCanvas(
     const bottom = Math.max(
       0,
       ...tree.map(
-        (chat) => tierTops[tiers.get(chat.key) ?? 0] + drawnHeight(chat) + hangingHeight(chat)
+        (chat) => tierTops[tiers.get(chat.key) ?? 0] + drawnHeight(chat) + chipsHeight(chat)
       )
     )
-    const up = free.length ? PROJECT_TO_CHATS + C.h + Math.max(...free.map(hangingHeight)) : 0
+    const up = free.length ? PROJECT_TO_CHATS + C.h + Math.max(...free.map(chipsHeight)) : 0
     return {
       project,
       roots,
@@ -258,62 +260,14 @@ export function layoutCanvas(
       h: up + P.h + (roots.length ? PROJECT_TO_CHATS + bottom : 0)
     }
   })
-  const boxes: Record<string, CanvasBox> = {}
-  if (blocks.length === 0) {
-    return { boxes, bounds: { x: 0, y: 0, w: 0, h: 0 } }
-  }
-  type Spot = { block: Block; x: number; y: number }
-  // Each block goes right under whatever above it overlaps its columns, not under the row's tallest block.
-  const stack = (rows: readonly Block[][]): { spots: Spot[]; H: number } => {
-    const spots: Spot[] = []
-    rows.forEach((row) => {
-      let x = 0
-      const above = [...spots]
-      for (const block of row) {
-        const right = x + block.w + HEADER_OVERHANG
-        const y = Math.max(
-          0,
-          ...above
-            .filter((s) => s.x < right && x < s.x + s.block.w + HEADER_OVERHANG)
-            .map((s) => s.y + s.block.h + ROW_GAP)
-        )
-        spots.push({ block, x, y })
-        x += block.w + PROJECT_GAP
-      }
-    })
-    return { spots, H: Math.max(...spots.map((s) => s.y + s.block.h)) }
-  }
-  type Grid = { s: number; rows: Block[][]; W: number; H: number; spots: Spot[] }
-  const grids: Grid[] = []
-  for (let r = 1; r <= blocks.length; r++) {
-    const per = Math.ceil(blocks.length / r)
-    const rows: Block[][] = []
-    for (let i = 0; i < blocks.length; i += per) {
-      rows.push(blocks.slice(i, i + per))
-    }
-    const W =
-      Math.max(
-        ...rows.map((row) => row.reduce((sum, b) => sum + b.w, 0) + (row.length - 1) * PROJECT_GAP)
-      ) + HEADER_OVERHANG
-    const { spots, H } = stack(rows)
-    const s = Math.min((viewport.w - 120) / W, (viewport.h - 120) / H)
-    if (!grids.some((g) => g.rows.length === rows.length)) {
-      grids.push({ s, rows, W, H, spots })
-    }
-  }
-  // Near-equal zoom: the squarer grid wins (4 projects = 2x2, not one long row).
-  const topS = Math.max(...grids.map((g) => g.s))
-  const squareness = (g: Grid): number => Math.abs(g.rows.length - g.rows[0].length)
-  // Before the viewport is measured every zoom is <= 0; the top grid is always a candidate.
-  const close = (g: Grid): boolean =>
-    g.s === topS || (topS > 0 && g.s >= topS * SQUARE_GRID_TOLERANCE)
-  const best =
-    grids.filter(close).sort((a, b) => squareness(a) - squareness(b) || b.s - a.s)[0] ?? grids[0]
-  for (const { block, x, y } of best.spots) {
-    const projectTop = y + block.up
-    boxes[`project:${block.project.id}`] = { x, y: projectTop, w: P.w, h: P.h }
+  return blocks.map((block) => {
+    const local: Record<string, CanvasBox> = {}
+    const projectTop = block.up
+    const projectKey = `project:${block.project.id}`
+    local[projectKey] = { x: 0, y: projectTop, w: P.w, h: P.h }
     const chatsTop = projectTop + P.h + PROJECT_TO_CHATS
     // Each chat sits centered over the chats it created, on the row of its role.
+    const parentOf = new Map<string, string>()
     const placeRow = (nodes: readonly ChatTree[], left: number): void => {
       let nodeX = left
       for (const node of nodes) {
@@ -321,26 +275,81 @@ export function layoutCanvas(
         const { chat } = node
         const top = chatsTop + block.tierTops[block.tiers.get(chat.key) ?? 0]
         const cx = nodeX + (width - C.w) / 2
-        boxes[chat.key] = { x: cx, y: top, w: C.w, h: C.h }
+        local[chat.key] = { x: cx, y: top, w: C.w, h: C.h }
+        for (const child of node.children) {
+          parentOf.set(child.chat.key, chat.key)
+        }
         placeRow(node.children, nodeX + (width - rowWidth(node.children)) / 2)
         nodeX += width + COLUMN_GAP
       }
     }
-    placeRow(block.roots, x + (block.w - rowWidth(block.roots)) / 2)
+    placeRow(block.roots, (block.w - rowWidth(block.roots)) / 2)
     // Free chats share one row above the project, bottoms level, centered on the block.
     block.free.forEach((chat, index) => {
-      boxes[chat.key] = {
-        x: x + (block.w - freeRowWidth(block.free.length)) / 2 + index * (C.w + COLUMN_GAP),
+      local[chat.key] = {
+        x: (block.w - freeRowWidth(block.free.length)) / 2 + index * (C.w + COLUMN_GAP),
         y: projectTop - PROJECT_TO_CHATS - C.h,
         w: C.w,
         h: C.h
       }
     })
-    // The project card starts at its first chat's left edge, wherever that chat ended up over its own chats.
-    const first = boxes[(block.roots[0]?.chat ?? block.free[0])?.key ?? '']
-    if (first) {
-      boxes[`project:${block.project.id}`].x = first.x
+    // The project card is centered over its top chats (the chats rows are centered on the block too): the line down is straight.
+    local[projectKey].x = (block.w - P.w) / 2
+    const header = local[projectKey]
+    // The outline is what is drawn: a band per row of cards (with their chips) and, above it, a thin band per family for
+    // the lines from the parent to its chats, so the margin to another project is the one seen on screen.
+    const shape: CanvasBox[] = []
+    if (block.free.length) {
+      const boxes = block.free.map((chat) => local[chat.key])
+      const left = Math.min(...boxes.map((b) => b.x))
+      const right = Math.max(...boxes.map((b) => b.x + b.w))
+      const cardsBottom = boxes[0].y + boxes[0].h
+      shape.push({ x: left, y: 0, w: right - left, h: cardsBottom })
+      shape.push(
+        ...familyLineBoxes(
+          header,
+          boxes,
+          boxes.map((b) => (header.y + b.y + b.h) / 2)
+        )
+      )
     }
-  }
-  return { boxes, bounds: { x: 0, y: 0, w: best.W, h: best.H } }
+    shape.push(header)
+    const drawn = (chat: CanvasChat): CanvasBox => chatVisualBox(chat, local[chat.key])
+    const chatByKey = new Map(block.project.chats.map((chat) => [chat.key, chat]))
+    const byTier = new Map<number, CanvasChat[]>()
+    for (const [key, tier] of block.tiers) {
+      byTier.set(tier, [...(byTier.get(tier) ?? []), chatByKey.get(key) as CanvasChat])
+    }
+    for (const chats of byTier.values()) {
+      const boxes = chats.map(drawn)
+      shape.push(
+        ...rowBands(
+          chats.map((chat, i) => ({ ...boxes[i], h: boxes[i].h + chipsHeight(chat) })),
+          COLUMN_GAP
+        )
+      )
+      // Lines from the project bottom bend halfway down; lines from a chat bend PROJECT_TO_CHATS / 2 under it.
+      const families = new Map<string, CanvasBox[]>()
+      chats.forEach((chat, i) => {
+        const parentKey = parentOf.get(chat.key) ?? projectKey
+        if (parentKey === projectKey && hangsFromChatsOnly(chat)) {
+          return
+        }
+        families.set(parentKey, [...(families.get(parentKey) ?? []), boxes[i]])
+      })
+      for (const [parentKey, kids] of families) {
+        const parentChat = chatByKey.get(parentKey)
+        const parent = parentChat ? drawn(parentChat) : header
+        const below = parent.y + parent.h
+        shape.push(
+          ...familyLineBoxes(
+            parent,
+            kids,
+            kids.map((kid) => (parentChat ? below + PROJECT_TO_CHATS / 2 : (below + kid.y) / 2))
+          )
+        )
+      }
+    }
+    return { block, local, shape: joinStacked(shape), header }
+  })
 }

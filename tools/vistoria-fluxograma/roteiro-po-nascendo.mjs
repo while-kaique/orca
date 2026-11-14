@@ -1,10 +1,14 @@
 // Roteiro avulso: abre um PO de verdade (Claude real) num projeto do mundo de teste e fotografa o fluxograma
 // em cada etapa da mascara, abrindo o card pronto e recarregando a tela com o PO pronto.
-// Uso: node tools/vistoria-fluxograma/roteiro-po-nascendo.mjs PASTA_DE_SAIDA
+// Uso: node tools/vistoria-fluxograma/roteiro-po-nascendo.mjs PASTA_DE_SAIDA [--projeto orca]
+// Com `--projeto NOME`, abre so o PO desse projeto, depois de fechar o PO anterior dele (os executores do PO
+// anterior ficam vivos) e mede cada print com as regras da vistoria.
 // Gasta um PO real (alguns minutos de Claude). Nada sai do mundo de teste.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { analisar } from './vistoria-regras.mjs'
+import { lerTela } from './vistoria-leitura-da-tela.mjs'
 import {
   abrirFluxograma,
   abrirOrcaDeTeste,
@@ -13,7 +17,13 @@ import {
   MUNDO_PADRAO
 } from './orca-de-teste.mjs'
 
-const saida = path.resolve(process.argv[2] ?? 'roteiro-po-nascendo')
+const argumentos = process.argv.slice(2)
+const projetoUnico = argumentos.includes('--projeto')
+  ? argumentos[argumentos.indexOf('--projeto') + 1]
+  : null
+const saida = path.resolve(
+  argumentos.find((a) => !a.startsWith('--') && a !== projetoUnico) ?? 'roteiro-po-nascendo'
+)
 mkdirSync(saida, { recursive: true })
 const inicio = Date.now()
 const linhas = []
@@ -38,13 +48,26 @@ const lerClaude = () => JSON.parse(readFileSync(arquivoClaude, 'utf8'))
   writeFileSync(arquivoClaude, JSON.stringify(config, null, 2))
 }
 // Projetos sem PO registrado: o PO novo e o primeiro.
-for (const nome of ['Astra Designer', 'automacao-cadastros']) {
+for (const nome of projetoUnico ? [] : ['Astra Designer', 'automacao-cadastros']) {
   rmSync(path.join(mundo, 'projetos', nome, '.hierarquia'), { recursive: true, force: true })
 }
 
 const orca = await abrirOrcaDeTeste({ registro: dizer, manter: false })
 const { page } = orca
-const foto = (nome) => page.screenshot({ path: path.join(saida, `${nome}.png`) })
+const foto = async (nome) => {
+  await page.screenshot({ path: path.join(saida, `${nome}.png`) })
+  const { achados } = analisar(await lerTela(page), { depoisDoReorganizar: false })
+  const porTipo = {}
+  for (const achado of achados) {
+    porTipo[achado.tipo] = (porTipo[achado.tipo] ?? 0) + 1
+  }
+  dizer(`vistoria de ${nome}: ${achados.length} achados ${JSON.stringify(porTipo)}`)
+  for (const achado of achados.filter((a) => a.tipo === 'a' || a.tipo === 'b')) {
+    dizer(
+      `  ACHADO ${achado.tipo} | ${achado.regra} | ${achado.card} | ${achado.coordenada} | ${achado.detalhe}`
+    )
+  }
+}
 const cartoes = () =>
   page.evaluate(() =>
     [...document.querySelectorAll('.cc-board [data-chat-key]')].map((el) => el.dataset.chatKey)
@@ -133,8 +156,57 @@ async function acompanhar(nomeDoProjeto, prefixo, antes, ateEtapa3 = true) {
   throw new Error(`${prefixo}: nao chegou a etapa 3 em 4 minutos`)
 }
 
+/** O PO anterior do projeto fecha (a aba some) e um PO novo abre: os executores do anterior ficam vivos. */
+async function poNovoComExecutoresAntigos(nomeDoProjeto) {
+  const poAnterior = await page.evaluate((nome) => {
+    const bloco = [...document.querySelectorAll('.cc-board .cc-world > div')].find((b) =>
+      b.querySelector('.cc-project-name')?.textContent?.includes(nome)
+    )
+    return (
+      bloco?.querySelector('.cc-role[data-role="po"]')?.closest('[data-chat-key]')?.dataset
+        .chatKey ?? null
+    )
+  }, nomeDoProjeto)
+  if (!poAnterior) {
+    throw new Error(`o projeto ${nomeDoProjeto} nao tem PO aberto na copia do estado`)
+  }
+  await foto('0-antes-com-po-anterior')
+  await page.evaluate((fechado) => {
+    window.__store.setState((s) => ({
+      tabsByWorktree: Object.fromEntries(
+        Object.entries(s.tabsByWorktree).map(([pasta, abas]) => [
+          pasta,
+          abas.filter((aba) => aba.id !== fechado)
+        ])
+      )
+    }))
+  }, poAnterior)
+  await page.waitForTimeout(3500)
+  dizer(
+    `PO anterior ${poAnterior.slice(0, 8)} fechado (a aba sumiu); executores dele continuam abertos`
+  )
+  await foto('1-po-anterior-fechado')
+  const antes = await cartoes()
+  await abrirPo(nomeDoProjeto)
+  const po = await acompanhar(nomeDoProjeto, '2-po-novo', antes)
+  await page.waitForTimeout(4000)
+  await foto('3-po-novo-etapa3-pronto')
+  dizer(`pronto: ${JSON.stringify(await olhar(po, nomeDoProjeto))}`)
+  await page.locator('.cc-tidy').click()
+  await page.waitForTimeout(3000)
+  await foto('4-depois-do-reorganizar')
+  writeFileSync(
+    path.join(saida, 'fatos-po-novo.json'),
+    JSON.stringify(await lerFluxograma(page), null, 2)
+  )
+}
+
 try {
   await abrirFluxograma(page)
+  if (projetoUnico) {
+    await poNovoComExecutoresAntigos(projetoUnico)
+    throw new Error('FIM')
+  }
   await foto('00-antes')
   // ---- PO 1: abrir o card pronto tira a mascara ----
   const antes1 = await cartoes()
@@ -179,8 +251,10 @@ try {
     JSON.stringify(await lerFluxograma(page), null, 2)
   )
 } catch (falha) {
-  dizer(`ERRO: ${falha.message}`)
-  await foto('erro').catch(() => undefined)
+  if (falha.message !== 'FIM') {
+    dizer(`ERRO: ${falha.message}`)
+    await foto('erro').catch(() => undefined)
+  }
 } finally {
   const sobras = await orca.fechar()
   const config = lerClaude()

@@ -1,7 +1,6 @@
 // Vistoria da juncao: monta a branch atual, abre um Orca de teste escondido com copia do estado guardado do
 // Orca em uso, tira o print do fluxograma, confere o lado de cada card e fecha tudo sem deixar nada.
 // Uso e detalhes: tools/vistoria-fluxograma/LEIAME.md
-import { spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import {
@@ -10,6 +9,7 @@ import {
   cardsNoLugarErrado,
   janelasVisiveisDoMundo,
   lerFluxograma,
+  montarBranch,
   montarMundo,
   MUNDO_PADRAO,
   processosDoMundo,
@@ -42,30 +42,6 @@ const dizer = (texto) => {
   console.log(linha)
 }
 
-function montar() {
-  const env = { ...process.env, VITE_EXPOSE_STORE: 'true' }
-  for (const nome of Object.keys(env)) {
-    if (/^(ORCA_|CLAUDE|AI_AGENT)/u.test(nome)) {
-      delete env[nome]
-    }
-  }
-  const comando =
-    'node config/scripts/build-workspace-packages.mjs && node config/scripts/run-electron-vite-build.mjs'
-  // Um comando pesado por vez na maquina: usa a vez do comando hierarquia quando ele existe.
-  const comVez = spawnSync('hierarquia', ['--ajuda'], { shell: true, stdio: 'ignore' }).status === 0
-  const resultado = spawnSync(comVez ? `hierarquia vez -- ${comando}` : comando, {
-    cwd: RAIZ,
-    env,
-    shell: true,
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024
-  })
-  writeFileSync(path.join(saida, 'montagem.log'), `${resultado.stdout}\n${resultado.stderr}`)
-  if (resultado.status !== 0) {
-    throw new Error(`A montagem falhou (veja ${path.join(saida, 'montagem.log')}).`)
-  }
-}
-
 let defeitos = []
 let sobras = []
 let janelas = []
@@ -75,7 +51,7 @@ try {
     dizer('montagem pulada (--sem-montar): usando o que ja esta em out/')
   } else {
     dizer('montando a branch atual (cerca de 3 minutos)...')
-    montar()
+    montarBranch(saida)
     dizer('montagem pronta')
   }
   dizer(`mundo de teste montado em ${montarMundo()}`)

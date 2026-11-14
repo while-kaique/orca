@@ -1,5 +1,6 @@
 import { createdChatLinkPath, projectChatPath, type LineObstacle } from './canvas-chat-line-paths'
 import { isFreeChat, type CanvasBox, type CanvasProject } from './canvas-chats-layout'
+import { hangsFromChatsOnly } from './canvas-chats-outline'
 import { chatVisualBox } from './canvas-chat-shape'
 
 /** Project → chat and chat → the chats it created; each line leaves the side that faces the other card. */
@@ -53,7 +54,7 @@ export function canvasChatTreeLines(
             d={createdChatLinkPath(creatorBox, cbox, obstacles)}
           />
         )
-      } else if (pbox && cbox) {
+      } else if (pbox && cbox && !hangsFromChatsOnly(chat)) {
         lines.push(
           <path
             key={`b-${chat.key}`}
