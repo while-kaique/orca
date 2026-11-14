@@ -1,5 +1,6 @@
 // Quem esta vivo na maquina e e do Orca de teste: lista, conta, acha janela e encerra so o que cita o mundo.
 import { execFileSync } from 'node:child_process'
+import { appendFileSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { MUNDO_PADRAO, powershell, sleep, TEMP } from './raiz-e-mundo-de-teste.mjs'
 
@@ -59,6 +60,39 @@ export function janelasVisiveisDoMundo(mundo = MUNDO_PADRAO, raizes = []) {
   }
 }
 
+/** Grava a arvore que o `taskkill /T` vai encerrar (pelo pai, como o Windows faz), para conferir depois quem morreu. */
+function registrarEncerrados(raizes) {
+  try {
+    const linhas = powershell(
+      'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId)`t$($_.ParentProcessId)`t$($_.Name)`t$($_.CreationDate)" }'
+    )
+      .split(/\r?\n/u)
+      .filter(Boolean)
+      .map((linha) => {
+        const [pid, pai, nome, criado] = linha.split('\t')
+        return { pid: Number(pid), pai: Number(pai), nome, criado }
+      })
+    const alvo = new Set(raizes)
+    for (let mudou = true; mudou;) {
+      mudou = false
+      for (const p of linhas) {
+        if (!alvo.has(p.pid) && alvo.has(p.pai)) {
+          alvo.add(p.pid)
+          mudou = true
+        }
+      }
+    }
+    const arvore = linhas.filter((p) => alvo.has(p.pid))
+    mkdirSync(path.join(TEMP, 'orca-de-teste'), { recursive: true })
+    appendFileSync(
+      path.join(TEMP, 'orca-de-teste', 'encerrados.log'),
+      `${JSON.stringify({ em: new Date().toISOString(), raizes, arvore })}\n`
+    )
+  } catch {
+    // Sem registro a ferramenta ainda encerra.
+  }
+}
+
 export async function encerrarMundo(mundo = MUNDO_PADRAO, raizes = []) {
   // O Orca recria o processo de terminal enquanto e morto: mata tudo de uma vez e confere de novo.
   for (let rodada = 0; rodada < 10; rodada++) {
@@ -66,6 +100,7 @@ export async function encerrarMundo(mundo = MUNDO_PADRAO, raizes = []) {
     if (vivos.length === 0) {
       return []
     }
+    registrarEncerrados(vivos.map(({ pid }) => pid))
     try {
       execFileSync('taskkill', ['/F', '/T', ...vivos.flatMap(({ pid }) => ['/PID', String(pid)])], {
         stdio: 'ignore',

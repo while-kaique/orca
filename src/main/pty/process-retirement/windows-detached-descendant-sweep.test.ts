@@ -36,7 +36,7 @@ describe('windows detached descendant sweep', () => {
         { pid: 300, creationTimeMs: 1200 },
         { pid: 400, creationTimeMs: 1300 }
       ],
-      { readTable: async () => after, kill, ownerPid: 1, ownChromiumPids: new Set() }
+      { readTable: async () => after, kill, ownerPid: 1, ownChromiumPids: new Set(), log: () => {} }
     )
     expect(ended).toEqual([400])
     expect(kill).toHaveBeenCalledExactlyOnceWith(400)

@@ -1,3 +1,6 @@
+import { appendFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import {
   readWindowsProcessIdentityTableFresh,
   type WindowsProcessIdentityRow
@@ -5,7 +8,21 @@ import {
 import { readOrcaChromiumProcessPids } from './orca-chromium-process-pids'
 
 /** A process captured under a terminal root: its PID plus creation time, so a recycled PID is never mistaken for it. */
-export type WindowsDescendantIdentity = { pid: number; creationTimeMs: number }
+export type WindowsDescendantIdentity = { pid: number; creationTimeMs: number; name?: string }
+
+/** Every PID this sweep ends is written here, so a process that vanished can be checked against it. */
+export const WINDOWS_SWEEP_LOG = join(tmpdir(), 'orca-pty-sweep.log')
+
+function logEnded(ended: readonly WindowsDescendantIdentity[]): void {
+  try {
+    appendFileSync(
+      WINDOWS_SWEEP_LOG,
+      `${JSON.stringify({ at: new Date().toISOString(), owner: process.pid, ended })}\n`
+    )
+  } catch {
+    // Logging must never block a stop.
+  }
+}
 
 export type WindowsIdentityTableReader = () => Promise<readonly WindowsProcessIdentityRow[]>
 
@@ -59,7 +76,7 @@ export function collectWindowsDescendants(
         continue
       }
       visited.add(child.pid)
-      found.push({ pid: child.pid, creationTimeMs: child.creationTimeMs })
+      found.push({ pid: child.pid, creationTimeMs: child.creationTimeMs, name: child.name })
       queue.push(child)
     }
   }
@@ -90,6 +107,7 @@ export async function terminateWindowsDescendantSurvivors(
     kill?: (pid: number) => void
     ownerPid?: number
     ownChromiumPids?: ReadonlySet<number>
+    log?: (ended: readonly WindowsDescendantIdentity[]) => void
   } = {}
 ): Promise<number[]> {
   if (captured.length === 0) {
@@ -105,7 +123,7 @@ export async function terminateWindowsDescendantSurvivors(
   const ownerPid = deps.ownerPid ?? process.pid
   const ownChromium = deps.ownChromiumPids ?? readOrcaChromiumProcessPids()
   const kill = deps.kill ?? ((pid: number) => process.kill(pid))
-  const ended: number[] = []
+  const ended: WindowsDescendantIdentity[] = []
   for (const target of captured) {
     const live = rows.filter((row) => row.pid === target.pid)
     if (
@@ -118,10 +136,13 @@ export async function terminateWindowsDescendantSurvivors(
     }
     try {
       kill(target.pid)
-      ended.push(target.pid)
+      ended.push(target)
     } catch {
       // It exited between the read and the kill.
     }
   }
-  return ended
+  if (ended.length > 0) {
+    ;(deps.log ?? logEnded)(ended)
+  }
+  return ended.map((target) => target.pid)
 }
