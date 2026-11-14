@@ -1728,3 +1728,38 @@
 .cc-launch-problem .cc-launch-hint {
   margin-top: 4px;
 }
+
+/* suspend a chat: process stopped, conversation saved, the card stays where it is and a click wakes it */
+.cc-xwrap-pair {
+  gap: 8px;
+}
+.cc-xbtn.cc-sbtn:hover {
+  background: var(--cc-idle);
+  border-color: var(--cc-idle);
+  color: #fff;
+}
+.cc-chat[data-status='suspended'] {
+  border-width: 1px;
+  border-style: dashed;
+  border-color: var(--cc-idle);
+}
+.cc-board [data-status='suspended'] {
+  --k: var(--cc-idle);
+}
+.cc-board [data-status='suspended'] .cc-feed {
+  opacity: 0.6;
+}
+.cc-chat[data-status='suspended'] .cc-crest-outline polygon {
+  stroke-dasharray: 7 6;
+  stroke-width: 1.5;
+}
+.cc-status-moon {
+  flex: none;
+}
+.cc-legend [data-status='suspended'] em {
+  border-style: dashed;
+  border-width: 1px;
+}
+.cc-chat.cc-shape-crest[data-status='suspended'] {
+  border: none;
+}

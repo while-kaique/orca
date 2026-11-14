@@ -341,6 +341,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
                         }
                       }}
                       onWake={() => wakeChat(chat, true)}
+                      onLeave={() => closeCard('type')}
                       onDragStart={(e) =>
                         startCardDrag(
                           [chat, ...chatDescendants(project.chats, chat.key)].flatMap((c) => [
@@ -392,14 +393,23 @@ export default function CanvasChatsPage(): React.JSX.Element {
         }}
       />
       <div className="cc-legend" onPointerDown={(e) => e.stopPropagation()}>
-        {(['idle', 'working', 'monitoring', 'team', 'unseen', 'seen', 'waiting'] as const).map(
-          (s) => (
-            <span key={s} data-status={s}>
-              <em />
-              {STATUS_LABEL[s]}
-            </span>
-          )
-        )}
+        {(
+          [
+            'idle',
+            'working',
+            'monitoring',
+            'team',
+            'unseen',
+            'seen',
+            'waiting',
+            'suspended'
+          ] as const
+        ).map((s) => (
+          <span key={s} data-status={s}>
+            <em />
+            {STATUS_LABEL[s]}
+          </span>
+        ))}
       </div>
       {listenMode ? (
         <div className="cc-listen-chip">
