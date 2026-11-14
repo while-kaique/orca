@@ -298,7 +298,7 @@ export function WorktreeCardStatusSlot({
               )
             ) : isUnread && pcDeskMode && !PC_DESK_STATUS_OVER_UNREAD.has(status) ? (
               <StatusIndicator status="done" seen={false} aria-hidden="true" showTooltip={false} />
-            ) : isUnread ? (
+            ) : isUnread && !pcDeskMode ? (
               <FilledBellIcon className="size-[13px] text-amber-500 drop-shadow-sm" />
             ) : showStatus ? (
               <>
