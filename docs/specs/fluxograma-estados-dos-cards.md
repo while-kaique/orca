@@ -93,3 +93,17 @@ comandos pesados (não se cria outra).
 2 executores Sonnet, porque Suspender/Fechar (parte 3) e a trava do Orca de teste (parte 5) são independentes do
 resto e de mais ou menos 1 hora cada. O planejador faz as partes 1, 2 e 4 (dependem uma da outra e a 4 é medida),
 junta e prova o conjunto.
+
+## Resultado (14/11, rodada final)
+
+- **Parte 3, o que a medida mostrou:** no Windows o comando que o agente deixa em segundo plano escapa do job do
+  terminal; o X de hoje deixava 1 de 7 processos vivo. Conserto (OK do PO, p-012) em
+  `src/main/pty/process-retirement/windows-detached-descendant-sweep.ts`: foto da árvore pelo PID raiz antes do job,
+  depois mata por PID só o que continua sendo o mesmo processo (data de criação). Vale para todo
+  `killWithDescendantSweep` no Windows: chat de agente e fechamento forçado de terminal comum (o fechamento normal de
+  terminal comum não passa por ali).
+- **Acordar:** o registro de sono do Suspender é o mesmo do hibernar do Orca (`state: 'done'`, sem "só ao abrir a
+  aba"); o clique retoma a mesma sessão (`claude --resume <id>`).
+- **Parte 4 (decisão do PO, p-013):** respiração a 10 quadros/s (mesma curva), anel girando por transform a 24
+  quadros/s; medido num Chrome sem janela porque a janela escondida do Orca de teste não pinta.
+- **Parte 5:** `orca-de-teste.mjs abrir` segura o Orca vivo até o `fechar`; desconectar não fecha o Orca reusado.
