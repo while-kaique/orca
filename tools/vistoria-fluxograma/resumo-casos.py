@@ -33,7 +33,8 @@ for caso in sorted(PO_PRINT):
     linhas.append(
         f"| {caso} | {po_antigo} | {texto_mao} | **{po_novo}** | {faixa} | {len(achados)} {' '.join(tipos)} |"
     )
-    imagens = [f"{PASTA}/{caso}/antigo/2-reorganizado-antigo.png", f"ANTIGO (6e43f71910) depois do Reorganizar: card do PO {po_antigo} px"]
+    versao = "6d247f8e78" if caso == "caso-5-projetos" else "6e43f71910"
+    imagens = [f"{PASTA}/{caso}/antigo/2-reorganizado-antigo.png", f"ANTIGO ({versao}) depois do Reorganizar: card do PO {po_antigo} px"]
     if mao:
         imagens += [
             f"{PASTA}/{caso}/antigo/3-a-mao.png",
