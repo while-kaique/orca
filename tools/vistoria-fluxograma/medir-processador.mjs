@@ -56,7 +56,7 @@ export function amostrarArvore(raiz) {
   return arvore.map((p) => ({
     ...p,
     tipo:
-      /--type=([w-]+)/u.exec(p.comando)?.[1] ??
+      /--type=([\w-]+)/u.exec(p.comando)?.[1] ??
       (p.pid === raiz ? 'principal' : 'chats e outros filhos')
   }))
 }
