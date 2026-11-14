@@ -265,6 +265,11 @@ export function ChatNode({
       onPointerLeave={peeking.leave}
       onPointerDown={(e) => (open ? e.stopPropagation() : onDragStart(e))}
     >
+      {status === 'working' && !open && !peek && shape !== 'crest' && !launch ? (
+        <span className="cc-ring" aria-hidden="true">
+          <i />
+        </span>
+      ) : null}
       {open
         ? null
         : (['t', 'r', 'b', 'l'] as const).map((side) => (

@@ -171,6 +171,52 @@
     --cc-angle: 360deg;
   }
 }
+/* closed card working: the ring band is a fixed mask and only the gradient inside it turns, by transform, so the
+   GPU spins it without repainting the card (animating --cc-angle repainted the ring every frame: o-044). */
+.cc-chat:not(.cc-open)[data-status='working']::before {
+  content: none;
+}
+.cc-ring {
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  padding: 2px;
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+.cc-ring i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 250%;
+  aspect-ratio: 1;
+  background: conic-gradient(#e6b422 0 74%, #fff6d6 84%, #fff 88%, #fff6d6 92%, #e6b422 100%);
+  /* 24 turns of the light a second (74 steps in 3.1 s): fluid to the eye, half the frames (o-044, PO's floor). */
+  animation: cc-ring-turn 3.1s steps(74, end) infinite;
+  will-change: transform;
+}
+@keyframes cc-ring-turn {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cc-ring i,
+  .cc-chat[data-status='working']::before,
+  .cc-agent[data-status='working']::before,
+  .cc-chat[data-status='unseen']::after,
+  .cc-agent[data-status='unseen']::after {
+    animation: none;
+  }
+}
 /* finished, not seen: the card breathes. The bright border and glow sit on their own layer and only its opacity
    animates, so the GPU blends it without repainting the card (animating border-color/box-shadow repainted every card
    every frame: o-044, fluxograma leve). */
@@ -188,12 +234,148 @@
   box-shadow: 0 0 16px #3ecf7a38;
   pointer-events: none;
   opacity: 0;
-  animation: cc-breathe 4.5s ease-in-out infinite;
+  animation: cc-breathe 4.5s step-end infinite;
   will-change: opacity;
 }
+/* 10 frames a second sampled from the same ease-in-out curve (o-044): same look and rhythm, a fraction of the frames. */
 @keyframes cc-breathe {
-  50% {
-    opacity: 1;
+  0% {
+    opacity: 0;
+  }
+  2.222% {
+    opacity: 0.004;
+  }
+  4.444% {
+    opacity: 0.016;
+  }
+  6.667% {
+    opacity: 0.036;
+  }
+  8.889% {
+    opacity: 0.064;
+  }
+  11.111% {
+    opacity: 0.101;
+  }
+  13.333% {
+    opacity: 0.147;
+  }
+  15.556% {
+    opacity: 0.202;
+  }
+  17.778% {
+    opacity: 0.264;
+  }
+  20% {
+    opacity: 0.332;
+  }
+  22.222% {
+    opacity: 0.405;
+  }
+  24.444% {
+    opacity: 0.481;
+  }
+  26.667% {
+    opacity: 0.557;
+  }
+  28.889% {
+    opacity: 0.632;
+  }
+  31.111% {
+    opacity: 0.703;
+  }
+  33.333% {
+    opacity: 0.768;
+  }
+  35.556% {
+    opacity: 0.826;
+  }
+  37.778% {
+    opacity: 0.877;
+  }
+  40% {
+    opacity: 0.918;
+  }
+  42.222% {
+    opacity: 0.951;
+  }
+  44.444% {
+    opacity: 0.976;
+  }
+  46.667% {
+    opacity: 0.991;
+  }
+  48.889% {
+    opacity: 0.999;
+  }
+  51.111% {
+    opacity: 0.999;
+  }
+  53.333% {
+    opacity: 0.991;
+  }
+  55.556% {
+    opacity: 0.976;
+  }
+  57.778% {
+    opacity: 0.951;
+  }
+  60% {
+    opacity: 0.918;
+  }
+  62.222% {
+    opacity: 0.877;
+  }
+  64.444% {
+    opacity: 0.826;
+  }
+  66.667% {
+    opacity: 0.768;
+  }
+  68.889% {
+    opacity: 0.703;
+  }
+  71.111% {
+    opacity: 0.632;
+  }
+  73.333% {
+    opacity: 0.557;
+  }
+  75.556% {
+    opacity: 0.481;
+  }
+  77.778% {
+    opacity: 0.405;
+  }
+  80% {
+    opacity: 0.332;
+  }
+  82.222% {
+    opacity: 0.264;
+  }
+  84.444% {
+    opacity: 0.202;
+  }
+  86.667% {
+    opacity: 0.147;
+  }
+  88.889% {
+    opacity: 0.101;
+  }
+  91.111% {
+    opacity: 0.064;
+  }
+  93.333% {
+    opacity: 0.036;
+  }
+  95.556% {
+    opacity: 0.016;
+  }
+  97.778% {
+    opacity: 0.004;
+  }
+  100% {
+    opacity: 0;
   }
 }
 .cc-chat[data-status='seen'],
