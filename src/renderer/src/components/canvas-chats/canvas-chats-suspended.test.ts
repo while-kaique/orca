@@ -37,13 +37,13 @@ function statusesFor(tabsWithoutProcess: string[]): Record<string, string> {
     ...SCENARIO_STORE,
     unifiedTabsByWorktree: {},
     retainedAgentsByPaneKey: {},
-    acknowledgedAgentsByPaneKey: {},
+    acknowledgedAgentsByPaneKey: { [`po:${LEAF}`]: Date.now(), [`livre:${LEAF}`]: Date.now() },
     migrationUnsupportedByPtyId: {},
     worktreeLineageById: {},
     ptyIdsByTabId: ptys,
     agentStatusByPaneKey: statuses,
     sleepingAgentSessionsByPaneKey: records,
-    artifactLinks: {},
+    artifactLinks: { links: {}, dismissed: [] },
     hierarchy: [],
     newTabs: new Set()
   } as unknown as Inputs)
