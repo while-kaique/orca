@@ -29,10 +29,34 @@ export default async function (page, { lerTela, recarregar, medir, dizer, saida 
   const caixa = await page.locator(`[data-chat-key="${executores[0].chave}"]`).boundingBox()
   const x = caixa.x + caixa.width / 2
   const y = caixa.y + caixa.height / 2
+  // Arrasta para um lugar vazio: soltar o card no caminho da linha de outro faz a linha desviar (outro defeito, tipo a).
+  const outros = await page.evaluate((proprio) => {
+    return [...document.querySelectorAll('[data-chat-key], .cc-project')]
+      .filter((el) => el.dataset.chatKey !== proprio)
+      .map((el) => el.getBoundingClientRect())
+      .map((r) => ({ x: r.x, y: r.y, w: r.width, h: r.height }))
+  }, executores[0].chave)
+  const livre = ([dx, dy]) =>
+    !outros.some(
+      (o) =>
+        caixa.x + dx - 60 < o.x + o.w &&
+        o.x < caixa.x + dx + caixa.width + 60 &&
+        caixa.y + dy - 60 < o.y + o.h &&
+        o.y < caixa.y + dy + caixa.height + 60
+    )
+  const [dx, dy] = [
+    [0, 160],
+    [220, 120],
+    [-220, 120],
+    [0, -160],
+    [220, 0],
+    [-220, 0]
+  ].find(livre) ?? [0, 160]
+  dizer(`arrastando ${executores[0].rotulo} ${dx}, ${dy} px (lugar vazio)`)
   await page.mouse.move(x, y)
   await page.mouse.down()
-  await page.mouse.move(x + 60, y + 40, { steps: 5 })
-  await page.mouse.move(x + 220, y + 120, { steps: 10 })
+  await page.mouse.move(x + dx / 4, y + dy / 4, { steps: 5 })
+  await page.mouse.move(x + dx, y + dy, { steps: 10 })
   await page.mouse.up()
   await page.waitForTimeout(800)
   await medir('seta: (b) depois de arrastar um dos cards', 'seta-b-arrastar', false)
