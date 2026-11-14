@@ -37,19 +37,28 @@ export function amostrarArvore(raiz) {
     filhos.set(p.pai, [...(filhos.get(p.pai) ?? []), p])
   }
   const arvore = []
+  // Windows reuses PIDs: an orphan can name a descendant as its parent, so each PID is visited once.
+  const visitados = new Set()
   const visitar = (pid) => {
+    if (visitados.has(pid)) {
+      return
+    }
+    visitados.add(pid)
     const proprio = linhas.find((p) => p.pid === pid)
-    if (proprio && !arvore.includes(proprio)) {
+    if (proprio) {
       arvore.push(proprio)
     }
     for (const filho of filhos.get(pid) ?? []) {
-      if (filho.pid !== pid) {
-        visitar(filho.pid)
-      }
+      visitar(filho.pid)
     }
   }
   visitar(raiz)
-  return arvore.map((p) => ({ ...p, tipo: /--type=([\w-]+)/u.exec(p.comando)?.[1] ?? 'principal' }))
+  return arvore.map((p) => ({
+    ...p,
+    tipo:
+      /--type=([w-]+)/u.exec(p.comando)?.[1] ??
+      (p.pid === raiz ? 'principal' : 'chats e outros filhos')
+  }))
 }
 
 /** Gasto por tipo em cada janela de `segundos`: [{ janela, porTipo: { renderer: s, 'gpu-process': s, ... } }]. */
