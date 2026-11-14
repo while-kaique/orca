@@ -114,12 +114,12 @@ async function suspendWorkingChat(
       }
       return { sleepingAgentSessionsByPaneKey: next }
     })
-  // Why: only a stopped ("done") record arms the pane's wake on the card's click; tab-open-only keeps Orca's own
-  // background wake from resuming it before that click.
+  // Why: the same record Orca's own hibernation writes: "done" arms the pane's wake on the card's click and resumes
+  // the same session; a tab-open-only record would be skipped by that wake and open a fresh conversation.
   useAppStore.setState((s) => ({
     sleepingAgentSessionsByPaneKey: {
       ...s.sleepingAgentSessionsByPaneKey,
-      [paneKey]: { ...record, state: 'done', restoreOnTabOpenOnly: true }
+      [paneKey]: { ...record, state: 'done', restoreOnTabOpenOnly: false }
     }
   }))
   try {
