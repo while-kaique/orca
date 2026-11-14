@@ -5,7 +5,10 @@ export function canWaitForTeam(status: CanvasChatStatus): boolean {
   return status === 'idle' || status === 'seen' || status === 'unseen'
 }
 
-/** Fork: marks each chat that has a chat it created (at any depth) working, from the status already computed per chat. */
+/**
+ * Fork: marks each chat that has a chat it created (at any depth) working or running background work, from the
+ * status already computed per chat. An executor working in short turns sits in background work between them.
+ */
 export function markChatsAwaitingTeam(chats: CanvasChat[]): void {
   const childrenByParent = new Map<string, CanvasChat[]>()
   for (const chat of chats) {
@@ -19,7 +22,7 @@ export function markChatsAwaitingTeam(chats: CanvasChat[]): void {
         return false
       }
       seen.add(child.key)
-      return child.status === 'working' || teamWorking(child, seen)
+      return child.status === 'working' || child.status === 'monitoring' || teamWorking(child, seen)
     })
   const waiting = chats.filter(
     (chat) => canWaitForTeam(chat.status) && teamWorking(chat, new Set([chat.key]))

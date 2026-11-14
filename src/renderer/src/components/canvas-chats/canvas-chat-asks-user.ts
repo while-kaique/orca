@@ -3,6 +3,12 @@
  * can take). Read from the end of the turn's last reply, the same text the card already shows.
  * Measured against real chats in `.hierarquia/provas/o-044/sinal-precisa-de-voce.md`.
  */
+import type {
+  AgentStatusEntry,
+  AgentStatusOrchestrationContext
+} from '../../../../shared/agent-status/contracts/agent-status-types'
+import { mergeAgentStatusOrchestration } from '../../../../shared/agent-status/identity/agent-status-worktree-attribution'
+import { isAgentStatusHeldOpenByChildWork } from '../../../../shared/agent-status/lifecycle/agent-lead-status-fold'
 
 const TAIL_LINES = 3
 
@@ -38,6 +44,39 @@ function lineAsksUser(line: string): boolean {
   }
   const rest = NEXT_STEP.exec(line)?.groups?.rest ?? ''
   return !CONDITIONAL.test(rest) && USER_VERB.test(rest)
+}
+
+type TurnEndEvidence = Pick<
+  AgentStatusEntry,
+  | 'state'
+  | 'interrupted'
+  | 'sessionBoundary'
+  | 'mainAgent'
+  | 'orchestration'
+  | 'lastAssistantMessage'
+  | 'lastAssistantMessageIsToolOutput'
+  | 'lastCompletedAssistantMessage'
+>
+
+/**
+ * A top-level chat (PO or free) whose own turn ended asking the user, even while a background command or
+ * subagent still holds the row open. Orchestration workers ask their creator, never the user, so never match.
+ */
+export function turnEndedAskingUser(
+  entry: TurnEndEvidence,
+  runtimeOrchestration: AgentStatusOrchestrationContext | undefined
+): boolean {
+  if (mergeAgentStatusOrchestration(entry, runtimeOrchestration)) {
+    return false
+  }
+  const ended =
+    (entry.state === 'done' && !entry.interrupted && !entry.sessionBoundary) ||
+    isAgentStatusHeldOpenByChildWork(entry)
+  if (!ended) {
+    return false
+  }
+  const reply = entry.lastAssistantMessageIsToolOutput ? undefined : entry.lastAssistantMessage
+  return replyAsksUser(reply || entry.lastCompletedAssistantMessage)
 }
 
 export function replyAsksUser(reply: string | null | undefined): boolean {

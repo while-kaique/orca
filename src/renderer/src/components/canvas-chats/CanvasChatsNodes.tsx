@@ -339,6 +339,12 @@ export function ChatNode({
           <span className="cc-status">
             {status === 'working' ? <span className="cc-spin" /> : null}
             {STATUS_LABEL[status]}
+            {status === 'waiting' && chat.agents.some((agent) => agent.status === 'monitoring') ? (
+              <i
+                className="cc-status-bg"
+                title={translate('fork.canvas.statusAlsoBackground', 'e algo em segundo plano')}
+              />
+            ) : null}
           </span>
         </div>
       </div>

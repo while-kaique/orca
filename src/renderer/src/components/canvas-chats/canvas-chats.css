@@ -8,7 +8,8 @@
 .cc-board {
   --cc-idle: #5d5d66;
   --cc-work: #e6b422;
-  --cc-bg-task: #8b8cf6;
+  /* background work: cyan, so it never reads as the purple of 'aguardando equipe' */
+  --cc-bg-task: var(--color-cyan-400, #22d3ee);
   --cc-ok: #3ecf7a;
   --cc-wait: #ef4b4b;
   --cc-team: var(--color-purple-500, #a855f7);
@@ -119,9 +120,9 @@
 }
 .cc-chat[data-status='monitoring'],
 .cc-agent[data-status='monitoring'] {
-  border-color: #8b8cf699;
+  border-color: color-mix(in srgb, var(--cc-bg-task) 60%, transparent);
   box-shadow:
-    0 0 14px #8b8cf61f,
+    0 0 14px color-mix(in srgb, var(--cc-bg-task) 12%, transparent),
     0 12px 30px #0009;
 }
 .cc-board [data-status='unseen'] {
@@ -572,6 +573,13 @@
   gap: 5px;
   font: 600 calc(11px * var(--cc-inv)) system-ui;
   color: var(--k);
+}
+/* needs the user and still runs a background command: the command stays a small detail */
+.cc-status-bg {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cc-bg-task);
 }
 .cc-spin {
   width: 9px;
@@ -1199,6 +1207,19 @@
   );
   filter: drop-shadow(0 0 6px #ffe27a) drop-shadow(0 0 14px #e6b422aa);
   animation-duration: 2s;
+}
+
+/* quiet project (nothing working, nothing waiting on the user): grey header, faded cards that stay legible and clickable.
+   Opacity only, so the fade is composited and costs no repaint. */
+.cc-project-group[data-quiet] .cc-project {
+  --cc-pc: var(--cc-idle) !important;
+}
+.cc-project-group[data-quiet] .cc-chat:not(.cc-open),
+.cc-project-group[data-quiet] .cc-chips:not(.cc-chips-open) {
+  opacity: 0.78;
+}
+.cc-project-group[data-quiet] .cc-chat:not(.cc-open):hover {
+  opacity: 1;
 }
 
 /* project color: tinted card, colored initials badge, swatch picker on hover */

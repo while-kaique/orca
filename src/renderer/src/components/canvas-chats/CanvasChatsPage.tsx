@@ -28,6 +28,7 @@ import { useCanvasPlacement } from './use-canvas-placement'
 import { useCanvasCordLayer } from './use-canvas-cord-layer'
 import { CanvasWebPreview } from './CanvasChatExtras'
 import { CanvasAddProjectButton } from './CanvasAddProjectButton'
+import { isQuietProject } from './canvas-project-activity'
 import './canvas-chats.css'
 
 type View = CanvasView
@@ -312,7 +313,11 @@ export default function CanvasChatsPage(): React.JSX.Element {
         {projects.map((project) => {
           const pbox = boxes[`project:${project.id}`]
           return (
-            <div key={project.id}>
+            <div
+              key={project.id}
+              className="cc-project-group"
+              data-quiet={isQuietProject(project) ? '' : undefined}
+            >
               {pbox ? (
                 <ProjectNode
                   project={project}
