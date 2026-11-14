@@ -43,6 +43,8 @@ type WorktreeCardStatusSlotProps = {
 }
 
 const QUIET_REVIEW_REPLACEABLE_STATUSES = new Set<WorktreeStatus>(['active', 'done', 'inactive'])
+// Fork (PC-desk): an unread chat's done dot never hides one that needs the user or is still running, like the card.
+const PC_DESK_STATUS_OVER_UNREAD = new Set<WorktreeStatus>(['permission', 'working', 'monitoring'])
 // Missing provider state cannot prove no review exists; label only the branch identity.
 function getDefaultBranchIdentityLabel(): string {
   return translate('auto.components.sidebar.WorktreeCardStatusSlot.branchIdentity', 'Branch')
@@ -294,7 +296,7 @@ export function WorktreeCardStatusSlot({
               ) : (
                 <span className="sr-only">{actionLabel}</span>
               )
-            ) : isUnread && pcDeskMode ? (
+            ) : isUnread && pcDeskMode && !PC_DESK_STATUS_OVER_UNREAD.has(status) ? (
               <StatusIndicator status="done" seen={false} aria-hidden="true" showTooltip={false} />
             ) : isUnread ? (
               <FilledBellIcon className="size-[13px] text-amber-500 drop-shadow-sm" />
