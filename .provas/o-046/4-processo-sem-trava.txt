@@ -1,0 +1,6 @@
+[23:18:28] CASO 4: um processo de teste vivo sem trava (largado de uma rodada antiga); o pedido recusa dizendo o PID
+[23:18:29] fantasma criado por mim: PID 19448
+[23:18:29] Chat B: pedindo o Orca de teste
+[23:18:57] Chat B: RECUSADO/ERRO (saida 3): Ha 1 processo(s) de teste vivo(s) sem trava, PIDs 19448 ("C:\Program Files\nodejs\node.exe" C:\Users\User\orca\workspaces\orca\jaeger\tools\vistoria-fluxogra); nao abro outro. Confira e encerre so esses PIDs.
+[23:18:57] RESULTADO: saida do pedido=3 (esperado 3)
+[23:19:03] DEPOIS (matei so o PID 19448): processos de teste=0

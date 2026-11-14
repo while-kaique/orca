@@ -1,73 +1,45 @@
 // Abre um Orca de teste escondido (janela oculta, sem foco) sobre um "mundo de teste" e o fecha sem sobra.
-// Usado por vistoria-juncao.mjs; as provas avulsas importam as mesmas funcoes.
+// Usado por vistoria.mjs e vistoria-juncao.mjs; as provas avulsas importam as mesmas funcoes.
+// Regra B: um Orca de teste por vez na maquina (trava unica), montado uma vez e reusado. Uso: LEIAME.md.
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
-import { closeSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { closeSync, mkdirSync, openSync, readFileSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { chromium } from 'playwright-core'
+import { lerJson, processoVivo } from '../../skills/hierarquia/trava.mjs'
+import { montarBranch } from './montagem-do-orca-de-teste.mjs'
+import { encerrarMundo } from './processos-de-teste.mjs'
+import { modoSimulado, MUNDO_PADRAO, RAIZ, sleep } from './raiz-e-mundo-de-teste.mjs'
+import {
+  ARQUIVO_DA_TRAVA,
+  atualizarTrava,
+  descreverEstadoDoOrcaDeTeste,
+  donoDestaRodada,
+  mensagemDeUso,
+  OrcaDeTesteOcupado,
+  pegarTravaDoOrcaDeTeste,
+  travaViva
+} from './trava-do-orca-de-teste.mjs'
+
+// Quem importava tudo daqui continua importando daqui.
+export * from './montagem-do-orca-de-teste.mjs'
+export * from './processos-de-teste.mjs'
+export * from './raiz-e-mundo-de-teste.mjs'
+export * from './trava-do-orca-de-teste.mjs'
 
 const require = createRequire(import.meta.url)
-export const RAIZ = path.resolve(import.meta.dirname, '..', '..')
-// Pasta propria desta copia do projeto: duas vistorias de copias diferentes rodando juntas (como dois executores)
-// nao podem dividir o mundo de teste, porque cada uma apaga e mata o que cita a pasta dele.
-export const MUNDO_PADRAO =
-  process.env.VISTORIA_MUNDO ??
-  path.join(
-    process.env.TEMP ?? process.env.TMPDIR ?? '/tmp',
-    `vistoria-fluxograma-${path
-      .basename(RAIZ)
-      .toLowerCase()
-      .replaceAll(/[^a-z0-9]+/gu, '-')}`,
-    'mundo'
-  )
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
-const powershell = (comando) =>
-  execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', comando], {
-    encoding: 'utf8',
-    windowsHide: true
-  })
-
-/** Monta a branch atual em RAIZ/out (um comando pesado por vez na maquina, pela vez do comando hierarquia). */
-export function montarBranch(pastaDoLog) {
-  const env = { ...process.env, VITE_EXPOSE_STORE: 'true' }
-  for (const nome of Object.keys(env)) {
-    if (/^(ORCA_|CLAUDE|AI_AGENT)/u.test(nome)) {
-      delete env[nome]
-    }
-  }
-  const comVez = spawnSync('hierarquia', ['--ajuda'], { shell: true, stdio: 'ignore' }).status === 0
-  // Cada passo pesado entra na fila da maquina sozinho (um `&&` fora da vez deixaria o segundo passo furar a fila).
-  let saida = ''
-  let status = 0
-  for (const passo of [
-    'node config/scripts/build-workspace-packages.mjs',
-    'node config/scripts/run-electron-vite-build.mjs'
-  ]) {
-    const resultado = spawnSync(comVez ? `hierarquia vez -- ${passo}` : passo, {
-      cwd: RAIZ,
-      env,
-      shell: true,
-      encoding: 'utf8',
-      maxBuffer: 64 * 1024 * 1024
-    })
-    saida += `${resultado.stdout}
-${resultado.stderr}
-`
-    status = resultado.status ?? 1
-    if (status !== 0) {
-      break
-    }
-  }
-  const log = path.join(pastaDoLog, 'montagem.log')
-  writeFileSync(log, saida)
-  if (status !== 0) {
-    throw new Error(`A montagem falhou (veja ${log}).`)
-  }
-}
 
 /** `manter`: nomes de projetos que entram no mundo mesmo sem chat aberto no estado real (casos de prova). */
 export function montarMundo(mundo = MUNDO_PADRAO, manter = []) {
+  const dono = lerJson(ARQUIVO_DA_TRAVA)
+  if (
+    travaViva(dono) &&
+    path.resolve(dono.mundo) === path.resolve(mundo) &&
+    dono.pidNode !== process.pid
+  ) {
+    throw new OrcaDeTesteOcupado(`${mensagemDeUso(dono)}: nao refaco o mundo dele (${mundo}).`)
+  }
   const saida = execFileSync(
     'python',
     [path.join(RAIZ, 'tools', 'vistoria-fluxograma', 'preparar-estado.py'), mundo],
@@ -76,75 +48,7 @@ export function montarMundo(mundo = MUNDO_PADRAO, manter = []) {
   return saida.trim()
 }
 
-/** Processos vivos cuja linha de comando cita o mundo de teste (a ferramenta so mexe nesses). */
-export function processosDoMundo(mundo = MUNDO_PADRAO, raizes = []) {
-  const alvo = path.resolve(mundo).replaceAll('\\', '/').toLowerCase()
-  const saida = powershell(
-    'Get-CimInstance Win32_Process | Where-Object { $_.CommandLine } | ForEach-Object { "$($_.ProcessId)`t$($_.CommandLine)" }'
-  )
-  return saida
-    .split(/\r?\n/u)
-    .map((linha) => linha.split('\t'))
-    .filter(
-      ([pid, comando]) =>
-        pid &&
-        comando &&
-        Number(pid) !== process.pid &&
-        (raizes.includes(Number(pid)) || comando.replaceAll('\\', '/').toLowerCase().includes(alvo))
-    )
-    .map(([pid, comando]) => ({ pid: Number(pid), comando: comando.slice(0, 160) }))
-}
-
-/** Janelas visiveis de qualquer processo do mundo (deve ser nenhuma: o Orca de teste abre oculto). */
-export function janelasVisiveisDoMundo(mundo = MUNDO_PADRAO, raizes = []) {
-  const pids = processosDoMundo(mundo, raizes).map((p) => p.pid)
-  if (pids.length === 0) {
-    return []
-  }
-  try {
-    const saida = powershell(
-      `Get-Process -Id ${pids.join(',')} -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle } | ForEach-Object { "$($_.Id)\`t$($_.MainWindowTitle)" }`
-    )
-    return saida.split(/\r?\n/u).filter(Boolean)
-  } catch {
-    // Um processo do teste saiu enquanto a lista era lida: sem janela visivel para contar.
-    return []
-  }
-}
-
-export async function encerrarMundo(mundo = MUNDO_PADRAO, raizes = []) {
-  // O Orca recria o processo de terminal enquanto e morto: mata tudo de uma vez e confere de novo.
-  for (let rodada = 0; rodada < 10; rodada++) {
-    const vivos = processosDoMundo(mundo, raizes)
-    if (vivos.length === 0) {
-      return []
-    }
-    try {
-      execFileSync('taskkill', ['/F', '/T', ...vivos.flatMap(({ pid }) => ['/PID', String(pid)])], {
-        stdio: 'ignore',
-        windowsHide: true
-      })
-    } catch {
-      // Alguns ja sairam junto com o pai.
-    }
-    await sleep(800)
-  }
-  return processosDoMundo(mundo, raizes)
-}
-
-/**
- * Abre o Orca montado em `raizDoApp`/out (padrao RAIZ/out), escondido, com o perfil do mundo. Devolve { page, fechar, porta }.
- * `fechar()` desconecta, mata a arvore de processos do mundo e apaga o mundo (a menos que manter).
- */
-export async function abrirOrcaDeTeste({
-  mundo = MUNDO_PADRAO,
-  porta,
-  registro,
-  manter = false,
-  raiz = RAIZ
-} = {}) {
-  const perfil = path.join(mundo, 'perfil')
-  const portaCdp = porta ?? 9560 + Math.floor(Math.random() * 300)
+function ambienteDoOrcaDeTeste(mundo) {
   const env = { ...process.env }
   for (const nome of Object.keys(env)) {
     if (/^(ORCA_|CLAUDE|AI_AGENT)/u.test(nome)) {
@@ -152,29 +56,121 @@ export async function abrirOrcaDeTeste({
     }
   }
   delete env.ELECTRON_RUN_AS_NODE
-  Object.assign(env, {
+  return Object.assign(env, {
     ORCA_BACKGROUND_LAUNCH: '1',
-    ORCA_DEV_USER_DATA_PATH: perfil,
+    ORCA_DEV_USER_DATA_PATH: path.join(mundo, 'perfil'),
     ORCA_DEV_INSTANCE_KEY: 'vistoria-fluxograma',
     // Sem rede da conta: o perfil copiado e ligado a nuvem, o de teste nao fala com ela.
     ORCA_CLOUD_API_URL: 'http://127.0.0.1:9'
   })
-  mkdirSync(path.join(mundo, 'logs'), { recursive: true })
-  const log = openSync(path.join(mundo, 'logs', 'orca-de-teste.log'), 'a')
-  const filho = spawn(require('electron'), ['.', `--remote-debugging-port=${portaCdp}`], {
-    cwd: raiz,
-    env,
-    windowsHide: true,
-    stdio: ['ignore', log, log]
+}
+
+async function esperarPortaDeInspecao(portaCdp, filho, pastaDoLog) {
+  const limite = Date.now() + 120_000
+  for (;;) {
+    if (filho.exitCode !== null) {
+      throw new Error(
+        `O Orca de teste saiu antes de abrir (codigo ${filho.exitCode}). Veja ${path.join(pastaDoLog, 'orca-de-teste.log')}`
+      )
+    }
+    try {
+      const resposta = await fetch(`http://127.0.0.1:${portaCdp}/json/version`)
+      if (resposta.ok) {
+        return
+      }
+    } catch {
+      // Ainda subindo.
+    }
+    if (Date.now() > limite) {
+      throw new Error('O Orca de teste nao abriu a porta de inspecao em 2 minutos.')
+    }
+    await sleep(500)
+  }
+}
+
+/** Conecta no Orca que ja esta aberto nessa porta e espera o estado do app carregar. */
+async function conectarNaPorta(portaCdp) {
+  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${portaCdp}`, {
+    timeout: 180_000
   })
-  closeSync(log)
-  const limpar = async (browser) => {
+  let page
+  while (!page) {
+    page = browser
+      .contexts()[0]
+      ?.pages()
+      .find((p) => !p.url().startsWith('devtools'))
+    if (!page) {
+      await sleep(300)
+    }
+  }
+  await page.waitForFunction(() => window.__store?.getState().repos.length > 0, null, {
+    timeout: 120_000
+  })
+  return { browser, page }
+}
+
+/**
+ * Abre o Orca montado em `raiz`/out (padrao RAIZ/out), escondido, com o perfil do mundo. Devolve { page, fechar, porta }.
+ * Pega a trava unica da maquina antes (espera ate `esperarMin` min; 0 = recusa na hora, saida 3). `prepararMundo` roda
+ * com a trava na mao, antes de abrir (e onde se refaz o mundo sem pisar no de quem usa).
+ * `fechar()` desconecta, mata a arvore de processos do mundo, apaga o mundo (a menos que manter) e solta a trava.
+ * `deixarAberto`: o Orca fica vivo depois deste processo e a trava fica com a porta (use `desconectar()`).
+ * ORCA_DE_TESTE_SIMULADO=1: no lugar do Electron sobe um node que dorme com uma porta HTTP falsa (prova da trava).
+ */
+export async function abrirOrcaDeTeste({
+  mundo = MUNDO_PADRAO,
+  porta,
+  registro = console.log,
+  manter = false,
+  raiz = RAIZ,
+  esperarMin = 30,
+  prepararMundo,
+  deixarAberto = false
+} = {}) {
+  const portaCdp = porta ?? 9560 + Math.floor(Math.random() * 300)
+  const simulado = modoSimulado()
+  const pastaDoLog = path.join(mundo, 'logs')
+  const soltar = await pegarTravaDoOrcaDeTeste({
+    esperarMin,
+    registro,
+    dados: {
+      dono: donoDestaRodada(),
+      pasta: raiz,
+      raiz: RAIZ,
+      mundo,
+      pidNode: process.pid,
+      pidElectron: null,
+      porta: portaCdp,
+      comando: process.argv.slice(1).join(' ').slice(0, 300),
+      desde: new Date().toISOString(),
+      simulado
+    }
+  })
+  let filho
+  let browser
+  let encerrado = false
+  const aoSair = () => {
+    if (encerrado || deixarAberto) {
+      return
+    }
+    if (filho?.pid) {
+      spawnSync('taskkill', ['/F', '/T', '/PID', String(filho.pid)], {
+        stdio: 'ignore',
+        windowsHide: true
+      })
+    }
+    soltar()
+  }
+  const aoInterromper = () => process.exit(130)
+  process.on('exit', aoSair)
+  process.on('SIGINT', aoInterromper)
+  const limpar = async () => {
     try {
       await browser?.close()
     } catch {
       // A conexao ja caiu.
     }
-    const sobras = await encerrarMundo(mundo, [filho.pid])
+    const sobras = await encerrarMundo(mundo, filho?.pid ? [filho.pid] : [])
     if (!manter) {
       try {
         rmSync(mundo, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 })
@@ -182,50 +178,137 @@ export async function abrirOrcaDeTeste({
         // Um arquivo ainda preso pelo sistema: a proxima rodada apaga o mundo antes de montar o dela.
       }
     }
+    encerrado = true
+    soltar()
+    process.off('exit', aoSair)
+    process.off('SIGINT', aoInterromper)
     return sobras
   }
-  let browser
   try {
-    const limite = Date.now() + 120_000
-    for (;;) {
-      if (filho.exitCode !== null) {
-        throw new Error(
-          `O Orca de teste saiu antes de abrir (codigo ${filho.exitCode}). Veja ${path.join(mundo, 'logs', 'orca-de-teste.log')}`
+    await prepararMundo?.()
+    mkdirSync(pastaDoLog, { recursive: true })
+    const log = openSync(path.join(pastaDoLog, 'orca-de-teste.log'), 'a')
+    const opcoes = {
+      cwd: raiz,
+      env: ambienteDoOrcaDeTeste(mundo),
+      windowsHide: true,
+      detached: deixarAberto,
+      stdio: ['ignore', log, log]
+    }
+    filho = simulado
+      ? spawn(
+          process.execPath,
+          [
+            path.join(import.meta.dirname, 'orca-de-teste-simulado.mjs'),
+            String(portaCdp),
+            path.join(mundo, 'perfil')
+          ],
+          opcoes
         )
-      }
-      try {
-        const resposta = await fetch(`http://127.0.0.1:${portaCdp}/json/version`)
-        if (resposta.ok) {
-          break
-        }
-      } catch {
-        // Ainda subindo.
-      }
-      if (Date.now() > limite) {
-        throw new Error('O Orca de teste nao abriu a porta de inspecao em 2 minutos.')
-      }
-      await sleep(500)
+      : spawn(require('electron'), ['.', `--remote-debugging-port=${portaCdp}`], opcoes)
+    closeSync(log)
+    if (deixarAberto) {
+      filho.unref()
     }
-    browser = await chromium.connectOverCDP(`http://127.0.0.1:${portaCdp}`, { timeout: 180_000 })
-    let page
-    while (!page) {
-      page = browser
-        .contexts()[0]
-        ?.pages()
-        .find((p) => !p.url().startsWith('devtools'))
-      if (!page) {
-        await sleep(300)
+    atualizarTrava({ pidElectron: filho.pid })
+    await esperarPortaDeInspecao(portaCdp, filho, pastaDoLog)
+    let page = null
+    if (!simulado) {
+      ;({ browser, page } = await conectarNaPorta(portaCdp))
+    }
+    registro(`Orca de teste${simulado ? ' SIMULADO' : ''} aberto (porta ${portaCdp}, ${filho.pid})`)
+    return {
+      page,
+      porta: portaCdp,
+      pid: filho.pid,
+      reusado: false,
+      fechar: limpar,
+      // Deixa o Orca vivo com a trava: so este processo se solta dele.
+      desconectar: async () => {
+        await browser?.close().catch(() => {})
+        encerrado = true
+        process.off('exit', aoSair)
+        process.off('SIGINT', aoInterromper)
       }
     }
-    await page.waitForFunction(() => window.__store?.getState().repos.length > 0, null, {
-      timeout: 120_000
-    })
-    registro?.(`Orca de teste aberto (porta ${portaCdp}, ${filho.pid})`)
-    return { page, porta: portaCdp, pid: filho.pid, fechar: () => limpar(browser) }
   } catch (erro) {
-    await limpar(browser)
+    await limpar()
     throw erro
   }
+}
+
+/**
+ * Conecta no Orca de teste que ja esta aberto (pela porta da trava) em vez de abrir outro. So conecta se o dono for
+ * esta mesma pasta RAIZ ou se `reusar` vier ligado. Devolve null se nao ha Orca aberto; recusa (saida 3) se e de outro.
+ * `fechar()` so desconecta: o Orca continua aberto para a proxima rodada.
+ */
+export async function conectarOrcaDeTeste({ reusar = false, registro = console.log } = {}) {
+  const trava = lerJson(ARQUIVO_DA_TRAVA)
+  if (!travaViva(trava) || !trava.porta || !trava.pidElectron || !processoVivo(trava.pidElectron)) {
+    return null
+  }
+  if (!reusar && path.resolve(trava.raiz).toLowerCase() !== path.resolve(RAIZ).toLowerCase()) {
+    throw new OrcaDeTesteOcupado(
+      `${mensagemDeUso(trava)}; nao e desta pasta: passe reusar para usar o mesmo Orca de teste.`
+    )
+  }
+  const resposta = await fetch(`http://127.0.0.1:${trava.porta}/json/version`)
+  if (!resposta.ok) {
+    throw new Error(`O Orca de teste da trava nao responde na porta ${trava.porta}.`)
+  }
+  let browser = null
+  let page = null
+  if (!trava.simulado) {
+    ;({ browser, page } = await conectarNaPorta(trava.porta))
+  }
+  registro(
+    `Conectado no Orca de teste ja aberto (porta ${trava.porta}, PID ${trava.pidElectron}, dono ${trava.dono}); ele continua aberto no fim.`
+  )
+  return {
+    page,
+    porta: trava.porta,
+    pid: trava.pidElectron,
+    reusado: true,
+    fechar: async () => {
+      await browser?.close().catch(() => {})
+      return []
+    }
+  }
+}
+
+/** Fecha o Orca de teste da trava: o seu (mesma pasta RAIZ), ou com `forcar` o de dono morto. Nunca o de outro vivo. */
+export async function fecharOrcaDeTeste({
+  forcar = false,
+  manter = false,
+  registro = console.log
+} = {}) {
+  const trava = lerJson(ARQUIVO_DA_TRAVA)
+  if (!trava) {
+    registro('Nao ha trava: nenhum Orca de teste aberto por esta ferramenta.')
+    return []
+  }
+  const viva = travaViva(trava)
+  const meu = path.resolve(trava.raiz).toLowerCase() === path.resolve(RAIZ).toLowerCase()
+  if (viva && !meu) {
+    throw new OrcaDeTesteOcupado(`${mensagemDeUso(trava)}; e de outra pasta, nao fecho o de outro.`)
+  }
+  if (!viva && !forcar) {
+    throw new OrcaDeTesteOcupado(
+      `Trava de dono morto (${trava.dono}, PID ${trava.pidNode}); rode fechar --forcar para encerrar o que cita o mundo dela e soltar.`
+    )
+  }
+  const sobras = await encerrarMundo(
+    trava.mundo,
+    viva && trava.pidElectron ? [trava.pidElectron] : []
+  )
+  if (!manter) {
+    rmSync(trava.mundo, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 })
+  }
+  rmSync(ARQUIVO_DA_TRAVA, { force: true })
+  registro(
+    `Orca de teste de ${trava.dono} fechado; sobraram ${sobras.length} processos do mundo dele.`
+  )
+  return sobras
 }
 
 /** Abre o fluxograma na janela escondida e espera o desenho assentar (a hierarquia chega a cada 3 s). */
@@ -302,3 +385,55 @@ export function cardsNoLugarErrado(fatos) {
 }
 
 export const lerArquivo = (arquivo) => readFileSync(arquivo, 'utf8')
+
+/** Linha de comando: abrir | estado | fechar | montar (ver LEIAME.md). */
+async function linhaDeComando(argumentos) {
+  const [comando, ...resto] = argumentos
+  const tem = (nome) => resto.includes(nome)
+  const valor = (nome) => resto[resto.indexOf(nome) + 1]
+  const hora = () => new Date().toLocaleTimeString('pt-BR')
+  const dizer = (texto) => console.log(`[${hora()}] ${texto}`)
+  const pastaDoLog = path.join(RAIZ, '.cache', 'vistoria-fluxograma', 'orca-de-teste')
+  if (comando === 'estado') {
+    console.log(descreverEstadoDoOrcaDeTeste())
+  } else if (comando === 'montar') {
+    mkdirSync(pastaDoLog, { recursive: true })
+    montarBranch(pastaDoLog, dizer)
+  } else if (comando === 'fechar') {
+    await fecharOrcaDeTeste({ forcar: tem('--forcar'), manter: tem('--manter'), registro: dizer })
+  } else if (comando === 'abrir') {
+    const simulado = modoSimulado()
+    if (!simulado) {
+      mkdirSync(pastaDoLog, { recursive: true })
+      montarBranch(pastaDoLog, dizer)
+    }
+    const orca = await abrirOrcaDeTeste({
+      registro: dizer,
+      deixarAberto: true,
+      esperarMin: tem('--esperar-min') ? Number(valor('--esperar-min')) : undefined,
+      prepararMundo: () =>
+        simulado
+          ? mkdirSync(MUNDO_PADRAO, { recursive: true })
+          : dizer(`mundo de teste montado em ${montarMundo()}`)
+    })
+    await orca.desconectar()
+    dizer(
+      `Orca de teste ficou aberto (porta ${orca.porta}, PID ${orca.pid}). Use --reusar nas vistorias; para fechar: node tools/vistoria-fluxograma/orca-de-teste.mjs fechar`
+    )
+  } else {
+    console.log(
+      'node tools/vistoria-fluxograma/orca-de-teste.mjs <abrir [--esperar-min N] | estado | fechar [--forcar] [--manter] | montar>'
+    )
+    process.exit(comando ? 2 : 0)
+  }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  try {
+    await linhaDeComando(process.argv.slice(2))
+    process.exit(0)
+  } catch (erro) {
+    console.error(erro.message)
+    process.exit(erro.codigoDeSaida ?? 2)
+  }
+}

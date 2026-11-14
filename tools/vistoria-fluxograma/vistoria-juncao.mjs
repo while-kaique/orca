@@ -7,6 +7,7 @@ import {
   abrirFluxograma,
   abrirOrcaDeTeste,
   cardsNoLugarErrado,
+  conectarOrcaDeTeste,
   janelasVisiveisDoMundo,
   lerFluxograma,
   montarBranch,
@@ -24,7 +25,7 @@ const valor = (nome) => {
 }
 if (tem('--ajuda')) {
   console.log(
-    'node tools/vistoria-fluxograma/vistoria-juncao.mjs [--sem-montar] [--saida PASTA] [--posicoes ARQUIVO.json] [--manter]'
+    'node tools/vistoria-fluxograma/vistoria-juncao.mjs [--sem-montar] [--saida PASTA] [--posicoes ARQUIVO.json] [--manter] [--reusar] [--esperar-min N]'
   )
   process.exit(0)
 }
@@ -46,6 +47,7 @@ let defeitos = []
 let sobras = []
 let janelas = []
 let erro = null
+let reusado = false
 try {
   if (tem('--sem-montar')) {
     dizer('montagem pulada (--sem-montar): usando o que ja esta em out/')
@@ -54,8 +56,21 @@ try {
     montarBranch(saida)
     dizer('montagem pronta')
   }
-  dizer(`mundo de teste montado em ${montarMundo()}`)
-  const orca = await abrirOrcaDeTeste({ registro: dizer, manter: tem('--manter') })
+  const jaAberto = tem('--reusar')
+    ? await conectarOrcaDeTeste({ registro: dizer, reusar: true })
+    : null
+  if (tem('--reusar') && !jaAberto) {
+    dizer('nao ha Orca de teste aberto para reusar: abro um (ele fecha no fim)')
+  }
+  reusado = Boolean(jaAberto)
+  const orca =
+    jaAberto ??
+    (await abrirOrcaDeTeste({
+      registro: dizer,
+      manter: tem('--manter'),
+      esperarMin: valor('--esperar-min') === undefined ? undefined : Number(valor('--esperar-min')),
+      prepararMundo: () => dizer(`mundo de teste montado em ${montarMundo()}`)
+    }))
   try {
     const arquivoPosicoes = valor('--posicoes')
     if (arquivoPosicoes) {
@@ -92,7 +107,7 @@ try {
   erro = falha
 }
 
-sobras = [...sobras, ...processosDoMundo()]
+sobras = reusado ? sobras : [...sobras, ...processosDoMundo()]
 dizer(`depois de fechar: ${sobras.length} processos do teste ainda vivos`)
 for (const defeito of defeitos) {
   dizer(`DEFEITO: ${defeito}`)
@@ -106,4 +121,6 @@ dizer(
     : 'RESULTADO: tudo no lugar, nada sobrou'
 )
 writeFileSync(path.join(saida, 'rodada.txt'), linhas.join('\n'))
-process.exit(erro || defeitos.length || sobras.length || janelas.length ? 1 : 0)
+process.exit(
+  erro?.codigoDeSaida ?? (erro || defeitos.length || sobras.length || janelas.length ? 1 : 0)
+)

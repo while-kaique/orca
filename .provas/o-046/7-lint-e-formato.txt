@@ -1,0 +1,19 @@
+# Criterio 6: oxfmt --check e oxlint (rodados com hierarquia vez) nos arquivos tocados
+oxfmt --check: 'All matched files use the correct format.' (10 arquivos, saida 0)
+oxlint: sem avisos nem erros (saida 0; antes da divisao em modulos acusava max-lines 721 > 600 em orca-de-teste.mjs, corrigido)
+
+Arquivos:
+ M tools/vistoria-fluxograma/LEIAME.md
+ M tools/vistoria-fluxograma/orca-de-teste.mjs
+ M tools/vistoria-fluxograma/vistoria-juncao.mjs
+ M tools/vistoria-fluxograma/vistoria.mjs
+?? tools/vistoria-fluxograma/montagem-do-orca-de-teste.mjs
+?? tools/vistoria-fluxograma/orca-de-teste-simulado.mjs
+?? tools/vistoria-fluxograma/processos-de-teste.mjs
+?? tools/vistoria-fluxograma/prova-orca-de-teste.mjs
+?? tools/vistoria-fluxograma/raiz-e-mundo-de-teste.mjs
+?? tools/vistoria-fluxograma/trava-do-orca-de-teste.mjs
+
+Contagem final de processos de teste:
+Trava: nenhuma (nenhum Orca de teste aberto por esta ferramenta).
+Processos de teste vivos: 0
