@@ -12,9 +12,15 @@ parte B (vistoria e desenho, o-037). Provas e entrega em `.hierarquia/provas/o-0
   chega mais perto que isso de outro e nenhum fica longe. O contorno de cada projeto é o desenhado: cards, selos e as
   linhas como são desenhadas (toco no centro do pai, barra, descidas). A grade de 196 vale dentro de cada projeto.
 - **Criador fechado:** chat da hierarquia cujo criador fechou fica sob o ancestral vivo mais próximo pela cadeia `pai` do
-  registro (PO fechado = o PO no lugar dele). Executor e planejador nunca ficam ligados direto ao projeto.
+  registro (PO fechado = o PO no lugar dele). Executor e planejador nunca ficam ligados direto ao projeto; sem nenhum
+  chat vivo acima (PO fechado, o próximo ainda sem abrir) ficam sem linha.
 - **Nome do executor** não é mais cortado no meio da palavra.
-- **Tempo do Reorganizar:** 8 projetos e 40 chats 58 ms; 6 projetos (todas as ordens) 189 ms.
+- **Tempo do Reorganizar:** 8 projetos e 40 chats 73 ms; 6 projetos (todas as ordens) 201 ms.
+
+**Prova final (14/11, `provas/o-042/final/`):** estado real e os 4 casos à mão com zero achado e vão de 52; card do PO
+maior que o arrumado à mão nos 3 casos dele; print do Kaique remontado: antigo 21 achados, novo zero. **Não provado:** o PO
+novo de verdade nascendo (máscara de 3 etapas): no Orca de teste o chat do PO apareceu como Livre ou nem apareceu; a máscara
+e o registro vêm do comando `hierarquia` (outro planejador). Resumo em `provas/o-042/ENTREGA.md`.
 
 **Vistoria:** tipos novos i (executor ou planejador ligado ao projeto) e j (margem entre projetos fora de 52 ± 4); f
 (grade) conta por projeto. Roteiro de todas as provas da ordem: `bash tools/vistoria-fluxograma/prova-o-042.sh PASTA APP_ANTIGO [rodadas]`.
