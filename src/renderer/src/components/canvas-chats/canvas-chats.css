@@ -1410,6 +1410,10 @@
 .cc-project-group[data-quiet] .cc-chat:not(.cc-open):hover {
   opacity: 1;
 }
+/* the faded grey prompt line would drop under 4.5:1; one step lighter keeps it legible */
+.cc-project-group[data-quiet] .cc-prompt {
+  color: #a0a0ab;
+}
 
 /* project color: tinted card, colored initials badge, swatch picker on hover */
 .cc-board .cc-project {
