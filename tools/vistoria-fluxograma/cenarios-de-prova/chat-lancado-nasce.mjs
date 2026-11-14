@@ -7,10 +7,16 @@ import { chavesPorPapel } from './ajudas.mjs'
 
 export default async function (page, { lerTela, mundo, dizer, saida }) {
   const fatos = await lerTela()
-  const po = chavesPorPapel(fatos, 'po')[0]
+  // Um chat lancado abre numa pasta filha da pasta do PO: o modelo e um executor do mesmo projeto (pasta filha).
+  // O estado real muda: vale o primeiro PO cujo projeto tem executor.
+  const executores = chavesPorPapel(fatos, 'executor')
+  const po = chavesPorPapel(fatos, 'po').find((p) =>
+    executores.some((e) => e.projeto === p.projeto)
+  )
   if (!po) {
-    throw new Error('o cenario precisa de um PO aberto')
+    throw new Error('o cenario precisa de um PO aberto num projeto com executor')
   }
+  dizer(`PO do cenario: ${po.rotulo}`)
   const arquivo = path.join(mundo, 'projetos', po.projeto, '.hierarquia', 'estado.json')
   const estado = JSON.parse(readFileSync(arquivo, 'utf8'))
   const novo = 'TESTE-executor-lancado'
