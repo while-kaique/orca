@@ -171,23 +171,29 @@
     --cc-angle: 360deg;
   }
 }
+/* finished, not seen: the card breathes. The bright border and glow sit on their own layer and only its opacity
+   animates, so the GPU blends it without repainting the card (animating border-color/box-shadow repainted every card
+   every frame: o-044, fluxograma leve). */
 .cc-chat[data-status='unseen'],
 .cc-agent[data-status='unseen'] {
+  border-color: #3ecf7a99;
+}
+.cc-chat[data-status='unseen']::after,
+.cc-agent[data-status='unseen']::after {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  border: 1.5px solid #8af5b6;
+  box-shadow: 0 0 16px #3ecf7a38;
+  pointer-events: none;
+  opacity: 0;
   animation: cc-breathe 4.5s ease-in-out infinite;
+  will-change: opacity;
 }
 @keyframes cc-breathe {
-  0%,
-  100% {
-    border-color: #3ecf7a99;
-    box-shadow:
-      0 0 0 #3ecf7a00,
-      0 12px 30px #0009;
-  }
   50% {
-    border-color: #8af5b6;
-    box-shadow:
-      0 0 16px #3ecf7a38,
-      0 12px 30px #0009;
+    opacity: 1;
   }
 }
 .cc-chat[data-status='seen'],
@@ -254,7 +260,8 @@
   background: none;
   box-shadow: none;
 }
-.cc-chat.cc-shape-crest::before {
+.cc-chat.cc-shape-crest::before,
+.cc-chat.cc-shape-crest::after {
   display: none;
 }
 /* the state animations and the link-drag glow paint the card's box: the hexagon draws its own glow */
@@ -1657,7 +1664,8 @@
     0 0 18px color-mix(in srgb, var(--color-blue-600) 28%, transparent),
     0 12px 30px #0009;
 }
-.cc-chat[data-launch]::before {
+.cc-chat[data-launch]::before,
+.cc-chat[data-launch]::after {
   content: none;
   animation: none;
 }
