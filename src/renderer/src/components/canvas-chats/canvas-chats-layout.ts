@@ -1,6 +1,6 @@
 import type { CanvasChatHierarchy, CanvasQueueItem } from './canvas-chat-hierarchy'
 import { chatFootprintHeight, chatVisualBox } from './canvas-chat-shape'
-import { familyLineBoxes, hangsFromChatsOnly, joinStacked } from './canvas-chats-outline'
+import { familyLineBoxes, hangsFromChatsOnly, joinStacked, rowBands } from './canvas-chats-outline'
 
 /** Border states drawn on the flowchart (fork spec: idle gray, working yellow, unseen green, seen dashed green, waiting red). */
 /** 'monitoring' = the turn ended but background agents/tasks are still running. */
@@ -322,13 +322,12 @@ export function planBlocks(projects: readonly CanvasProject[]): BlockPlan[] {
     }
     for (const chats of byTier.values()) {
       const boxes = chats.map(drawn)
-      const left = Math.min(...boxes.map((b) => b.x))
-      const right = Math.max(...boxes.map((b) => b.x + b.w))
-      const top = Math.min(...boxes.map((b) => b.y))
-      const bottom = Math.max(
-        ...chats.map((chat, i) => boxes[i].y + boxes[i].h + chipsHeight(chat))
+      shape.push(
+        ...rowBands(
+          chats.map((chat, i) => ({ ...boxes[i], h: boxes[i].h + chipsHeight(chat) })),
+          COLUMN_GAP
+        )
       )
-      shape.push({ x: left, y: top, w: right - left, h: bottom - top })
       // Lines from the project bottom bend halfway down; lines from a chat bend PROJECT_TO_CHATS / 2 under it.
       const families = new Map<string, CanvasBox[]>()
       chats.forEach((chat, i) => {

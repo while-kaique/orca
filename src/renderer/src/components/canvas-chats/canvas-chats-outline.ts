@@ -18,6 +18,28 @@ const lineBand = (xs: readonly number[], top: number, bottom: number): CanvasBox
 }
 
 /**
+ * One row of cards (each with its chips) as outline boxes: neighbours one column gap apart with the same top and bottom
+ * share a box; a card with chips, or one far from the next, keeps its own (one band for the row put a chip under all).
+ */
+export function rowBands(cards: readonly CanvasBox[], joinGap: number): CanvasBox[] {
+  const out: CanvasBox[] = []
+  for (const card of [...cards].sort((a, b) => a.x - b.x)) {
+    const last = out.at(-1)
+    if (
+      last &&
+      card.x - (last.x + last.w) <= joinGap + 0.5 &&
+      Math.abs(card.y - last.y) < 0.5 &&
+      Math.abs(card.y + card.h - (last.y + last.h)) < 0.5
+    ) {
+      last.w = Math.max(last.w, card.x + card.w - last.x)
+    } else {
+      out.push({ ...card })
+    }
+  }
+  return out
+}
+
+/**
  * The lines CanvasChatTreeLines draws from one parent to its chats, as outline boxes: a stub at the parent's center out to
  * the bar (at `bars`), then the bar and the drops to each chat.
  */
