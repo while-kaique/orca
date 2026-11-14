@@ -224,8 +224,8 @@ export async function abrirOrcaDeTeste({
       reusado: false,
       fechar: limpar,
       // Deixa o Orca vivo com a trava: so este processo se solta dele.
+      // Why no browser.close(): over the inspection port it shuts the Orca itself; leaving the process drops the link.
       desconectar: async () => {
-        await browser?.close().catch(() => {})
         encerrado = true
         process.off('exit', aoSair)
         process.off('SIGINT', aoInterromper)
@@ -256,10 +256,9 @@ export async function conectarOrcaDeTeste({ reusar = false, registro = console.l
   if (!resposta.ok) {
     throw new Error(`O Orca de teste da trava nao responde na porta ${trava.porta}.`)
   }
-  let browser = null
   let page = null
   if (!trava.simulado) {
-    ;({ browser, page } = await conectarNaPorta(trava.porta))
+    ;({ page } = await conectarNaPorta(trava.porta))
   }
   registro(
     `Conectado no Orca de teste ja aberto (porta ${trava.porta}, PID ${trava.pidElectron}, dono ${trava.dono}); ele continua aberto no fim.`
@@ -269,10 +268,8 @@ export async function conectarOrcaDeTeste({ reusar = false, registro = console.l
     porta: trava.porta,
     pid: trava.pidElectron,
     reusado: true,
-    fechar: async () => {
-      await browser?.close().catch(() => {})
-      return []
-    }
+    // Only lets go: browser.close() over the inspection port would shut the Orca this run reused.
+    fechar: async () => []
   }
 }
 
@@ -407,19 +404,32 @@ async function linhaDeComando(argumentos) {
       mkdirSync(pastaDoLog, { recursive: true })
       montarBranch(pastaDoLog, dizer)
     }
+    // The dev Orca quits when the process that launched it goes away, so this command holds it open until
+    // "fechar" (or Ctrl+C here): run it in the background; other runs reuse it with --reusar.
     const orca = await abrirOrcaDeTeste({
       registro: dizer,
-      deixarAberto: true,
       esperarMin: tem('--esperar-min') ? Number(valor('--esperar-min')) : undefined,
       prepararMundo: () =>
         simulado
           ? mkdirSync(MUNDO_PADRAO, { recursive: true })
           : dizer(`mundo de teste montado em ${montarMundo()}`)
     })
-    await orca.desconectar()
     dizer(
-      `Orca de teste ficou aberto (porta ${orca.porta}, PID ${orca.pid}). Use --reusar nas vistorias; para fechar: node tools/vistoria-fluxograma/orca-de-teste.mjs fechar`
+      `Orca de teste aberto e seguro por este comando (porta ${orca.porta}, PID ${orca.pid}, node ${process.pid}). Use --reusar nas vistorias; para fechar: node tools/vistoria-fluxograma/orca-de-teste.mjs fechar`
     )
+    const sair = () => orca.fechar().finally(() => process.exit(0))
+    process.on('SIGTERM', sair)
+    process.on('SIGBREAK', sair)
+    await new Promise((resolve) => {
+      const vigia = setInterval(() => {
+        if (!processoVivo(orca.pid)) {
+          clearInterval(vigia)
+          resolve()
+        }
+      }, 2000)
+    })
+    await orca.fechar()
+    dizer('Orca de teste fechado; este comando sai.')
   } else {
     console.log(
       'node tools/vistoria-fluxograma/orca-de-teste.mjs <abrir [--esperar-min N] | estado | fechar [--forcar] [--manter] | montar>'
