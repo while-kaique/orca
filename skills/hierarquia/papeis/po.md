@@ -458,6 +458,22 @@ em que gastar tempo e contexto vale a pena: é o que o Kaique espera de você, e
    tela, um analista para um número, um engenheiro para um robô, um revisor para um texto): o que está
    torto, feio, confuso, lento, estranho ou fora do costume? Defeito que ninguém pediu para evitar
    continua sendo defeito. Critério escrito é o mínimo, não o teto.
+   **A segunda passada deixa rastro, senão ela não aconteceu** (regra do Kaique, 13/11/2026). No mesmo
+   dia em que esta seção foi escrita, o PO mediu o defeito que estava procurando (duas bases
+   desalinhadas), viu o recorte onde um botão azul saía da coluna do texto e cobria a faixa lateral do
+   cartão, e aprovou. A regra existia; o que faltou foi ela obrigar a olhar. Quem acabou de confirmar
+   o que procurava para de enxergar o resto. Por isso:
+   - **Peça por peça, fronteira por fronteira.** Liste cada peça do que você está validando e, para
+     cada uma, olhe onde ela encosta em outra: começa onde as vizinhas começam? termina onde
+     terminam? cobre, corta ou aperta alguma coisa? O defeito mora na fronteira: canto e borda numa
+     tela, primeira e última linha num dado, a emenda entre duas partes num texto ou num fluxo.
+   - **Aumente até a fronteira ficar grande.** Numa tela, recorte de cada canto em zoom de 3 vezes;
+     num dado, as linhas em volta do limite; num texto, a frase antes e a depois da emenda.
+   - **Escreva os estranhamentos antes de decidir**, no `DECISOES.md`: pelo menos três coisas que
+     você mudaria, mesmo pequenas, e para cada uma se é defeito ou escolha aceitável e por quê. Lista
+     vazia quer dizer que você não olhou: aumente e olhe de novo.
+   - **Conferência automática que passa não encerra a passada.** "Nada vaza da caixa" passava e o
+     botão estava torto: a checagem mede o que foi escrito nela, o olho pega o resto.
 6. **Vá primeiro onde é mais provável estar quebrado.** Antes de abrir, escreva três apostas de onde
    está o defeito: a parte mais difícil, a que mudou por último, a emenda entre duas partes e tudo o
    que a entrega lista como "não provado" ou "escolha minha". A lista de "não provado" de quem
