@@ -1,7 +1,0 @@
-[23:19:39] nada mudou desde a ultima montagem: {"anterior":{"commit":"aaaaaaaaaaaaaaaa1111","codigo":"hash-do-codigo-1"},"atual":{"commit":"bbbbbbbbbbbbbbbb2222","codigo":"hash-do-codigo-1"},"temOut":true} -> {"montar":false,"motivo":"montagem reaproveitada (commit aaaaaaaaaa)"}
-[23:19:39] src/ ou config/ mudou: {"anterior":{"commit":"aaaaaaaaaaaaaaaa1111","codigo":"hash-do-codigo-1"},"atual":{"commit":"cccccccccccccccc3333","codigo":"hash-do-codigo-2"},"temOut":true} -> {"montar":true,"motivo":"montagem necessaria (codigo mudou)"}
-[23:19:39] sem registro da ultima montagem: {"anterior":null,"atual":{"commit":"aaaaaaaaaaaaaaaa1111","codigo":"hash-do-codigo-1"},"temOut":true} -> {"montar":true,"motivo":"montagem necessaria (sem registro da ultima montagem)"}
-[23:19:39] out/ nao existe: {"anterior":{"commit":"aaaaaaaaaaaaaaaa1111","codigo":"hash-do-codigo-1"},"atual":{"commit":"aaaaaaaaaaaaaaaa1111","codigo":"hash-do-codigo-1"},"temOut":false} -> {"montar":true,"motivo":"montagem necessaria (out/ nao existe)"}
-[23:19:46] foto real do codigo desta pasta (lida duas vezes, tem de ser igual): {"commit":"a5e94fe7be710a83175961fcbfacdbfcf90a354b","codigo":"23bf1ddb47c948877f7c2087cbcf3e8dde44af34"} == {"commit":"a5e94fe7be710a83175961fcbfacdbfcf90a354b","codigo":"23bf1ddb47c948877f7c2087cbcf3e8dde44af34"}
-[23:19:46] $ MONTAGEM_SO_DECIDIR=1 node tools/vistoria-fluxograma/orca-de-teste.mjs montar   (decide, nao monta)
-[23:19:47] montagem necessaria (out/ nao existe)
