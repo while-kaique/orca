@@ -20,7 +20,8 @@ import { drawnBounds, fitView, readCanvasInsets, type CanvasView } from './canva
 import { moveCanvasAnchor, readCanvasAnchors } from './canvas-chats-anchors'
 import { canvasChatTreeLines } from './CanvasChatTreeLines'
 import { CanvasUserQueue } from './CanvasUserQueue'
-import { ChatNode, ProjectNode, STATUS_LABEL } from './CanvasChatsNodes'
+import { ChatNode, ProjectNode } from './CanvasChatsNodes'
+import { CanvasChatsLegend } from './CanvasChatsLegend'
 import { CanvasChatAttachments, CanvasImagePreview } from './CanvasChatAttachments'
 import { finishActiveCanvasVoice, useCanvasListenMode } from './canvas-voice-preference'
 import { type CanvasZone, readCanvasOffsets, setCanvasOffsets } from './canvas-chats-offsets'
@@ -28,6 +29,7 @@ import { useCanvasPlacement } from './use-canvas-placement'
 import { useCanvasCordLayer } from './use-canvas-cord-layer'
 import { CanvasWebPreview } from './CanvasChatExtras'
 import { CanvasAddProjectButton } from './CanvasAddProjectButton'
+import { isQuietProject } from './canvas-project-activity'
 import './canvas-chats.css'
 
 type View = CanvasView
@@ -312,7 +314,11 @@ export default function CanvasChatsPage(): React.JSX.Element {
         {projects.map((project) => {
           const pbox = boxes[`project:${project.id}`]
           return (
-            <div key={project.id}>
+            <div
+              key={project.id}
+              className="cc-project-group"
+              data-quiet={isQuietProject(project) ? '' : undefined}
+            >
               {pbox ? (
                 <ProjectNode
                   project={project}
@@ -341,6 +347,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
                         }
                       }}
                       onWake={() => wakeChat(chat, true)}
+                      onLeave={() => closeCard('type')}
                       onDragStart={(e) =>
                         startCardDrag(
                           [chat, ...chatDescendants(project.chats, chat.key)].flatMap((c) => [
@@ -391,16 +398,7 @@ export default function CanvasChatsPage(): React.JSX.Element {
           }
         }}
       />
-      <div className="cc-legend" onPointerDown={(e) => e.stopPropagation()}>
-        {(['idle', 'working', 'monitoring', 'team', 'unseen', 'seen', 'waiting'] as const).map(
-          (s) => (
-            <span key={s} data-status={s}>
-              <em />
-              {STATUS_LABEL[s]}
-            </span>
-          )
-        )}
-      </div>
+      <CanvasChatsLegend />
       {listenMode ? (
         <div className="cc-listen-chip">
           <span className="cc-listen-dot" />

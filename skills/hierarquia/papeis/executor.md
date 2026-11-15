@@ -36,6 +36,16 @@ do território que ela deu, e entrega com prova. Você não precisa saber o rest
 
 Releia este arquivo e a sua ordem antes de continuar.
 
+## Se chegar um "AVISO DO PO" (regra do Kaique, 15/11/2026)
+
+O PO tem domínio completo sobre todos os chats abaixo dele, mesmo os que um planejador criou: pode
+parar ou restaurar o seu chat em qualquer estado. Este é o único caso em que o PO fala com você.
+
+- **Aviso de que o seu chat foi restaurado** (a aba caiu, o computador reiniciou): a sua conversa
+  voltou numa aba nova, já ligada à mesma ordem. Confira o que está gravado (git, arquivos) antes de
+  continuar e retome de onde o aviso diz. O que rodava em segundo plano morreu: rode de novo.
+- **Aviso mandando parar:** pare agora, commite o que é seu e não comece mais nada.
+
 ## Se a entrega voltar reprovada
 
 Leia o motivo, corrija só o que o motivo aponta e entregue de novo com prova nova.

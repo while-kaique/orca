@@ -1,3 +1,13 @@
+# Orca de teste: um por vez na máquina, montado uma vez e reusado (regra B)
+
+1. **Trava única:** quem abre o Orca de teste (`abrirOrcaDeTeste`, usado pelas vistorias e provas) pega `%TEMP%/orca-de-teste/trava.json` (dono, pasta, mundo, PID do node, PID do Electron, porta, comando, hora). Com outro vivo, **espera** (aviso a cada 30 s, até `--esperar-min`, padrão 30); com `--esperar-min 0` **recusa na hora com saída 3** e diz quem usa. Trava de dono morto é tomada (a saída avisa) e só se encerra o que cita o mundo dela. Processo de teste vivo sem trava também recusa, com os PIDs.
+2. **Montagem uma vez:** `montarBranch` guarda o commit e um hash do código em `out/.montagem-orca-de-teste.json`; sem mudança em `src/`, `config/`, `package.json` e `pnpm-lock.yaml` ela diz `montagem reaproveitada (commit X)` e não monta. `MONTAGEM_SO_DECIDIR=1` só diz a decisão.
+3. **Orca vivo entre rodadas:** `node tools/vistoria-fluxograma/orca-de-teste.mjs abrir` abre e deixa aberto; `vistoria.mjs --reusar` e `vistoria-juncao.mjs --reusar` conectam nele (sem refazer o mundo) e o deixam aberto no fim.
+4. **Ver e fechar:** `... orca-de-teste.mjs estado` mostra a trava, o dono, há quanto tempo está aberto e quantos processos de teste vivem; `... fechar` encerra o seu (`--forcar` solta trava de dono morto); `... montar` monta ou reaproveita.
+5. **Prova sem abrir o Orca:** `ORCA_DE_TESTE_SIMULADO=1` troca o Electron por um node que dorme com porta falsa; `node tools/vistoria-fluxograma/prova-orca-de-teste.mjs tudo PASTA` roda espera, recusa, dono morto, processo sem trava, estado/reuso e decisão de montagem.
+
+---
+
 # Vistoria do fluxograma (trava de defeito visual)
 
 **Obrigatória antes de qualquer entrega que toque o fluxograma.** Um comando só:

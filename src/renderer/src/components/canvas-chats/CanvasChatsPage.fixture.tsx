@@ -189,7 +189,7 @@ export const exemploAberto = defineFixture({
   render: board
 })
 
-/** The open PO after its X was clicked: the close confirmation covers the card. */
+/** The open PO after its X was clicked: the dialog with the suspend and close choices. */
 export const exemploFechar = defineFixture({
   width: 1280,
   store: SCENARIO_STORE,

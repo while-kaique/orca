@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { ExternalLink, Palette, Plus, X } from 'lucide-react'
+import { ExternalLink, Moon, Palette, Plus, X } from 'lucide-react'
 import { DEFAULT_REPO_BADGE_COLOR, REPO_COLORS } from '../../../../shared/repo-badge-color'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
@@ -16,6 +16,12 @@ import { useCanvasListenMode } from './canvas-voice-preference'
 import { useCanvasChatStatus } from './canvas-chats-data'
 import { openPcDeskChatInRepo } from '../sidebar/pc-desk-switcher/launch-pc-desk-chat'
 import { closePcDeskChat } from '../sidebar/pc-desk-switcher/close-pc-desk-project'
+import { suspendPcDeskChat } from '../sidebar/pc-desk-switcher/suspend-pc-desk-chat'
+import {
+  CanvasChatCloseDialog,
+  CanvasChatStopButtons,
+  type CanvasChatCloseStage
+} from './CanvasChatCloseDialog'
 import type { CanvasBox, CanvasChat, CanvasProject } from './canvas-chats-layout'
 import { CanvasChatContextMeter } from './CanvasChatContextMeter'
 import { CanvasExecutorCrest } from './CanvasExecutorCrest'
@@ -34,7 +40,8 @@ export const STATUS_LABEL: Record<CanvasChat['status'], string> = {
   unseen: translate('fork.canvas.statusUnseen', 'terminou'),
   seen: translate('fork.canvas.statusSeen', 'visto'),
   waiting: translate('fork.canvas.statusWaiting', 'precisa de você'),
-  team: translate('fork.canvas.statusTeam', 'aguardando equipe')
+  team: translate('fork.canvas.statusTeam', 'aguardando equipe'),
+  suspended: translate('fork.canvas.statusSuspended', 'suspenso')
 }
 
 export function ProjectNode({
@@ -148,6 +155,7 @@ export function ChatNode({
   terminalReady,
   linkRole,
   onWake,
+  onLeave,
   onStartLink,
   onDragStart
 }: {
@@ -160,12 +168,14 @@ export function ChatNode({
   linkRole: 'source' | 'target' | null
   /** Wakes just this chat when its saved terminal no longer exists (after an Orca restart). */
   onWake: () => void
+  /** Leaves the open view; a chat suspended while open would otherwise be woken again by its own open terminal. */
+  onLeave: () => void
   onStartLink: (e: React.PointerEvent) => void
   onDragStart: (e: React.PointerEvent) => void
 }): React.JSX.Element {
   const cardRef = useRef<HTMLDivElement>(null)
   const status = useCanvasChatStatus(chat)
-  const [confirmingClose, setConfirmingClose] = useState(false)
+  const [closeStage, setCloseStage] = useState<CanvasChatCloseStage | null>(null)
   const autoVoice = useCanvasListenMode()
   const launch = useCanvasLaunchRecord(chat.tabId, chat.lines.find((l) => l.role === 'user')?.text)
   const peeking = usePeek(open || chat.hierarchy?.role === 'executor' || launch !== null, cardRef)
@@ -228,6 +238,20 @@ export function ChatNode({
     : peek
       ? { left: box.x + box.w / 2 - PEEK_W / 2, top: box.y, width: PEEK_W, minHeight: box.h }
       : { left: visual.x, top: visual.y, width: visual.w, height: visual.h }
+  const askStop = (): void => {
+    peeking.hold()
+    setCloseStage('choose')
+  }
+  const suspend = (): void => {
+    setCloseStage(null)
+    peeking.release()
+    onLeave()
+    void suspendPcDeskChat(chat.worktreeId, chat.tabId)
+  }
+  const closeForGood = (): void => {
+    setCloseStage(null)
+    closePcDeskChat(chat.worktreeId, chat.tabId)
+  }
   return (
     <div
       ref={cardRef}
@@ -241,6 +265,11 @@ export function ChatNode({
       onPointerLeave={peeking.leave}
       onPointerDown={(e) => (open ? e.stopPropagation() : onDragStart(e))}
     >
+      {status === 'working' && !open && !peek && shape !== 'crest' && !launch ? (
+        <span className="cc-ring" aria-hidden="true">
+          <i />
+        </span>
+      ) : null}
       {open
         ? null
         : (['t', 'r', 'b', 'l'] as const).map((side) => (
@@ -251,57 +280,22 @@ export function ChatNode({
               onPointerDown={onStartLink}
             />
           ))}
-      <span className="cc-xwrap" onPointerDown={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          className="cc-xbtn"
-          title={translate('fork.canvas.closeChat', 'Fechar este chat')}
-          onClick={(e) => {
-            e.stopPropagation()
-            peeking.hold()
-            setConfirmingClose(true)
-          }}
-        >
-          <X size={13} />
-        </button>
-      </span>
-      {confirmingClose ? (
-        <div
-          className="cc-confirm"
-          onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <b>
-            {translate('fork.canvas.closeChatAsk', 'Fechar o chat "{{name}}"?', {
-              name: chat.title
-            })}
-          </b>
-          <small>
-            {chat.agents.length > 0
-              ? translate('fork.canvas.closeChatAgents', 'Os agentes dele também param.')
-              : translate('fork.canvas.closeChatGone', 'O chat sai da barra e do fluxograma.')}
-          </small>
-          <div>
-            <button
-              type="button"
-              className="cc-confirm-ok"
-              onClick={() => closePcDeskChat(chat.worktreeId, chat.tabId)}
-            >
-              {translate('fork.canvas.closeChatYes', 'Fechar')}
-            </button>
-            <button
-              type="button"
-              className="cc-confirm-cancel"
-              onClick={() => {
-                setConfirmingClose(false)
-                peeking.release()
-              }}
-            >
-              {translate('fork.canvas.closeChatNo', 'Cancelar')}
-            </button>
-          </div>
-        </div>
-      ) : null}
+      <CanvasChatStopButtons suspended={status === 'suspended'} onAsk={askStop} />
+      <CanvasChatCloseDialog
+        stage={closeStage}
+        name={chat.title}
+        working={status === 'working'}
+        hasAgents={chat.agents.length > 0}
+        canSuspend={status !== 'suspended'}
+        onStage={(stage) => {
+          setCloseStage(stage)
+          if (stage === null) {
+            peeking.release()
+          }
+        }}
+        onSuspend={suspend}
+        onCloseForGood={closeForGood}
+      />
       {launch ? <CanvasChatLaunchMask chat={chat} record={launch} open={open} /> : null}
       {shape === 'crest' ? <CanvasExecutorCrest chat={chat} name={executorName} /> : null}
       <div className="cc-chat-head">
@@ -326,7 +320,7 @@ export function ChatNode({
               <button
                 className="cc-head-button cc-head-close"
                 title={translate('fork.canvas.closeChat', 'Fechar este chat')}
-                onClick={() => setConfirmingClose(true)}
+                onClick={askStop}
               >
                 <X size={13} />
               </button>
@@ -338,7 +332,14 @@ export function ChatNode({
           <CanvasChatModel chat={chat} />
           <span className="cc-status">
             {status === 'working' ? <span className="cc-spin" /> : null}
+            {status === 'suspended' ? <Moon size={11} className="cc-status-moon" /> : null}
             {STATUS_LABEL[status]}
+            {status === 'waiting' && chat.agents.some((agent) => agent.status === 'monitoring') ? (
+              <i
+                className="cc-status-bg"
+                title={translate('fork.canvas.statusAlsoBackground', 'e algo em segundo plano')}
+              />
+            ) : null}
           </span>
         </div>
       </div>

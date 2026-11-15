@@ -18,6 +18,9 @@
 > texto, selo, card sobre card, grade, distância ao dono, executor ligado ao projeto e margem de 52 entre projetos,
 > e termina com saída 1 e a lista do que achou. Guia:
 > `tools/vistoria-fluxograma/LEIAME.md`. Rode pela vez (`hierarquia vez --`) quando o comando for pesado (a montagem).
+> Um Orca de teste por vez na máquina (trava em `%TEMP%/orca-de-teste/trava.json`): para reusar entre rodadas, deixe
+> `node tools/vistoria-fluxograma/orca-de-teste.mjs abrir` rodando em segundo plano e use `--reusar`; feche com
+> `... orca-de-teste.mjs fechar`. Pior caso dos estados de card: `--cenario tools/vistoria-fluxograma/cenarios-de-prova/h-estados-o044.mjs`.
 
 If selection fans out excessively, use scoped checks and report limits. Use the PR base (default `origin/main`; `ORCA_CODE_QUALITY_BASE=<ref>` for stacks). `--base=HEAD` and dirty-only checks provide incremental evidence only.
 

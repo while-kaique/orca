@@ -33,6 +33,27 @@ nenhum outro Orca de teste), `roteiro-fato.mjs --cena 1|2` (queda, X, atalho, vo
 lançamentos com 1 chat de teste por vez, aviso guardado, vigia que troca de código), `caso-real-13-11.mjs` (cópia do
 registro real, casos `corte` e `comando-preso`).
 
+## 14/11/2026 (ordem o-044) — estados dos cards, projeto apagado, Suspender e Fechar de vez, fluxograma leve, um Orca de teste só
+
+Branch `while-kaique/conferir-pacote-estados-fluxograma` (era `while-kaique/barramundi`). Spec:
+`docs/specs/fluxograma-estados-dos-cards.md`. Provas: `.hierarquia/provas/o-044/` (entrega em `ENTREGA.md`).
+
+- **"Precisa de você" de verdade:** chat de topo (PO ou Livre) cuja vez terminou pedindo resposta fica vermelho, mesmo
+  com comando em segundo plano (ponto ciano ao lado do estado). Sinal: o fim do texto da vez
+  (`canvas-chats/canvas-chat-asks-user.ts`), lido no seletor que o card e a barra lateral dividem
+  (`pc-desk-chat-agent-activity.ts`). Executor e planejador (com orquestração) nunca ficam vermelhos pelo texto.
+- **Aguardando equipe** também quando o filho está em segundo plano. **Em segundo plano** passou a ciano.
+- **Projeto apagado:** sem chat trabalhando, esperando ou não visto → cabeçalho cinza, cards a 78% (texto ≥ 4,5:1).
+- **Suspender e Fechar definitivamente** no card (o-045). No Windows o comando que o agente deixou em segundo plano
+  escapava do job do terminal e sobrevivia ao X; agora a árvore do chat é fotografada antes e o que sobra é morto por
+  PID e data de criação (`src/main/pty/process-retirement/windows-detached-descendant-sweep.ts`).
+- **Fluxograma leve:** respiração do "terminou" só em opacidade, a 10 quadros/s; anel do "trabalhando" girando por
+  transform a 24 quadros/s; respeita "reduzir movimento". Medido num Chrome sem janela (a janela escondida do Orca
+  de teste não pinta).
+- **Um Orca de teste só (o-046):** trava em `%TEMP%/orca-de-teste/trava.json`; `orca-de-teste.mjs abrir` segura o Orca
+  até o `fechar` (rode em segundo plano: o Orca de desenvolvimento sai quando quem o lançou sai); segundo pedido
+  espera ou é recusado (saída 3) dizendo quem usa.
+
 ## 13/11/2026 (ordem o-042, fecha a o-034) — fluxograma: partes A e B juntas, margem de 52 entre projetos
 
 **Estado:** branch `while-kaique/snipefish` (não enviada; quem junta é o PO). Junta a parte A (lugar dos cards, o-036) e a

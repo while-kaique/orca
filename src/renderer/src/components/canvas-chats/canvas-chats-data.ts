@@ -48,6 +48,10 @@ type CanvasInputs = Pick<
 }
 
 function chatStatus(state: CanvasInputs, worktreeId: string, tabId: string): CanvasChatStatus {
+  // Fork: a saved conversation with no live process is a suspended chat (also a chat left asleep by a restart).
+  if (!state.ptyIdsByTabId[tabId]?.length && sleepingRecord(state, tabId)) {
+    return 'suspended'
+  }
   const flags = selectPcDeskChatAgentActivityFlags(state as never, worktreeId, tabId)
   if (flags.hasPermission) {
     return 'waiting'
@@ -286,6 +290,9 @@ export function useCanvasProjects(): CanvasProject[] {
 export function useCanvasChatStatus(chat: CanvasChat): CanvasChatStatus {
   const sidebarStatus = useWorktreeActivityStatus(chat.worktreeId, chat.tabId)
   const unseen = useAppStore((s) => selectWorktreeHasUnseenDone(s, chat.worktreeId, chat.tabId))
+  if (chat.status === 'suspended') {
+    return 'suspended'
+  }
   if (chat.agents.some((agent) => agent.blocked) || sidebarStatus === 'permission') {
     return 'waiting'
   }

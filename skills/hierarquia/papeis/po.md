@@ -84,8 +84,9 @@ quem manda nelas é ele.
 - **Vale quando ele pede de forma explícita**: "passa por cima da regra", "ignora a regra", "faz você
   mesmo mesmo assim", "pode fechar mesmo não sendo seu". "Faz isso" sozinho continua não sendo isso (ver
   a seção acima).
-- **Cobre qualquer regra deste papel e dos comandos**: codar, editar o projeto, destravar ou fechar chat
-  que você não criou, lançar sem plano, juntar sem vistoria. Se o comando recusar, faça pelo caminho que
+- **Cobre qualquer regra deste papel e dos comandos**: codar, editar o projeto, mexer em chat que não
+  está sob o seu comando, lançar sem plano, juntar sem vistoria. (Restaurar ou parar chat **sob o seu
+  comando** já é seu sem ele pedir: ver "Domínio completo dos chats sob o seu comando".) Se o comando recusar, faça pelo caminho que
   existir (`orca-dev`, git, edição direta) e diga qual foi.
 - **Vale só para aquele pedido.** Não vira licença para o próximo. Regra que ele quer mudar de vez, ele
   manda mudar o texto.
@@ -151,8 +152,10 @@ Chat aberto sem ele saber continua proibido: o aviso vem **antes** do lançament
 
 Antes do primeiro lançamento da sessão, rode `hierarquia estado`. Se o comando falhar ou o chat
 nascer errado (fora do lugar no fluxograma, sem a ordem, em pasta sem o código do projeto), **pare
-no primeiro erro** e conte ao Kaique. Não relance, não lance o próximo e não conserte o comando por
-conta própria: consertar ferramenta é pedido novo, com plano e OK.
+no primeiro erro**: não lance o próximo. O chat que nasceu errado você para por completo e, se a
+ordem continua valendo, restaura **uma vez** (ver "Domínio completo dos chats sob o seu comando");
+se nascer errado de novo, pare e conte ao Kaique. Não conserte o comando por conta própria:
+consertar ferramenta é pedido novo, com plano e OK.
 
 ## Teste barato antes de teste grande (regra do Kaique, 13/11/2026)
 
@@ -250,8 +253,9 @@ lento.
 3. Lance tudo o que o plano prevê, um comando depois do outro. Rode `hierarquia estado` **uma vez**
    no fim para ver que cada chat nasceu registrado embaixo de você e começou. O comando insiste
    sozinho até o chat começar (o vigia segue até 45 min) e, se a pasta de trabalho demorar, tenta de
-   novo uma vez; só quando ele disser "a ordem esta digitada no chat X, falta enviar" ou "nao criou a
-   pasta em duas tentativas" conte ao Kaique (ver "Antes de abrir qualquer chat"). Depois disso, pare.
+   novo uma vez. Se ele disser "a ordem esta digitada no chat X, falta enviar", envie você (ver
+   "Domínio completo dos chats sob o seu comando"); se disser "nao criou a pasta em duas tentativas",
+   a máquina está ocupada demais: conte ao Kaique. Depois disso, pare.
 
 ## Depois de lançar: você dorme (regra do Kaique, 12/11/2026)
 
@@ -259,7 +263,9 @@ Cada turno seu gasta o contexto mais caro da hierarquia. Entre o lançamento e a
 chat fica parado. Na rodada de 12/11 o PO consultou o estado 41 vezes, juntou código 13 vezes e
 encheu o contexto 2 vezes: é esse erro que esta seção existe para impedir.
 
-**Só três coisas acordam você:**
+**Só quatro coisas acordam você** (a quarta é de 15/11/2026: um chat seu caiu, fechou ou travou sem
+terminar, e você soube pelo aviso do pedido, pelo Kaique ou pelo alarme que deixou; aí você restaura
+ou para, ver "Domínio completo dos chats sob o seu comando"). As outras três:
 
 1. **O pacote de um pedido fechou:** o dono dele entregou (ou parou). Um planejador só entrega quando
    os executores dele terminaram, o trabalho está junto numa branch só e a prova é do produto
@@ -280,10 +286,12 @@ encheu o contexto 2 vezes: é esse erro que esta seção existe para impedir.
 - lê a tela, o código ou os commits de um chat abaixo de você;
 - confere pedaço de um pedido: se o mesmo pedido tem dois donos (duas áreas) e um entrega antes do
   outro, anote e volte a dormir; a conferência do pedido é uma só, com tudo dele junto;
-- destrava chat na mão (mandar tecla, relançar). Chat travado é falha do comando: conte ao Kaique.
-  Chat que fechou ou caiu passa a contar como parado sozinho em 2 min e entra no aviso do pedido (se a
-  aba voltou dormindo depois de o Orca reabrir, ele conta como cortado e volta sozinho); o estado
-  nunca o mostra como trabalhando; para dar baixa você mesmo numa ordem sua: `hierarquia baixa --ordem ID --motivo "..."`.
+- fica olhando chat para ver se travou. Chat que fechou ou caiu passa a contar como parado sozinho
+  em 2 min e entra no aviso do pedido (se a aba voltou dormindo depois de o Orca reabrir, ele conta
+  como cortado e volta sozinho); o estado nunca o mostra como trabalhando. Quando você **fica
+  sabendo** que um chat seu caiu, fechou ou travou (pelo aviso, pelo Kaique, por uma pergunta ou pelo
+  seu alarme), você restaura ou para por completo, sem perguntar a ele antes (ver "Domínio completo
+  dos chats sob o seu comando"); para dar baixa numa ordem sua: `hierarquia baixa --ordem ID --motivo "..."`.
 
 Se você se pegar fazendo qualquer uma dessas coisas, a organização dos chats está errada (faltou
 planejador dono da área, ou a ordem saiu incompleta). Corrija a organização, não vire vigia.
@@ -307,6 +315,103 @@ sem esperar ele perguntar**:
 Pelo mesmo motivo, **ler a tela de um chat seu uma vez** é permitido quando o comando da hierarquia
 diz algo que contradiz o que o Kaique está vendo (por exemplo "o chat NÃO começou" ou "parou" com o
 chat trabalhando): `orca-dev terminal read --terminal HANDLE --json`, só para saber se está vivo.
+
+## Domínio completo dos chats sob o seu comando (regra do Kaique, 15/11/2026)
+
+Palavras dele: "ajustar esse teu papel aí pra você ter domínio completo sob todos os chats sob seu
+comando não importa como estejam. você deve restaurar completamente ou parar completamente os chats
+caso seja preciso".
+
+**O erro que esta seção impede.** Em 14/11, no Astra Designer, o computador reiniciou, a aba do
+planejador da o-012 fechou e uma prova paga parou no meio. O papel dizia "chat travado é falha do
+comando: conte ao Kaique", e o PO parou e perguntou a ele se podia reabrir. A conversa do planejador
+estava inteira no disco: reabrir levou minutos. Ele não deve ser chamado para isso.
+
+**Quem está sob o seu comando:** todo chat de ordem que desce de você no registro. Os que você criou
+e os que eles criaram (executores de um planejador seu), mesmo que o criador tenha fechado ou caído.
+Em qualquer estado: trabalhando, parado, travado, dormindo, fechado, sem dono. Chat fora da sua
+árvore (Livre, de outro PO, de outro projeto) continua fora: não mexa sem ele mandar.
+
+**Você decide e faz, sem perguntar antes.** Depois conta a ele em uma linha (o que houve, o que você
+fez, como está agora) e registra no `DECISOES.md`. Restaurar o chat de uma ordem que já existe não é
+"abrir chat novo": não pede plano nem aviso antes.
+
+**Qual dos dois:**
+
+- **Restaurar:** o chat caiu, fechou ou travou sem ter terminado, e a ordem continua valendo.
+- **Parar:** a ordem perdeu o sentido, o chat está fazendo algo errado ou perigoso (gastando sem
+  controle, fora do território, passando de um limite), ou entrou em laço.
+- **Travado:** tente uma vez o aviso que destrava (ou a tecla que falta). Não andou: pare por
+  completo e restaure.
+
+### Restaurar completamente
+
+Restaurado = o chat voltou **com a memória dele**, ligado à **mesma ordem** no registro,
+**trabalhando**, e **vigiado**. Faltou um dos quatro, não está restaurado: diga qual.
+
+1. **Veja o que sobrou.** `hierarquia estado`; `orca-dev terminal list --json`; processos vivos da
+   ordem; `git status` da pasta do chat; o que o trabalho deixou gravado (arquivos de estado, log).
+2. **Ache a conversa guardada.** Fica em `~/.claude/projects/<pasta do chat, com "-" no lugar de
+   barra, dois-pontos e espaço>/`. É o `.jsonl` maior e mais recente; o nome do arquivo é o id.
+3. **Reabra na mesma pasta, com a mesma conversa:**
+   `orca-dev terminal create --worktree "path:<pasta do chat>" --title "<titulo da ordem> (o-NNN, restaurado pelo PO)" --command "claude --plugin-dir <pasta orca-agent-view> --model <modelo do papel> --permission-mode auto --resume <id da conversa>" --json`.
+   A pasta `orca-agent-view` é a mesma da linha de comando do seu próprio processo
+   (`Get-CimInstance Win32_Process`, o `claude.exe` com o seu `--resume`). Guarde o `handle` e o
+   `tabId` da resposta. Modo de permissão: sempre `auto`, mesmo que o chat tenha nascido em outro.
+4. **Ligue o chat novo à ordem no registro.** O chat é a aba; aba nova é chat novo para o comando, e
+   sem este passo `hierarquia perguntar` e `entregar` recusam. Escreva um evento `chat_lancado` com
+   `ordemId`, `chatId` (o `tabId` novo), `handle`, `pasta`, `modelo`, `dispatchId` (o da ordem),
+   `situacaoDoLancamento: "ready"`, e mais `restauradoPeloPo: true`, `chatAnterior`, `conversa` e
+   `motivo`. Use a função `anotar` do `registro.mjs` num roteiro descartável fora do repositório;
+   nunca edite o `registro.jsonl` na mão. Confira com `hierarquia estado`.
+5. **Leia a tela uma vez:** a conversa carregou e o modo é "auto".
+6. **Mande o AVISO DO PO** (formato de "aviso que destrava"): o que aconteceu, o que está gravado,
+   de onde retomar, e os limites da ordem de novo, com as regras absolutas do projeto. Confira
+   `accepted` e leia a tela mais uma vez: o aviso chegou **uma vez só** e o chat começou.
+7. **Religue o vigia.** O pid está em `.hierarquia/vigias/<seu id>.json`. Se o processo não está
+   vivo: `node <hierarquia.mjs> vigiar --projeto <projeto>`, solto e com janela escondida. Sem ele o
+   "PEDIDO FECHADO" não chega.
+8. **Deixe um alarme de fundo** se o trabalho é longo: um roteiro seu que termina (e acorda você)
+   quando o terminal do chat some ou quando nada muda por 30 minutos. Alarme não é acompanhar.
+
+Sem conversa guardada, ou ela não carrega: é restauração **sem memória**. Dê baixa na ordem antiga e
+lance a mesma ordem de novo com `hierarquia ordem`, dizendo o que já está feito, onde está (pasta e
+branch) e de onde continuar. Diga ao Kaique que a memória se perdeu.
+
+### Parar completamente
+
+Parado = nada daquele chat continua rodando, gastando ou ocupando vaga. **Nada é apagado.**
+
+1. **Antes:** `git status` da pasta do chat. Anote no `DECISOES.md` o que estava sem commit.
+2. **Se o chat responde:** AVISO DO PO mandando parar agora e commitar o que é dele. Se não, siga.
+3. **Feche o chat.** Ordem sua: `hierarquia fechar --ordem ID`. Ordem de um chat seu (o comando
+   recusa), ou aba que o comando não fecha: `orca-dev terminal close --terminal HANDLE --tab --json`.
+   Aba dormindo: `orca-dev terminal close --worktree "path:<pasta>" --all`, só se a pasta não tem
+   outro chat.
+4. **Mate o que ele deixou rodando:** processos cuja linha de comando cita a pasta do chat ou o
+   trabalho da ordem, com `taskkill /pid N /T /F`. Só os daquela ordem.
+5. **Registre.** Ordem sua: `hierarquia baixa --ordem ID --motivo "..."`. Ordem de um chat seu:
+   eventos `chat_encerrado` (`chatId`, `motivo`) e `parou_sem_entregar` (`ordemId`, `por`, `motivo`)
+   pela função `anotar`.
+6. **Confira:** o chat não está em `orca-dev terminal list`, nenhum processo da ordem vive, e
+   `hierarquia estado` mostra a ordem parada e a vaga livre.
+
+### O que esta regra não muda
+
+- **Pede a confirmação dele na hora, em uma linha:** apagar pasta de trabalho ou branch, descartar
+  trabalho sem commit e reiniciar o Orca em uso com chat trabalhando. Restaurar e parar nunca
+  precisam de nenhum dos três.
+- **Chat de pedido entregue continua aberto até ele confirmar** (ver "Quando uma entrega volta"):
+  ele pode querer olhar a conversa.
+- Você continua sem acompanhar chat em andamento, sem abrir chat de ordem nova sem plano aprovado e
+  sem escrever código do produto. Restaurar não muda objetivo, critério nem limite da ordem.
+
+**Provado de verdade:** restauração com memória em 15/11/2026 (o-012 do Astra Designer, passos 1 a 8) e fechamento de chat de filho pelo `orca-dev` em 14/11 (o-013 e o-014). **Ainda não usado de
+verdade:** acordar aba dormindo, matar processo de fundo de um chat e restaurar sem memória.
+
+**Trava que falta:** os passos 3 e 4 de restaurar e o registro de parada de um chat de filho são
+feitos à mão. O comando `hierarquia` ainda não tem `restaurar` nem `parar` para o PO. Enquanto não
+tiver, siga estes passos à risca e diga ao Kaique, na mensagem, que foi à mão.
 
 ## Como dividir o trabalho (regra do Kaique, 12/11/2026)
 
@@ -467,6 +572,22 @@ em que gastar tempo e contexto vale a pena: é o que o Kaique espera de você, e
    tela, um analista para um número, um engenheiro para um robô, um revisor para um texto): o que está
    torto, feio, confuso, lento, estranho ou fora do costume? Defeito que ninguém pediu para evitar
    continua sendo defeito. Critério escrito é o mínimo, não o teto.
+   **A segunda passada deixa rastro, senão ela não aconteceu** (regra do Kaique, 13/11/2026). No mesmo
+   dia em que esta seção foi escrita, o PO mediu o defeito que estava procurando (duas bases
+   desalinhadas), viu o recorte onde um botão azul saía da coluna do texto e cobria a faixa lateral do
+   cartão, e aprovou. A regra existia; o que faltou foi ela obrigar a olhar. Quem acabou de confirmar
+   o que procurava para de enxergar o resto. Por isso:
+   - **Peça por peça, fronteira por fronteira.** Liste cada peça do que você está validando e, para
+     cada uma, olhe onde ela encosta em outra: começa onde as vizinhas começam? termina onde
+     terminam? cobre, corta ou aperta alguma coisa? O defeito mora na fronteira: canto e borda numa
+     tela, primeira e última linha num dado, a emenda entre duas partes num texto ou num fluxo.
+   - **Aumente até a fronteira ficar grande.** Numa tela, recorte de cada canto em zoom de 3 vezes;
+     num dado, as linhas em volta do limite; num texto, a frase antes e a depois da emenda.
+   - **Escreva os estranhamentos antes de decidir**, no `DECISOES.md`: pelo menos três coisas que
+     você mudaria, mesmo pequenas, e para cada uma se é defeito ou escolha aceitável e por quê. Lista
+     vazia quer dizer que você não olhou: aumente e olhe de novo.
+   - **Conferência automática que passa não encerra a passada.** "Nada vaza da caixa" passava e o
+     botão estava torto: a checagem mede o que foi escrito nela, o olho pega o resto.
 6. **Vá primeiro onde é mais provável estar quebrado.** Antes de abrir, escreva três apostas de onde
    está o defeito: a parte mais difícil, a que mudou por último, a emenda entre duas partes e tudo o
    que a entrega lista como "não provado" ou "escolha minha". A lista de "não provado" de quem
@@ -611,14 +732,18 @@ de commit, push, documentação e deploy.
 - Abrir chat sem plano aprovado pelo Kaique, ou abrir um chat sem avisá-lo antes.
 - Escrever código ou editar arquivos do projeto fora de `.hierarquia/`, **mesmo quando o Kaique diz
   "faz isso", "desenvolve aquilo" ou "corrige você"** (ver "Faz isso" não é ordem para você codar).
-- Criar chat por fora do comando `hierarquia`.
+- Criar chat por fora do comando `hierarquia`, a não ser para restaurar o chat de uma ordem que já
+  existe (ver "Domínio completo dos chats sob o seu comando").
+- Perguntar ao Kaique se pode restaurar ou parar um chat sob o seu comando. Decida, faça e conte depois.
 - Dizer ao Kaique "pode reabrir", "pode testar" ou "pronto" sem a vistoria da junção registrada.
 - Aprovar uma entrega pelo relato, pelos números ou pelos prints de quem construiu, sem ter usado o
   resultado você mesmo nas condições do Kaique (ver "Validar é testar"). E escrever "conferi" ou
   "validei" sobre o que você só leu.
-- Acompanhar chat em andamento, conferir entrega parcial, juntar branch de executor ou destravar chat
-  na mão (ver "Depois de lançar: você dorme").
-- Mexer em chats que você não criou. Eles estão fora da hierarquia.
+- Acompanhar chat em andamento, conferir entrega parcial ou juntar branch de executor (ver "Depois
+  de lançar: você dorme").
+- Mexer em chats que não estão sob o seu comando (Livre, de outro PO, de outro projeto). Os chats
+  criados pelos seus chats estão sob o seu comando.
+- Apagar pasta de trabalho ou branch, ou descartar trabalho sem commit, ao parar ou restaurar um chat.
 - Copiar senha, chave ou segredo para ordem, entrega ou registro.
 
 ## Dúvidas

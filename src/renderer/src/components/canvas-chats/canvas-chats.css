@@ -8,7 +8,8 @@
 .cc-board {
   --cc-idle: #5d5d66;
   --cc-work: #e6b422;
-  --cc-bg-task: #8b8cf6;
+  /* background work: cyan, so it never reads as the purple of 'aguardando equipe' */
+  --cc-bg-task: var(--color-cyan-400, #22d3ee);
   --cc-ok: #3ecf7a;
   --cc-wait: #ef4b4b;
   --cc-team: var(--color-purple-500, #a855f7);
@@ -119,9 +120,9 @@
 }
 .cc-chat[data-status='monitoring'],
 .cc-agent[data-status='monitoring'] {
-  border-color: #8b8cf699;
+  border-color: color-mix(in srgb, var(--cc-bg-task) 60%, transparent);
   box-shadow:
-    0 0 14px #8b8cf61f,
+    0 0 14px color-mix(in srgb, var(--cc-bg-task) 12%, transparent),
     0 12px 30px #0009;
 }
 .cc-board [data-status='unseen'] {
@@ -170,23 +171,211 @@
     --cc-angle: 360deg;
   }
 }
+/* closed card working: the ring band is a fixed mask and only the gradient inside it turns, by transform, so the
+   GPU spins it without repainting the card (animating --cc-angle repainted the ring every frame: o-044). */
+.cc-chat:not(.cc-open)[data-status='working']::before {
+  content: none;
+}
+.cc-ring {
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  padding: 2px;
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+.cc-ring i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 250%;
+  aspect-ratio: 1;
+  background: conic-gradient(#e6b422 0 74%, #fff6d6 84%, #fff 88%, #fff6d6 92%, #e6b422 100%);
+  /* 30 positions a second (93 steps in 3.1 s): each held exactly two frames of a 60 Hz screen, no 2-3 judder (o-044). */
+  animation: cc-ring-turn 3.1s steps(93, end) infinite;
+  will-change: transform;
+}
+@keyframes cc-ring-turn {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cc-ring i,
+  .cc-chat[data-status='working']::before,
+  .cc-agent[data-status='working']::before,
+  .cc-chat[data-status='unseen']::after,
+  .cc-agent[data-status='unseen']::after {
+    animation: none;
+  }
+}
+/* finished, not seen: the card breathes. The bright border and glow sit on their own layer and only its opacity
+   animates, so the GPU blends it without repainting the card (animating border-color/box-shadow repainted every card
+   every frame: o-044, fluxograma leve). */
 .cc-chat[data-status='unseen'],
 .cc-agent[data-status='unseen'] {
-  animation: cc-breathe 4.5s ease-in-out infinite;
+  border-color: #3ecf7a99;
 }
+.cc-chat[data-status='unseen']::after,
+.cc-agent[data-status='unseen']::after {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  border: 1.5px solid #8af5b6;
+  box-shadow: 0 0 16px #3ecf7a38;
+  pointer-events: none;
+  opacity: 0;
+  animation: cc-breathe 4.5s step-end infinite;
+  will-change: opacity;
+}
+/* 10 frames a second sampled from the same ease-in-out curve (o-044): same look and rhythm, a fraction of the frames. */
 @keyframes cc-breathe {
-  0%,
-  100% {
-    border-color: #3ecf7a99;
-    box-shadow:
-      0 0 0 #3ecf7a00,
-      0 12px 30px #0009;
+  0% {
+    opacity: 0;
   }
-  50% {
-    border-color: #8af5b6;
-    box-shadow:
-      0 0 16px #3ecf7a38,
-      0 12px 30px #0009;
+  2.222% {
+    opacity: 0.004;
+  }
+  4.444% {
+    opacity: 0.016;
+  }
+  6.667% {
+    opacity: 0.036;
+  }
+  8.889% {
+    opacity: 0.064;
+  }
+  11.111% {
+    opacity: 0.101;
+  }
+  13.333% {
+    opacity: 0.147;
+  }
+  15.556% {
+    opacity: 0.202;
+  }
+  17.778% {
+    opacity: 0.264;
+  }
+  20% {
+    opacity: 0.332;
+  }
+  22.222% {
+    opacity: 0.405;
+  }
+  24.444% {
+    opacity: 0.481;
+  }
+  26.667% {
+    opacity: 0.557;
+  }
+  28.889% {
+    opacity: 0.632;
+  }
+  31.111% {
+    opacity: 0.703;
+  }
+  33.333% {
+    opacity: 0.768;
+  }
+  35.556% {
+    opacity: 0.826;
+  }
+  37.778% {
+    opacity: 0.877;
+  }
+  40% {
+    opacity: 0.918;
+  }
+  42.222% {
+    opacity: 0.951;
+  }
+  44.444% {
+    opacity: 0.976;
+  }
+  46.667% {
+    opacity: 0.991;
+  }
+  48.889% {
+    opacity: 0.999;
+  }
+  51.111% {
+    opacity: 0.999;
+  }
+  53.333% {
+    opacity: 0.991;
+  }
+  55.556% {
+    opacity: 0.976;
+  }
+  57.778% {
+    opacity: 0.951;
+  }
+  60% {
+    opacity: 0.918;
+  }
+  62.222% {
+    opacity: 0.877;
+  }
+  64.444% {
+    opacity: 0.826;
+  }
+  66.667% {
+    opacity: 0.768;
+  }
+  68.889% {
+    opacity: 0.703;
+  }
+  71.111% {
+    opacity: 0.632;
+  }
+  73.333% {
+    opacity: 0.557;
+  }
+  75.556% {
+    opacity: 0.481;
+  }
+  77.778% {
+    opacity: 0.405;
+  }
+  80% {
+    opacity: 0.332;
+  }
+  82.222% {
+    opacity: 0.264;
+  }
+  84.444% {
+    opacity: 0.202;
+  }
+  86.667% {
+    opacity: 0.147;
+  }
+  88.889% {
+    opacity: 0.101;
+  }
+  91.111% {
+    opacity: 0.064;
+  }
+  93.333% {
+    opacity: 0.036;
+  }
+  95.556% {
+    opacity: 0.016;
+  }
+  97.778% {
+    opacity: 0.004;
+  }
+  100% {
+    opacity: 0;
   }
 }
 .cc-chat[data-status='seen'],
@@ -253,7 +442,8 @@
   background: none;
   box-shadow: none;
 }
-.cc-chat.cc-shape-crest::before {
+.cc-chat.cc-shape-crest::before,
+.cc-chat.cc-shape-crest::after {
   display: none;
 }
 /* the state animations and the link-drag glow paint the card's box: the hexagon draws its own glow */
@@ -572,6 +762,13 @@
   gap: 5px;
   font: 600 calc(11px * var(--cc-inv)) system-ui;
   color: var(--k);
+}
+/* needs the user and still runs a background command: the command stays a small detail */
+.cc-status-bg {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cc-bg-task);
 }
 .cc-spin {
   width: 9px;
@@ -1201,6 +1398,23 @@
   animation-duration: 2s;
 }
 
+/* quiet project (nothing working, nothing waiting on the user): grey header, faded cards that stay legible and clickable.
+   Opacity only, so the fade is composited and costs no repaint. */
+.cc-project-group[data-quiet] .cc-project {
+  --cc-pc: var(--cc-idle) !important;
+}
+.cc-project-group[data-quiet] .cc-chat:not(.cc-open),
+.cc-project-group[data-quiet] .cc-chips:not(.cc-chips-open) {
+  opacity: 0.78;
+}
+.cc-project-group[data-quiet] .cc-chat:not(.cc-open):hover {
+  opacity: 1;
+}
+/* the faded grey prompt line would drop under 4.5:1; one step lighter keeps it legible */
+.cc-project-group[data-quiet] .cc-prompt {
+  color: #a0a0ab;
+}
+
 /* project color: tinted card, colored initials badge, swatch picker on hover */
 .cc-board .cc-project {
   background: linear-gradient(160deg, color-mix(in srgb, var(--cc-pc) 22%, #24242b), #1d1d23 75%);
@@ -1636,7 +1850,8 @@
     0 0 18px color-mix(in srgb, var(--color-blue-600) 28%, transparent),
     0 12px 30px #0009;
 }
-.cc-chat[data-launch]::before {
+.cc-chat[data-launch]::before,
+.cc-chat[data-launch]::after {
   content: none;
   animation: none;
 }
@@ -1727,4 +1942,39 @@
 }
 .cc-launch-problem .cc-launch-hint {
   margin-top: 4px;
+}
+
+/* suspend a chat: process stopped, conversation saved, the card stays where it is and a click wakes it */
+.cc-xwrap-pair {
+  gap: 8px;
+}
+.cc-xbtn.cc-sbtn:hover {
+  background: var(--cc-idle);
+  border-color: var(--cc-idle);
+  color: #fff;
+}
+.cc-chat[data-status='suspended'] {
+  border-width: 1px;
+  border-style: dashed;
+  border-color: var(--cc-idle);
+}
+.cc-board [data-status='suspended'] {
+  --k: var(--cc-idle);
+}
+.cc-board [data-status='suspended'] .cc-feed {
+  opacity: 0.6;
+}
+.cc-chat[data-status='suspended'] .cc-crest-outline polygon {
+  stroke-dasharray: 7 6;
+  stroke-width: 1.5;
+}
+.cc-status-moon {
+  flex: none;
+}
+.cc-legend [data-status='suspended'] em {
+  border-style: dashed;
+  border-width: 1px;
+}
+.cc-chat.cc-shape-crest[data-status='suspended'] {
+  border: none;
 }
