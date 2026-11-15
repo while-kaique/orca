@@ -38,7 +38,7 @@ export const USO = {
   encerrar: { uso: 'hierarquia encerrar --chat ID [--motivo "..."] (só o Orca)', exige: ['chat'] },
   estado: { uso: 'hierarquia estado [--json]', exige: [] },
   porta: {
-    uso: 'hierarquia porta [--liberar | --cancelar] [--json] [--rapido] [--registrar-corte] (pode fechar ou reabrir o Orca agora?)',
+    uso: 'hierarquia porta [--liberar | --cancelar] [--json] [--rapido] [--registrar-corte [--porta-salva ARQUIVO]] (pode fechar ou reabrir o Orca agora?)',
     exige: []
   },
   fechar: { uso: 'hierarquia fechar --ordem ID | --terminados | --pedido NOME', exige: [] }

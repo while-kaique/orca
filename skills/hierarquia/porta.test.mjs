@@ -83,3 +83,58 @@ test('aviso so com o Claude aberto: shell sozinho nao conta como Claude', () => 
   assert.equal(lerTelaDoClaude(['PS C:\\Users\\User> ']).aberto, false)
   assert.equal(lerTelaDoClaude([...claude.slice(0, 4), 'PS C:\\Users\\User> ']).aberto, false)
 })
+
+test('o corte do X usa a lista que a pergunta mostrou (--porta-salva) e nao olha a porta de novo (prazo do X, 15/11)', async () => {
+  const { mkdtempSync, mkdirSync, readFileSync, writeFileSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const { join } = await import('node:path')
+  const { comandoPorta } = await import('./comandos-da-porta.mjs')
+  const base = mkdtempSync(join(tmpdir(), 'corte-'))
+  const projeto = join(base, 'projeto')
+  mkdirSync(join(projeto, '.hierarquia'), { recursive: true })
+  writeFileSync(join(projeto, '.hierarquia', 'registro.jsonl'), '')
+  const salva = join(base, 'porta.json')
+  writeFileSync(
+    salva,
+    JSON.stringify({
+      pode: false,
+      resumo: 'nao pode',
+      recentes: [],
+      chats: [
+        { projeto, chatId: 'E1', ordemId: 'o-001', livre: false, segundoPlano: 0 },
+        { projeto, chatId: 'L1', ordemId: null, livre: true, segundoPlano: 0 }
+      ]
+    })
+  )
+  const antes = { orca: process.env.HIERARQUIA_ORCA, indice: process.env.HIERARQUIA_INDICE }
+  // Um Orca que nao existe: olhar a porta de novo falharia.
+  process.env.HIERARQUIA_ORCA = join(base, 'nao-existe.cmd')
+  process.env.HIERARQUIA_INDICE = join(base, 'indice.json')
+  const escrever = console.log
+  console.log = () => {}
+  try {
+    await comandoPorta({ 'registrar-corte': true, 'porta-salva': salva, json: true })
+  } finally {
+    console.log = escrever
+    process.exitCode = 0
+    for (const [nome, valor] of Object.entries({
+      HIERARQUIA_ORCA: antes.orca,
+      HIERARQUIA_INDICE: antes.indice
+    })) {
+      if (valor === undefined) {
+        delete process.env[nome]
+      } else {
+        process.env[nome] = valor
+      }
+    }
+  }
+  const cortados = readFileSync(join(projeto, '.hierarquia', 'registro.jsonl'), 'utf8')
+    .trim()
+    .split('\n')
+    .map((l) => JSON.parse(l))
+    .filter((e) => e.tipo === 'chat_cortado')
+  assert.deepEqual(
+    cortados.map((e) => [e.chatId, e.ordemId]),
+    [['E1', 'o-001']]
+  )
+})

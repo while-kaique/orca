@@ -10,6 +10,7 @@ import {
 import { acharProjeto, anotar, caminhos, lerEventos, sair } from './registro.mjs'
 import { montarEstado } from './regras.mjs'
 import { garantirVigia } from './vigia-do-criador.mjs'
+import { lerJson } from './trava.mjs'
 import { tratarEscondidos } from './chats-escondidos.mjs'
 import { AVISO_DE_CONVERSA_PERDIDA_ATE_MS } from './conversa-perdida.mjs'
 
@@ -69,7 +70,10 @@ export async function comandoPorta(op) {
     console.log('Liberacao de reabrir cancelada: ordens novas voltam a sair.')
     return
   }
-  const porta = await olharPorta({ rapido: Boolean(op.rapido) })
+  // O X ja olhou a porta para perguntar: com `--porta-salva` o corte usa aquela lista e nao olha tudo de novo (olhar
+  // de novo passava do prazo do X nesta maquina e o corte nao era gravado; Orca de teste, 15/11).
+  const salva = op['porta-salva'] ? lerJson(op['porta-salva']) : null
+  const porta = salva?.chats ? salva : await olharPorta({ rapido: Boolean(op.rapido) })
   if (op['registrar-corte']) {
     // O X do Orca roda isto depois de o usuario escolher fechar: cada chat da hierarquia que trabalhava fica marcado como cortado.
     for (const chat of porta.chats.filter((item) => !item.livre)) {
