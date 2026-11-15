@@ -1,6 +1,6 @@
 // Conversa com o Orca: lançar chat, manter aberto e avisar. Usado pelo comando `hierarquia`.
 import { execFile, execFileSync } from 'node:child_process'
-import { acharTarefaNova, acharTerminalNovo, ondeEstaAOrdem } from './regras.mjs'
+import { acharTarefaNova, acharTerminalNovo, ondeEstaOTexto } from './regras.mjs'
 
 /** O texto que vai para o Orca precisa ser ASCII puro: acento vira lixo na ordem. */
 export function semAcento(texto) {
@@ -142,6 +142,21 @@ const enterMs = () => Number(process.env.HIERARQUIA_ENTER_MS) || 4000
 const ENTERS_A_MAIS = 3
 
 /**
+ * O texto continua na caixa: na tela (o comeco dele, ou a marca de colagem) ou no rascunho com o comeco E o fim dele.
+ * So o comeco nao basta: o rascunho tambem traz a sugestao de proximo pedido do Claude, que ninguem digitou e costuma
+ * repetir o comeco do ultimo pedido (visto no Orca de teste em 15/11). Enter a mais nela enviaria a sugestao.
+ */
+export function textoParadoNaCaixa(terminal, [comeco, fim]) {
+  const tela = terminal.tail ?? null
+  const naTela = tela ? ondeEstaOTexto(tela, comeco) : 'desconhecido'
+  if (naTela === 'no_historico') {
+    return false
+  }
+  const rascunho = String(terminal.draft ?? '').replace(/\s+/gu, ' ')
+  return naTela === 'na_caixa' || (rascunho.includes(comeco) && rascunho.includes(fim))
+}
+
+/**
  * Escreve uma linha no chat como se alguém digitasse e enviasse. O texto vai sem Enter e o Enter vai sozinho, como
  * uma tecla: texto e Enter juntos podem chegar ao Claude como colagem, e o Enter vira quebra de linha na caixa
  * (avisos parados na caixa em 13/11). Enquanto o texto continuar na caixa, outro Enter sozinho, até 3 vezes.
@@ -166,10 +181,7 @@ export async function escreverNoChat(handle, texto) {
     const terminal = (
       await orcaEmSegundoPlano(['terminal', 'read', '--terminal', handle]).catch(() => null)
     )?.result?.terminal
-    if (
-      !terminal ||
-      ondeEstaAOrdem(terminal.tail ?? null, terminal.draft, trechos) !== 'na_caixa'
-    ) {
+    if (!terminal || !textoParadoNaCaixa(terminal, trechos)) {
       return true
     }
   }

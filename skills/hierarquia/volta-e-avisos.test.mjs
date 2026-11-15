@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { entregarGuardados } from './avisos-guardados.mjs'
-import { escreverNoChat } from './orca-lancador.mjs'
+import { escreverNoChat, textoParadoNaCaixa } from './orca-lancador.mjs'
 import { lerEventos } from './registro.mjs'
 import { montarEstado } from './regras.mjs'
 import { cortadosDoVigia } from './volta-dos-cortados.mjs'
@@ -161,6 +161,23 @@ test('aviso num chat em que texto e Enter juntos viram colagem: o Enter vai sozi
       }
     }
   }
+})
+
+test('a sugestao de proximo pedido do Claude no rascunho nao conta como aviso parado (Orca de teste, 15/11)', () => {
+  const LINHA = '─'.repeat(100)
+  const tela = ['● VELHODOIS', LINHA, '❯', LINHA, '  ⏵⏵ bypass permissions on']
+  const texto = 'Responda apenas a palavra NOVODOIS'
+  const trechos = [texto.slice(0, 40), texto.slice(-40)]
+  const comSugestao = { tail: tela, draft: 'Responda apenas a palavra VELHOTRES' }
+  assert.equal(textoParadoNaCaixa(comSugestao, trechos), false)
+  assert.equal(textoParadoNaCaixa({ tail: tela, draft: texto }, trechos), true)
+  const aviso =
+    'AVISO DA HIERARQUIA: o chat da ordem o-007 parou sozinho ha 2 min; confira e decida'
+  const outroAviso = 'AVISO DA HIERARQUIA: o chat da ordem o-007 voltou'
+  assert.equal(
+    textoParadoNaCaixa({ tail: tela, draft: outroAviso }, [aviso.slice(0, 40), aviso.slice(-40)]),
+    false
+  )
 })
 
 test('o vigia percebe codigo novo: a assinatura muda quando um .mjs da hierarquia muda', () => {
