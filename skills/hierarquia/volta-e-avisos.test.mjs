@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { entregarGuardados } from './avisos-guardados.mjs'
+import { escreverNoChat } from './orca-lancador.mjs'
 import { lerEventos } from './registro.mjs'
 import { montarEstado } from './regras.mjs'
 import { cortadosDoVigia } from './volta-dos-cortados.mjs'
@@ -32,7 +33,9 @@ if (argv[0] === 'terminal' && argv[1] === 'list') {
 } else if (argv[0] === 'terminal' && argv[1] === 'read') {
   ok({ terminal: { tail: claude === 'aberto' ? ['ok', LINHA, '❯ ', LINHA, '  bypass'] : ['PS C:\\\\pasta>'] } })
 } else if (argv[0] === 'terminal' && argv[1] === 'send') {
-  appendFileSync(${JSON.stringify(join(base, 'digitado.log'))}, argv[argv.indexOf('--text') + 1] + '\\n')
+  if (argv.includes('--text')) {
+    appendFileSync(${JSON.stringify(join(base, 'digitado.log'))}, argv[argv.indexOf('--text') + 1] + '\\n')
+  }
   ok({})
 } else {
   ok({})
@@ -86,6 +89,76 @@ test('aviso guardado com o Claude fechado so e digitado quando o Claude abre, e 
       delete process.env.HIERARQUIA_ORCA
     } else {
       process.env.HIERARQUIA_ORCA = antes
+    }
+  }
+})
+
+/**
+ * Um Claude de mentira que trata texto e Enter chegando juntos como colagem: o texto fica na caixa e o Enter vira
+ * quebra de linha. So o Enter sozinho envia. O `terminal read` devolve a caixa vazia na tela e o digitado em `draft`,
+ * como o Orca faz.
+ */
+function claudeQueColaOEnter(base) {
+  const script = join(base, 'orca.mjs')
+  const caixa = join(base, 'caixa.txt')
+  const enviados = join(base, 'enviados.log')
+  writeFileSync(caixa, '')
+  writeFileSync(
+    script,
+    `import { appendFileSync, readFileSync, writeFileSync } from 'node:fs'
+const argv = process.argv.slice(2)
+const ok = (result) => console.log(JSON.stringify({ ok: true, result }))
+const LINHA = '${'─'.repeat(100)}'
+const caixa = readFileSync(${JSON.stringify(caixa)}, 'utf8')
+if (argv[0] === 'terminal' && argv[1] === 'read') {
+  ok({ terminal: { tail: ['ok', LINHA, '❯ ', LINHA, '  bypass'], draft: caixa } })
+} else if (argv[0] === 'terminal' && argv[1] === 'send') {
+  const texto = argv.includes('--text') ? argv[argv.indexOf('--text') + 1] : ''
+  if (texto) {
+    writeFileSync(${JSON.stringify(caixa)}, caixa + texto + (argv.includes('--enter') ? ' ' : ''))
+  } else if (argv.includes('--enter') && caixa.trim()) {
+    appendFileSync(${JSON.stringify(enviados)}, caixa.trim() + '\\n')
+    writeFileSync(${JSON.stringify(caixa)}, '')
+  }
+  ok({})
+} else {
+  ok({})
+}
+`
+  )
+  const cmd = join(base, process.platform === 'win32' ? 'orca.cmd' : 'orca.sh')
+  writeFileSync(
+    cmd,
+    process.platform === 'win32'
+      ? `@echo off\r\n"${process.execPath}" "${script}" %*\r\n`
+      : `#!/bin/sh\nexec "${process.execPath}" "${script}" "$@"\n`,
+    { mode: 0o755 }
+  )
+  return { cmd, caixa, enviados }
+}
+
+test('aviso num chat em que texto e Enter juntos viram colagem: o Enter vai sozinho e o aviso sai da caixa (13/11)', async () => {
+  const base = mkdtempSync(join(tmpdir(), 'enter-'))
+  const { cmd, caixa, enviados } = claudeQueColaOEnter(base)
+  const antes = { orca: process.env.HIERARQUIA_ORCA, ms: process.env.HIERARQUIA_ENTER_MS }
+  process.env.HIERARQUIA_ORCA = cmd
+  process.env.HIERARQUIA_ENTER_MS = '200'
+  try {
+    assert.equal(await escreverNoChat('term_aba', 'AVISO DA HIERARQUIA: pedido fechado'), true)
+    assert.equal(readFileSync(caixa, 'utf8'), '')
+    assert.deepEqual(readFileSync(enviados, 'utf8').trim().split('\n'), [
+      'AVISO DA HIERARQUIA: pedido fechado'
+    ])
+  } finally {
+    for (const [nome, valor] of [
+      ['HIERARQUIA_ORCA', antes.orca],
+      ['HIERARQUIA_ENTER_MS', antes.ms]
+    ]) {
+      if (valor === undefined) {
+        delete process.env[nome]
+      } else {
+        process.env[nome] = valor
+      }
     }
   }
 })

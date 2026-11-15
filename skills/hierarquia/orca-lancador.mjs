@@ -1,6 +1,6 @@
 // Conversa com o Orca: lançar chat, manter aberto e avisar. Usado pelo comando `hierarquia`.
 import { execFile, execFileSync } from 'node:child_process'
-import { acharTarefaNova, acharTerminalNovo, ondeEstaOTexto } from './regras.mjs'
+import { acharTarefaNova, acharTerminalNovo, ondeEstaAOrdem } from './regras.mjs'
 
 /** O texto que vai para o Orca precisa ser ASCII puro: acento vira lixo na ordem. */
 export function semAcento(texto) {
@@ -138,32 +138,40 @@ export function renomearAba(handle, titulo) {
   ]).catch(() => null)
 }
 
+const enterMs = () => Number(process.env.HIERARQUIA_ENTER_MS) || 4000
+const ENTERS_A_MAIS = 3
+
 /**
- * Escreve uma linha no chat como se alguém digitasse e enviasse; se ela ficar parada na caixa de
- * texto, envia de novo uma vez. `%` sai porque o shell do Windows o trocaria.
+ * Escreve uma linha no chat como se alguém digitasse e enviasse. O texto vai sem Enter e o Enter vai sozinho, como
+ * uma tecla: texto e Enter juntos podem chegar ao Claude como colagem, e o Enter vira quebra de linha na caixa
+ * (avisos parados na caixa em 13/11). Enquanto o texto continuar na caixa, outro Enter sozinho, até 3 vezes.
+ * O `terminal read` tira da tela o que foi digitado e não enviado e o devolve em `draft`: os dois contam.
+ * `%` sai porque o shell do Windows o trocaria.
  */
 export async function escreverNoChat(handle, texto) {
   const linha = semAcento(texto).replace(/%/gu, ' por cento')
-  const enviar = (conteudo) =>
-    orcaEmSegundoPlano([
-      'terminal',
-      'send',
-      '--terminal',
-      handle,
-      '--text',
-      citar(conteudo),
-      '--enter'
-    ])
-  const resposta = await enviar(linha)
+  const mandar = (extra) =>
+    orcaEmSegundoPlano(['terminal', 'send', '--terminal', handle, ...extra]).catch(() => ({
+      ok: false
+    }))
+  const resposta = await mandar(['--text', citar(linha)])
   if (!resposta.ok) {
     return false
   }
-  await esperar(4000)
-  const tela = (
-    await orcaEmSegundoPlano(['terminal', 'read', '--terminal', handle]).catch(() => null)
-  )?.result?.terminal?.tail
-  if (tela && ondeEstaOTexto(tela, linha.slice(0, 40)) === 'na_caixa') {
-    await enviar(' ')
+  const trechos = [linha.slice(0, 40), linha.slice(-40)]
+  for (let enter = 0; enter <= ENTERS_A_MAIS; enter++) {
+    await esperar(enter === 0 ? enterMs() / 2 : enterMs())
+    await mandar(['--enter'])
+    await esperar(enterMs())
+    const terminal = (
+      await orcaEmSegundoPlano(['terminal', 'read', '--terminal', handle]).catch(() => null)
+    )?.result?.terminal
+    if (
+      !terminal ||
+      ondeEstaAOrdem(terminal.tail ?? null, terminal.draft, trechos) !== 'na_caixa'
+    ) {
+      return true
+    }
   }
   return true
 }
