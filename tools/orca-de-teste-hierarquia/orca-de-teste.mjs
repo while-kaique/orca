@@ -15,8 +15,15 @@ import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import { chromium } from 'playwright-core'
+import {
+  atualizarTrava,
+  pegarTravaDoOrcaDeTeste
+} from '../vistoria-fluxograma/trava-do-orca-de-teste.mjs'
+import { medir } from './portao-de-memoria.mjs'
 
 const require = createRequire(import.meta.url)
+/** Regra do PO (o-043, rodada final): para tudo se a memoria livre cair abaixo disto. */
+export const PARAR_ABAIXO_GB = 4
 export const RAIZ = path.resolve(import.meta.dirname, '..', '..')
 export const MUNDO = path.join(process.env.TEMP ?? os.tmpdir(), 'orca-de-teste-hierarquia', 'mundo')
 export const PERFIL = path.join(MUNDO, 'perfil')
@@ -233,8 +240,51 @@ export function desconfiarDoMundo() {
  * Abre o Orca montado em RAIZ/out, escondido, com o perfil do mundo. `extraEnv` liga opcoes do fork.
  * Devolve { page, pid, porta, browser }.
  */
+let soltarTrava = null
+
+/** Trava unica da maquina (a da vistoria): pega uma vez por roteiro e solta quando o node sai; outro vivo = recusa. */
+async function garantirTrava(porta, log) {
+  if (soltarTrava) {
+    return
+  }
+  soltarTrava = await pegarTravaDoOrcaDeTeste({
+    esperarMin: 0,
+    registro: log,
+    dados: {
+      dono: process.env.ORCA_DE_TESTE_DONO?.trim() || `planejador o-043 (${RAIZ})`,
+      pasta: RAIZ,
+      raiz: RAIZ,
+      mundo: MUNDO,
+      pidNode: process.pid,
+      pidElectron: null,
+      porta,
+      comando: process.argv.slice(1).join(' ').slice(0, 300),
+      desde: new Date().toISOString()
+    }
+  })
+  process.on('exit', soltarTrava)
+  // Abaixo de 4 GB livres: encerra o mundo e sai, sem esperar o roteiro.
+  const vigia = setInterval(() => {
+    let livre
+    try {
+      livre = medir().livreGB
+    } catch {
+      return
+    }
+    if (livre > 0 && livre < PARAR_ABAIXO_GB) {
+      clearInterval(vigia)
+      log(
+        `MEMORIA: ${livre} GB livres (< ${PARAR_ABAIXO_GB}); paro o roteiro e encerro o mundo de teste`
+      )
+      void encerrarMundo().finally(() => process.exit(4))
+    }
+  }, 15_000)
+  vigia.unref()
+}
+
 export async function abrirOrca({ extraEnv = {}, log = console.log } = {}) {
   const porta = 9860 + Math.floor(Math.random() * 100)
+  await garantirTrava(porta, log)
   const env = { ...process.env }
   for (const nome of Object.keys(env)) {
     if (/^(ORCA_|CLAUDE|AI_AGENT|HIERARQUIA_)/u.test(nome)) {
@@ -258,6 +308,7 @@ export async function abrirOrca({ extraEnv = {}, log = console.log } = {}) {
     { cwd: RAIZ, env, windowsHide: true, stdio: ['ignore', log1, log1] }
   )
   closeSync(log1)
+  atualizarTrava({ pidElectron: filho.pid, porta })
   const limite = Date.now() + 180_000
   for (;;) {
     if (filho.exitCode !== null) {
