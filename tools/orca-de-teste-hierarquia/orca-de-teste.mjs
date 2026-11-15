@@ -454,6 +454,13 @@ export function vigiarTeto(raizes, dizer) {
         maximo.orcas = Math.max(maximo.orcas, agora.orcas)
         maximo.claudes = Math.max(maximo.claudes, agora.claudes)
         dizer(`teto: maximo ate aqui ${maximo.orcas} Orca de teste, ${maximo.claudes} Claude vivos`)
+        if (agora.claudes > 3) {
+          // Quais sao: chat de teste, ou outro processo com nome claude (atualizador, subagente)?
+          const claudes = processosDoMundo(raizes()).filter((p) => /^claude/iu.test(p.nome))
+          dizer(
+            `  processos claude: ${claudes.map((p) => `${p.pid}<-${p.pai} ${p.comando.slice(0, 140)}`).join(' | ')}`
+          )
+        }
       }
     } catch {
       // a contagem e so para o relato

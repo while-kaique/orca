@@ -257,20 +257,29 @@ export async function stopForkChatTree(desligarGuarda: () => Promise<void>): Pro
     process.platform === 'win32' && guardas.length > 0
       ? arvoreDosGuardas(await fotoDosProcessos(), guardas)
       : []
+  const inicio = Date.now()
   await Promise.race([desligarGuarda().catch(() => {}), new Promise((r) => setTimeout(r, 4_000))])
-  if (antes.length === 0) {
-    return
-  }
-  const agora = new Map((await fotoDosProcessos()).map((p) => [p.pid, p]))
+  const desligarGuardaMs = Date.now() - inicio
+  const agora =
+    antes.length === 0 ? new Map() : new Map((await fotoDosProcessos()).map((p) => [p.pid, p]))
   const sobras = antes.filter((p) => agora.get(p.pid)?.nascido === p.nascido)
   // Shows whether the guard's own stop (job + o-044 sweep) ended the tree or this fallback had to.
   try {
     writeFileSync(
       join(app.getPath('userData'), 'fork-x-arvore.json'),
-      JSON.stringify({ em: new Date().toISOString(), antes: antes.length, sobras: sobras.length })
+      JSON.stringify({
+        em: new Date().toISOString(),
+        guardas: guardas.length,
+        antes: antes.length,
+        sobras: sobras.length,
+        desligarGuardaMs
+      })
     )
   } catch {
     // The record is evidence only.
+  }
+  if (sobras.length === 0) {
+    return
   }
   for (let i = 0; i < sobras.length; i += 40) {
     const lote = sobras.slice(i, i + 40)
