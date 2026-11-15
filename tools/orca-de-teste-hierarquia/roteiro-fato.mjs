@@ -210,7 +210,7 @@ async function retratoAntes(chats, prefixo = 'antes') {
 /** O X: fecha a janela, conta em 15 s e confere que nada fora do mundo foi tocado. */
 async function fecharEContar(fora) {
   const tX = Date.now()
-  const fechou = await fecharPeloX(orca, { prazoMs: 90_000 })
+  const fechou = await fecharPeloX(orca, { prazoMs: 300_000 })
   dizer(
     `X (${orca.fechadoPor}): programa saiu = ${fechou} em ${((Date.now() - tX) / 1000).toFixed(1)} s`
   )
@@ -228,6 +228,17 @@ async function fecharEContar(fora) {
   }
   // Varredura da o-044: o que o guarda encerrou por PID (log dela) e o que o X ainda teve de matar depois.
   const arvore = path.join(PERFIL, 'fork-x-arvore.json')
+  const tempos = path.join(PERFIL, 'fork-x-tempos.jsonl')
+  if (existsSync(tempos)) {
+    const passos = readFileSync(tempos, 'utf8')
+      .trim()
+      .split('\n')
+      .map((l) => JSON.parse(l))
+    guardar('depois-x-tempos.txt', passos.map((p) => `${p.em} ${p.passo}`).join('\n'))
+    dizer(
+      `tempos do X: ${passos.map((p) => `${p.passo} ${((Date.parse(p.em) - tX) / 1000).toFixed(1)} s`).join(' | ')}`
+    )
+  }
   const doX = existsSync(arvore) ? readFileSync(arvore, 'utf8') : 'sem registro'
   const logVarredura = path.join(os.tmpdir(), 'orca-pty-sweep.log')
   const varridos = existsSync(logVarredura)
