@@ -5,6 +5,7 @@ import { familyLineBoxes, hangsFromChatsOnly, joinStacked, rowBands } from './ca
 /** Border states drawn on the flowchart (fork spec: idle gray, working yellow, unseen green, seen dashed green, waiting red). */
 /** 'monitoring' = the turn ended but background agents/tasks are still running. */
 /** 'team' = the chat is idle and waits for chats it created that are still working. */
+/** 'suspended' = the chat's process was stopped on purpose; its conversation is saved and a click wakes it. */
 export type CanvasChatStatus =
   | 'idle'
   | 'working'
@@ -13,6 +14,7 @@ export type CanvasChatStatus =
   | 'seen'
   | 'waiting'
   | 'team'
+  | 'suspended'
 
 export type CanvasAgent = {
   id: string

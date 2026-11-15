@@ -6,6 +6,11 @@ import {
 } from './windows-pty-root-identity'
 import type { ProcessTableRow } from './pty-process-table-parser'
 import {
+  captureWindowsDescendants,
+  terminateWindowsDescendantSurvivors,
+  type WindowsDescendantIdentity
+} from './windows-detached-descendant-sweep'
+import {
   DESCENDANT_SNAPSHOT_TIMEOUT_MS,
   readFreshProcessTable,
   type ProcessTableCapture,
@@ -181,7 +186,29 @@ type KillSweepDeps = SnapshotDeps &
     terminateOwnedTree?: () => JobTerminationOutcome
     killWindowsTree?: WindowsTreeKiller
     verifyTreeKillTarget?: (rootPid: number) => Promise<WindowsTreeKillTarget>
+    captureWindowsDescendants?: (rootPid: number) => Promise<WindowsDescendantIdentity[] | null>
+    terminateWindowsSurvivors?: (
+      captured: readonly WindowsDescendantIdentity[]
+    ) => Promise<number[]>
   }
+
+async function killWindowsTreeOwnedBy(rootPid: number, deps: KillSweepDeps): Promise<void> {
+  // Owned jobs survive PID reuse and include descendants reparented away from the shell.
+  if (deps.terminateOwnedTree?.() === 'terminated') {
+    return
+  }
+  // ConPTY closes the shell handle before JS sees exit; require OS identity to reject recycled PIDs.
+  const verify = deps.verifyTreeKillTarget ?? verifyWindowsTreeKillTarget
+  const target = await verify(rootPid).catch((): WindowsTreeKillTarget => 'unknown')
+  // Re-check ownership: the identity query awaits, so exit can land meanwhile.
+  if (target === 'own' && (deps.ownsRoot?.() ?? true)) {
+    const killTree =
+      deps.killWindowsTree ??
+      ((pid: number) => terminateWindowsProcessTree(pid, { site: 'pty-descendant-sweep' }))
+    // A taskkill failure must not skip root termination.
+    await killTree(rootPid).catch(() => {})
+  }
+}
 
 /** Call before killing the root: POSIX needs live ancestry; Windows prefers an owned job, then an identity-gated PID walk. */
 export async function killWithDescendantSweep(
@@ -191,26 +218,25 @@ export async function killWithDescendantSweep(
 ): Promise<void> {
   const platform = deps.platform ?? process.platform
   if (platform === 'win32') {
+    const owned = (deps.ownsRoot?.() ?? true) && Number.isInteger(rootPid) && rootPid > 0
+    // Fork (o-044): a tool an agent started in the background can break away from the terminal's job and outlive it;
+    // capture the tree first, then end what survives, by PID and creation time only.
+    const captured = owned
+      ? await (deps.captureWindowsDescendants ?? captureWindowsDescendants)(rootPid).catch(
+          () => null
+        )
+      : null
     try {
-      if ((deps.ownsRoot?.() ?? true) && Number.isInteger(rootPid) && rootPid > 0) {
-        // Owned jobs survive PID reuse and include descendants reparented away from the shell.
-        if (deps.terminateOwnedTree?.() === 'terminated') {
-          return
-        }
-        // ConPTY closes the shell handle before JS sees exit; require OS identity to reject recycled PIDs.
-        const verify = deps.verifyTreeKillTarget ?? verifyWindowsTreeKillTarget
-        const target = await verify(rootPid).catch((): WindowsTreeKillTarget => 'unknown')
-        // Re-check ownership: the identity query awaits, so exit can land meanwhile.
-        if (target === 'own' && (deps.ownsRoot?.() ?? true)) {
-          const killTree =
-            deps.killWindowsTree ??
-            ((pid: number) => terminateWindowsProcessTree(pid, { site: 'pty-descendant-sweep' }))
-          // A taskkill failure must not skip root termination.
-          await killTree(rootPid).catch(() => {})
-        }
+      if (owned && (deps.ownsRoot?.() ?? true)) {
+        await killWindowsTreeOwnedBy(rootPid, deps)
       }
     } finally {
       killRoot()
+    }
+    if (captured && captured.length > 0) {
+      await (deps.terminateWindowsSurvivors ?? terminateWindowsDescendantSurvivors)(captured).catch(
+        () => []
+      )
     }
     return
   }

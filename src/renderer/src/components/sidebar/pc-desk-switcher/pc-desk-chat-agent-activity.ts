@@ -5,6 +5,7 @@ import { parseAgentStatusPaneIdentity } from '../../../../../shared/agent-status
 import { AGENT_STATUS_STALE_AFTER_MS } from '../../../../../shared/agent-status/contracts/agent-status-freshness'
 import { agentVerdictDisplayMark } from '../../../../../shared/agent-status/lifecycle/agent-main-agent-verdict'
 import { applyAgentPaneActivityFlags } from '../../../../../shared/worktree-status-rollup'
+import { turnEndedAskingUser } from '../../canvas-chats/canvas-chat-asks-user'
 import type {
   AgentActivityInput,
   WorktreeAgentActivitySummary
@@ -43,12 +44,15 @@ export function selectPcDeskChatAgentActivityFlags(
     parseAgentStatusPaneIdentity(paneKey, structuredTabs?.get(paneKey))?.tabId === tabId
   const now = Date.now()
   for (const [paneKey, entry] of Object.entries(state.agentStatusByPaneKey)) {
-    if (
-      isThisTab(paneKey) &&
-      !entry.restoredUnconfirmed &&
-      isExplicitAgentStatusFresh(entry, now, AGENT_STATUS_STALE_AFTER_MS)
-    ) {
+    if (!isThisTab(paneKey) || entry.restoredUnconfirmed) {
+      continue
+    }
+    if (isExplicitAgentStatusFresh(entry, now, AGENT_STATUS_STALE_AFTER_MS)) {
       applyAgentPaneActivityFlags(flags, entry)
+    }
+    // A question left for the user waits on him however long ago it was asked, ahead of background work.
+    if (turnEndedAskingUser(entry, state.runtimeAgentOrchestrationByPaneKey?.[paneKey])) {
+      flags.hasPermission = true
     }
   }
   for (const unsupported of Object.values(state.migrationUnsupportedByPtyId ?? {})) {
