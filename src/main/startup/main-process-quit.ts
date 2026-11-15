@@ -39,6 +39,7 @@ import { getCanonicalUserDataPath } from '../persistence/loading-store/user-data
 import { flushUnsavedCloudSessions } from '../orca-profiles/profile-cloud-session-owner'
 import {
   forkCloseStopsChatsEnabled,
+  marcarTempoDoX,
   scheduleForkVolta,
   stopForkChatTree
 } from './fork-close-stops-chats'
@@ -114,6 +115,7 @@ function installWillQuitHandler(): void {
     if (!quitTeardownStartGate.tryStart(event)) {
       return
     }
+    marcarTempoDoX('will-quit')
     // Include pane grids still inside their write burst in final save.
     const paneGridFlush = state.runtime?.flushPaneGrids() ?? null
     // A renderer can veto before-quit; push must survive until quit is committed.
@@ -296,6 +298,7 @@ function installWillQuitHandler(): void {
       { name: 'state', promise: storeFlush }
     ])
       .then((pendingTeardowns) => {
+        marcarTempoDoX(`teardown-fim:${pendingTeardowns.join(',') || 'nada-pendente'}`)
         if (pendingTeardowns.length > 0) {
           console.warn('[shutdown] Quit teardown deadline reached', { pendingTeardowns })
         }
@@ -307,6 +310,7 @@ function installWillQuitHandler(): void {
       })
       .then(() => {
         daemonDisconnectDone = true
+        marcarTempoDoX('app-quit')
         app.quit()
       })
   })

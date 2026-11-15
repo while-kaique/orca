@@ -11,7 +11,8 @@ import { consumeUserQuitWindowClose } from './user-quit-window-close'
 import {
   askForkCloseGate,
   forkCloseGateHolds,
-  forkCloseStopsChatsEnabled
+  forkCloseStopsChatsEnabled,
+  marcarTempoDoX
 } from '../startup/fork-close-stops-chats'
 
 export const WINDOW_QUIT_RENDERER_ACK_TIMEOUT_MS = QUIT_RENDERER_ACK_TIMEOUT_MS
@@ -108,6 +109,7 @@ export function installMainWindowCloseLifecycle(args: {
       rendererProcessGone: focus.isRendererProcessGone(),
       isRendererCrashed
     })
+    marcarTempoDoX(`janela-close:${closeAction}`)
     if (closeAction !== 'request-confirmation') {
       // Fork: with chats working, ask before a close that stops them (X, Alt+F4, Quit, tray).
       if (closeAction === 'allow-confirmed' && forkCloseGateHolds()) {
@@ -160,6 +162,7 @@ export function installMainWindowCloseLifecycle(args: {
   })
 
   const onConfirmClose = (): void => {
+    marcarTempoDoX('renderer-confirmou')
     clearQuitRendererAckTimer()
     windowCloseConfirmed = true
     if (!mainWindow.isDestroyed()) {

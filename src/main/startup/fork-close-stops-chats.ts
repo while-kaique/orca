@@ -1,7 +1,7 @@
 // Fork (PC-desk, o-041 parte 5): fechar o Orca pelo X, Alt+F4, menu Sair ou bandeja para os chats daquele Orca.
 // Desligado no Orca oficial: so liga com ORCA_FORK_FECHAR_PARA_CHATS=1, posto pelo atalho "Orca (meu)".
 import { execFile, spawn } from 'node:child_process'
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { app, dialog, type BrowserWindow } from 'electron'
 import { getDaemonProvider, listLiveDaemonSessions } from '../daemon/daemon-provider-state'
@@ -27,6 +27,18 @@ let sessaoDoWindowsTerminando = false
 
 export function forkCloseStopsChatsEnabled(): boolean {
   return process.env.ORCA_FORK_FECHAR_PARA_CHATS === '1'
+}
+
+/** Each step of a fork close, timed, so a slow close shows where it waited. */
+export function marcarTempoDoX(passo: string): void {
+  try {
+    if (forkCloseStopsChatsEnabled()) {
+      const linha = `${JSON.stringify({ passo, em: new Date().toISOString() })}\n`
+      appendFileSync(join(app.getPath('userData'), 'fork-x-tempos.jsonl'), linha)
+    }
+  } catch {
+    // Timing is evidence only.
+  }
 }
 
 /** Windows desligando ou saindo da conta: fecha e para tudo sem perguntar. */
@@ -121,7 +133,9 @@ export function askForkCloseGate(
   desistir: () => void
 ): void {
   void (async () => {
+    marcarTempoDoX('porta-inicio')
     const porta = await rodarPorta([], PORTA_PRAZO_MS)
+    marcarTempoDoX(`porta-fim:${porta ? (porta.pode ? 'pode' : 'pergunta') : 'sem-resposta'}`)
     if (porta?.pode) {
       decidido = true
       seguir()
@@ -157,7 +171,9 @@ export function askForkCloseGate(
       return
     }
     // A hierarquia anota quem foi cortado: ao reabrir, a volta avisa cada um (so com o Claude aberto).
+    marcarTempoDoX('respondeu-fechar')
     await rodarPorta(['--registrar-corte'], CORTE_PRAZO_MS)
+    marcarTempoDoX('corte-registrado')
     decidido = true
     seguir()
   })()
@@ -249,9 +265,10 @@ export function arvoreDosGuardas(lista: Processo[], guardas: PidDoGuarda[]): Pro
 /**
  * Para os chats deste Orca: guarda a arvore dos guardas de terminais (claude, claude.exe.old, node, python, shells),
  * pede o desligamento normal do guarda e depois mata o que sobrou daquela arvore, conferindo pid e hora de nascimento.
- * Nunca por nome: outro Orca e Claude fora do Orca nao estao nessa arvore.
+ * Nunca por nome: outro Orca e Claude fora do Orca nao estao nessa arvore. Grava o que sobrou depois do guarda (o-044).
  */
 export async function stopForkChatTree(desligarGuarda: () => Promise<void>): Promise<void> {
+  marcarTempoDoX('arvore-inicio')
   const guardas = guardasDeTerminais()
   const antes =
     process.platform === 'win32' && guardas.length > 0
@@ -263,7 +280,6 @@ export async function stopForkChatTree(desligarGuarda: () => Promise<void>): Pro
   const agora =
     antes.length === 0 ? new Map() : new Map((await fotoDosProcessos()).map((p) => [p.pid, p]))
   const sobras = antes.filter((p) => agora.get(p.pid)?.nascido === p.nascido)
-  // Shows whether the guard's own stop (job + o-044 sweep) ended the tree or this fallback had to.
   try {
     writeFileSync(
       join(app.getPath('userData'), 'fork-x-arvore.json'),
