@@ -263,6 +263,15 @@ export async function stopForkChatTree(desligarGuarda: () => Promise<void>): Pro
   }
   const agora = new Map((await fotoDosProcessos()).map((p) => [p.pid, p]))
   const sobras = antes.filter((p) => agora.get(p.pid)?.nascido === p.nascido)
+  // Shows whether the guard's own stop (job + o-044 sweep) ended the tree or this fallback had to.
+  try {
+    writeFileSync(
+      join(app.getPath('userData'), 'fork-x-arvore.json'),
+      JSON.stringify({ em: new Date().toISOString(), antes: antes.length, sobras: sobras.length })
+    )
+  } catch {
+    // The record is evidence only.
+  }
   for (let i = 0; i < sobras.length; i += 40) {
     const lote = sobras.slice(i, i + 40)
     await rodar('taskkill', ['/F', '/T', ...lote.flatMap((p) => ['/PID', String(p.pid)])], 5_000)
