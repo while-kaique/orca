@@ -83,7 +83,7 @@ export async function endHiddenSessions(args: {
     referencedTerminalIds(args.session),
     args.orcaOpenedAtMs
   )
-  const ended = []
+  const ended: (HiddenSessionCandidate & { tabId: string | null; endedAt: number })[] = []
   for (const session of hidden) {
     try {
       await args.shutdown(session.sessionId)
