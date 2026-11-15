@@ -111,6 +111,19 @@ de produto para terminar, a ordem está incompleta.
 
 Releia este arquivo, a sua ordem e rode `hierarquia estado` antes de continuar.
 
+## Se o PO restaurar ou parar um chat (regra do Kaique, 15/11/2026)
+
+O PO tem domínio completo sobre todos os chats abaixo dele, o seu e os dos seus executores, em
+qualquer estado: pode parar ou restaurar sem perguntar a você.
+
+- **"AVISO DO PO" dizendo que o seu chat foi restaurado** (a aba caiu, o computador reiniciou): a sua
+  conversa voltou numa aba nova, já ligada à mesma ordem; `hierarquia perguntar` e `entregar`
+  funcionam daqui. Antes de continuar, confira o que está gravado (git, arquivos de estado, log, o
+  que os executores entregaram) e retome de onde o aviso diz. O que rodava em segundo plano morreu:
+  rode de novo. Os limites da ordem são os mesmos.
+- **"AVISO DO PO" mandando parar:** pare agora, commite o que é seu e não comece mais nada.
+- **Executor seu parado ou restaurado pelo PO:** ele avisa você. Não relance por conta própria.
+
 ## O que você nunca faz
 
 - Enviar ao GitHub (push), juntar na versão principal, publicar no ar ou gravar em sistema real.
