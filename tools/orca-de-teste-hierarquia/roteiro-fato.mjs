@@ -226,6 +226,22 @@ async function fecharEContar(fora) {
   if (existsSync(path.join(saida, 'pergunta-do-x.txt'))) {
     dizer(`pergunta do X:\n${readFileSync(path.join(saida, 'pergunta-do-x.txt'), 'utf8')}`)
   }
+  // Varredura da o-044: o que o guarda encerrou por PID (log dela) e o que o X ainda teve de matar depois.
+  const arvore = path.join(PERFIL, 'fork-x-arvore.json')
+  const doX = existsSync(arvore) ? readFileSync(arvore, 'utf8') : 'sem registro'
+  const logVarredura = path.join(os.tmpdir(), 'orca-pty-sweep.log')
+  const varridos = existsSync(logVarredura)
+    ? readFileSync(logVarredura, 'utf8')
+        .split('\n')
+        .filter((l) => l && JSON.parse(l).at >= new Date(tX - 5000).toISOString())
+    : []
+  guardar(
+    'depois-x-varredura.txt',
+    `fork-x-arvore.json: ${doX}\norca-pty-sweep.log desde o X:\n${varridos.join('\n')}`
+  )
+  dizer(
+    `varredura no X: arvore do X ${doX}; o guarda encerrou por PID ${varridos.reduce((n, l) => n + (JSON.parse(l).ended?.length ?? 0), 0)} sobrevivente(s)`
+  )
   return vivos
 }
 
