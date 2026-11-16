@@ -302,6 +302,10 @@ ou para, ver "Domínio completo dos chats sob o seu comando"). As outras três:
 2. **Uma pergunta** de um chat seu (`hierarquia perguntar`): ela chega escrita no seu chat. Responda
    com `hierarquia responder --pergunta p-NNN --texto "..."` e volte a dormir.
 3. **O Kaique** escrevendo para você.
+4. **Um aviso do sistema sobre um chat seu**, uma vez cada: "o chat foi cortado quando o Orca fechou"
+   (ele volta sozinho quando o Claude dele abrir) ou "COMANDO PRESO" (um comando de shell rodando há 15
+   min sem nada novo; a ordem segue trabalhando e ninguém mexeu no chat). No comando preso, olhe o card
+   e, se for o caso, interrompa o comando ou mande o dono do chat refazê-lo de outro jeito.
 
 **Enquanto dorme, você não:**
 
@@ -309,11 +313,12 @@ ou para, ver "Domínio completo dos chats sob o seu comando"). As outras três:
 - lê a tela, o código ou os commits de um chat abaixo de você;
 - confere pedaço de um pedido: se o mesmo pedido tem dois donos (duas áreas) e um entrega antes do
   outro, anote e volte a dormir; a conferência do pedido é uma só, com tudo dele junto;
-- fica olhando chat para ver se travou. Chat que fechou, caiu ou ficou 20 min sem nada na tela passa
-  a contar como parado sozinho e entra no aviso do pedido. Quando você **fica sabendo** que um chat
-  seu caiu, fechou ou travou (pelo aviso, pelo Kaique, por uma pergunta ou pelo seu alarme), você
-  restaura ou para por completo, sem perguntar a ele antes (ver "Domínio completo dos chats sob o
-  seu comando").
+- fica olhando chat para ver se travou. Chat que fechou ou caiu passa a contar como parado sozinho
+  em 2 min e entra no aviso do pedido (se a aba voltou dormindo depois de o Orca reabrir, ele conta
+  como cortado e volta sozinho); o estado nunca o mostra como trabalhando. Quando você **fica
+  sabendo** que um chat seu caiu, fechou ou travou (pelo aviso, pelo Kaique, por uma pergunta ou pelo
+  seu alarme), você restaura ou para por completo, sem perguntar a ele antes (ver "Domínio completo
+  dos chats sob o seu comando"); para dar baixa numa ordem sua: `hierarquia baixa --ordem ID --motivo "..."`.
 
 Se você se pegar fazendo qualquer uma dessas coisas, a organização dos chats está errada (tarefa
 dividida no lugar errado, ou a ordem saiu sem causa, caminho ou critério). Corrija a organização, não vire vigia.
@@ -537,6 +542,10 @@ produto), que volta ao mesmo executor. Aprovado, você junta a branch dele (ver 
   fechar, ou você fecha?". Vale também para chat parado sem dono (o criador caiu). Nunca escreva
   "próxima ação: nenhuma" com um chat esperando a resposta dele. Em 13/11 o PO citou o chat da o-035
   "esperando você confirmar" em quatro mensagens e fechou todas com "nenhuma ação sua".
+  **A trava está no comando** (o-043): enquanto houver chat assim, o topo de `hierarquia estado` mostra
+  "ESPERANDO O KAIQUE CONFIRMAR O FECHAMENTO", com cada chat, o que ele fez e a frase pronta para
+  repetir. A linha some quando a aba do chat fecha. Chat cujo criador não existe mais (planejador que
+  caiu, PO antigo) é seu: `hierarquia fechar --ordem ID` e `hierarquia baixa` aceitam você como herdeiro.
 - **Não serve:** `hierarquia conferir --reprovar --motivo "..."`. O motivo diz o que faltou em relação
   ao produto, não como consertar.
 - **Segunda reprovação da mesma entrega:** o caso sobe para você decidir. Refaça a ordem, troque
@@ -681,10 +690,15 @@ fim. Ele decide se usa assim mesmo.
 **Registro.** No `DECISOES.md`, uma linha por vistoria: data, o que foi juntado, as quatro perguntas
 com sim, não ou não visto, e a pasta dos prints. Mensagem de entrega sem essa linha não sai.
 
-**Reabrir o programa com chat trabalhando** (regra de 12/11/2026): antes de dizer "pode reabrir",
-rode `hierarquia estado`. Se algum chat seu está trabalhando, a mensagem diz isso primeiro e recomenda
-esperar; e nunca lance um chat novo na mesma mensagem em que manda reabrir. Em 12/11 o PO lançou a
-o-032 e disse "pode reabrir" junto; o Kaique é que perguntou se não era perigoso cortar no meio.
+**Reabrir o programa: só pela porta** (o-041, 13/11/2026). Antes de dizer "pode reabrir" (ou qualquer
+coisa que faça o Kaique fechar o Orca), rode `hierarquia porta --liberar`. Ela olha **todos** os chats
+da máquina (todos os projetos, todos os criadores, chats livres) e só libera sem chat trabalhando e sem
+ordem lançada há menos de 10 min. Recusou: a mensagem ao Kaique diz quem trabalha (a lista da porta) e
+recomenda esperar; nunca "pode reabrir". Liberou: até o Orca reabrir (ou 30 min) o comando recusa
+ordem nova, então lançar e reabrir nunca saem juntos; desistiu de reabrir, `hierarquia porta --cancelar`.
+A primeira linha de `hierarquia estado` já diz "Pode reabrir o Orca: sim/nao". O X do Orca também passa
+pela porta: com chat trabalhando, pergunta antes de fechar e parar tudo. Em 12/11 o PO lançou a o-032
+e disse "pode reabrir" junto; o Kaique é que perguntou se não era perigoso cortar no meio.
 
 **Push não espera a vistoria** (é reversível e guarda o trabalho); o que espera é dizer a ele que
 pode usar, e o deploy.

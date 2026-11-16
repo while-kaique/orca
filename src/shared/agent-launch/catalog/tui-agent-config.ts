@@ -25,7 +25,11 @@ const TUI_AGENT_CONFIG_SOURCE: Record<TuiAgent, TuiAgentConfigSource> = {
     draftPasteReadySignal: 'claude-composer-prompt',
     workerStartReadsComposerMarker: true,
     // Why: Claude decodes CSI-u Ctrl+Enter on local ConPTY; CR made a remapped ctrl+enter act as Enter (#29711).
-    ctrlEnterEncoding: 'csi-u'
+    ctrlEnterEncoding: 'csi-u',
+    // Fork (o-041): on a slow Windows host the first Enter can land before the composer accepts it, leaving the
+    // prefilled prompt unsent; retry only while the composer still holds that prompt.
+    submitRetryDelayMs: 2000,
+    submitRetryBudgetMs: 30_000
   },
   'claude-agent-teams': {
     // This launch mode uses Orca’s CLI wrapper rather than a separate agent binary.

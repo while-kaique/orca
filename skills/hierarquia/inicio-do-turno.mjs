@@ -1,5 +1,5 @@
 // Confere se o chat novo começou a trabalhar e, se a ordem ficou parada na caixa de texto, envia até ele aceitar.
-import { citar, esperar, orcaEmSegundoPlano } from './orca-lancador.mjs'
+import { esperar, orcaEmSegundoPlano } from './orca-lancador.mjs'
 import { decidirInicio, ondeEstaAOrdem } from './regras.mjs'
 import { trechosDoPedido } from './pedido-da-ordem.mjs'
 
@@ -24,17 +24,9 @@ async function telaDoChat(handle) {
   return resposta.result?.terminal ?? null
 }
 
-/** Um espaço mais Enter envia o texto que já está digitado na caixa, sem acrescentar nada. */
+/** Só o Enter, como uma tecla: com texto junto ele pode chegar como colagem e virar quebra de linha na caixa. */
 function enviarOQueEstaNaCaixa(handle) {
-  return orcaEmSegundoPlano([
-    'terminal',
-    'send',
-    '--terminal',
-    handle,
-    '--text',
-    citar(' '),
-    '--enter'
-  ])
+  return orcaEmSegundoPlano(['terminal', 'send', '--terminal', handle, '--enter'])
 }
 
 const hora = (ms) => new Date(ms).toLocaleTimeString('pt-BR')

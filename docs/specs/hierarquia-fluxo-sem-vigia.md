@@ -139,3 +139,65 @@ medido o pico de `pnpm tc` dentro de um chat). Saída em `.hierarquia/provas/o-0
 ## Fora do escopo
 
 Teto por máquina (vários projetos); aviso ao Kaique quando tudo para.
+
+## Fechar e reabrir o Orca (ordem o-041, 13/11/2026)
+
+- **A porta.** `hierarquia porta` responde se pode fechar ou reabrir o Orca agora, olhando a máquina inteira: todo
+  projeto com `.hierarquia/` (índice `~/.hierarquia-projetos.json`, mais as pastas das abas do Orca) e todo chat,
+  inclusive livre (o estado que o Orca grava em `agent-hooks/*/last-status.json`). Não pode com chat trabalhando ou
+  ordem lançada há menos de 10 min (o Orca leva minutos para ligar o chat nesta máquina). `--liberar` abre a
+  liberação (`~/.hierarquia-liberacao.json`): até o Orca reabrir, ou 30 min, `hierarquia ordem` recusa ordem nova.
+  `--cancelar` desfaz. A primeira linha de `hierarquia estado` diz "Pode reabrir o Orca: sim/nao".
+- **O X.** No Orca do fork (opção `ORCA_FORK_FECHAR_PARA_CHATS=1`, ligada pelo `abrir-orca-montado.bat`), X, Alt+F4,
+  Sair e bandeja passam pela porta (`--rapido`, sem chamar o Orca): com chat trabalhando, pergunta "Fechar e parar
+  todos / Cancelar". Desligar o Windows não pergunta. Fechou: o guarda de terminais para e a árvore dele (claude,
+  claude.exe.old, node, python, shells) é morta pelo processo pai, conferindo pid e hora de nascimento. Queda do
+  programa (sem X) não passa por aí: os chats seguem vivos, como antes.
+- **O atalho.** Orca aberto: só traz a janela. Orca fechado com o guarda de terminais vivo e chat trabalhando: mostra
+  a lista e pergunta se abre. Senão abre direto.
+- **A volta.** O X anota `chat_cortado` para cada chat da hierarquia que trabalhava; chat sem terminal por 2 min com a
+  aba ainda guardada também vira cortado (antes virava "parou"). O vigia (que agora espera o Orca voltar, até 2 h) e
+  o `hierarquia retomar` (o Orca do fork roda 45 s depois de abrir) entregam ao chat, só com o Claude aberto, o
+  aviso para conferir e continuar, um por vez, e contam a quem criou. Até lá o card mostra "na fila". Chat livre
+  cortado não recebe nada: volta dormindo e retoma a conversa ao ser aberto.
+- **Aviso só com o Claude aberto.** Todo texto que o comando digita num chat confere antes a caixa do Claude na tela;
+  sem ela, vira `aviso_guardado` e é entregue quando o Claude volta (ou sai na tela do próximo comando do chat).
+- **Vigia com código novo.** A cada 30 s o vigia compara a data e o tamanho dos `.mjs`; mudou, passa ao vigia novo
+  as mensagens vistas e os pedidos já avisados e sai.
+- **Chat de teste oficial.** `hierarquia ordem --teste --para executor` (título "TESTE …"): vaga própria (2 por
+  projeto), não disputa com trabalho; qualquer papel lança; usa o modelo mais leve (haiku, decisão do PO na o-043).
+  `criar-po` recusa chat que já é executor ou planejador.
+- **Chat sem terminal não aparece trabalhando** (o-043, caso do reinício de 13/11 14:04). Ordem trabalhando cujo chat
+  está fechado ou dormindo (fora dos 10 min de graça do lançamento) sai em `hierarquia estado` como "SEM CHAT LIGADO",
+  já antes de o vigia passar; em até 2 min o vigia a dá como parada (aba fechada) ou cortada (aba dormindo).
+- **Comando preso** (complemento da o-043, caso da o-042 em 13/11: 41 min num `python` com heredoc). Chat de uma
+  ordem trabalhando com **um** comando de shell (Bash ou PowerShell) aberto há 15 min, nada novo no transcript do
+  Claude nesse tempo e a tela igual entre duas conferências: o vigia de quem criou avisa **uma vez** por comando
+  (`comando_preso` no registro) e `hierarquia estado` mostra "COMANDO PRESO? ... há N min". A ordem continua
+  trabalhando e ninguém mexe no chat. Por que 15 min: o Bash do Claude Code corta sozinho um comando em primeiro
+  plano em no máximo 10 min; passou disso com 5 min de folga, o próprio limite falhou. Comando em segundo plano
+  devolve na hora e não conta; subagente (ferramenta Agent) também não. A regra antiga de "20 min sem nada na tela"
+  (que dava falso parado) não volta: aqui ninguém é dado como parado.
+- **Chats esperando o Kaique confirmar o fechamento** (complemento 2 da o-043, regra do Kaique de 13/11). O topo de
+  `hierarquia estado` mostra "ESPERANDO O KAIQUE CONFIRMAR O FECHAMENTO": cada chat de pedido entregue com a aba ainda
+  aberta e cada chat parado cujo criador caiu (aba do criador fechada), com o id da ordem, o que fez e a frase pronta
+  que o PO repete em toda mensagem. Aberto = a aba existe, mesmo que o registro já dê o chat como encerrado. A linha
+  some quando a aba fecha.
+- **O PO atual herda ordem sem dono** (complemento 3 da o-043, caso real de 13/11: `fechar` recusou o-036/o-037 do
+  planejador da o-034 que caiu e o-001/o-014/o-015/o-018 de POs antigos). `hierarquia fechar` e `hierarquia baixa`
+  aceitam quem criou a ordem **ou** o PO atual do projeto quando o criador não existe mais: chat encerrado no registro,
+  aba fechada, ou PO antigo trocado por outro. Ninguém mais herda; com o criador vivo, só ele cuida da ordem.
+- **Chat perdido** (reprovação da o-043, ponto 1). Se o chat de uma ordem trabalhando some (a aba não voltou depois de o
+  Orca reabrir, ou ele rodava escondido e foi encerrado), a ordem para sozinha e quem criou (ou o PO herdeiro) recebe
+  **uma vez** "CHAT PERDIDO", com o comando para retomar a conversa: `claude --resume <sessão>` na pasta do chat. A
+  sessão é achada pelo `dispatchId` da ordem em `~/.claude/projects/<pasta>/*.jsonl`. Chat que voltou dormindo segue
+  pela volta dos cortados (aviso quando o Claude dele abre).
+- **Nenhum chat escondido** (ponto 2). Uns 45 s depois de o Orca do fork abrir, toda sessão viva no guarda de terminais
+  que nasceu antes dessa abertura e que nenhuma aba guardada cita é encerrada, e a lista vai para
+  `fork-chats-escondidos.json`; o `hierarquia retomar` para as ordens delas (aviso de chat perdido) e conta ao PO os
+  chats livres encerrados. Sessão nova nunca é tocada.
+- **Uma pergunta só no X** (ponto 3). Com a opção do fork, o pedido de fechar vai à tela do Orca como numa saída do
+  programa: o Orca não pergunta pelos terminais locais e fica só a pergunta do fork, com a lista dos chats.
+- **Enter do Orca** (ponto 5). A repetição do Enter do próprio Orca para o Claude fica ligada (só repete enquanto o
+  rascunho guarda a ordem, até 30 s), mas não basta nesta máquina: em 3 lançamentos reais, 1 começou só com ela. A
+  garantia continua sendo o Enter do comando `hierarquia ordem`, que insiste até o chat começar (vigia, até 45 min).

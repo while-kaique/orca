@@ -1,5 +1,38 @@
 # Onde paramos — fork do Orca "PC como mesa"
 
+## 13/11/2026 (ordens o-041 + o-043) — controle total dos chats: porta, X que para tudo, volta, comando preso
+
+**Estado:** branch `while-kaique/feat-ordem-o-043` (não enviada; já com a o-042 junta; quem junta é o PO). Provas em `.hierarquia/provas/o-043/` (e as
+da o-041 em `provas/o-041/`), pasta principal, fora do git. Entrega e tabela critério por critério: `provas/o-043/ENTREGA.md`.
+
+**O que muda para quem usa**
+
+- **`hierarquia porta`**: diz se pode fechar ou reabrir o Orca olhando todos os chats da máquina (todos os projetos, chats
+  livres também). `--liberar` trava ordem nova até o Orca reabrir ou 30 min. A 1ª linha de `hierarquia estado` diz
+  "Pode reabrir o Orca: sim/nao".
+- **X do Orca (só no fork, ligado pelo atalho "Orca (meu)")**: com chat trabalhando pergunta "Fechar e parar todos /
+  Cancelar"; fechou, os processos dos chats daquele Orca morrem (pela árvore do guarda de terminais, nunca por nome).
+  Queda do programa continua deixando os chats vivos. Desligar o Windows não pergunta.
+- **A volta**: chat da hierarquia cortado volta dormindo; quando o Claude dele abre, recebe uma vez o aviso para conferir
+  e continuar, e quem criou fica sabendo. `estado` nunca mostra "trabalhando" para chat fechado ou dormindo ("SEM CHAT
+  LIGADO" já antes de o vigia passar; caso real do reinício de 13/11 14:04 refeito numa cópia do registro).
+- **Comando preso**: chat com um comando de shell rodando há 15 min sem nada novo gera **um** aviso para quem criou e a
+  coluna "COMANDO PRESO?" no `estado`; a ordem segue trabalhando (caso real da o-042, 41 min num `python` com heredoc).
+- **Chats esperando o Kaique confirmar o fechamento**: topo do `estado` com cada chat de pedido entregue (ou parado com o
+  criador caído) ainda aberto, o que ele fez e a frase que o PO repete em toda mensagem; some quando a aba fecha.
+- **Chat perdido avisa com o comando de retomar**: chat que sumiu no fechar/cair gera um aviso a quem criou com
+  `claude --resume <sessão>`; chat que rodava escondido sem aba depois de uma queda é encerrado ao reabrir e avisado.
+- **Uma pergunta só no X**: com a opção do fork, a pergunta "terminais rodando" do Orca sai e fica a lista do fork.
+- **O PO atual herda ordem sem dono**: criador que caiu ou PO antigo não trava mais `fechar` nem `baixa`; o PO de agora
+  cuida da ordem (registro diz "fechado pelo PO atual, herdeiro de ...").
+- **Aviso só com o Claude aberto**: texto que a hierarquia digitaria num shell sem Claude fica guardado e chega depois.
+- **Chat de teste oficial**: `hierarquia ordem --teste --para executor`, título "TESTE ...", haiku, vaga própria.
+
+**Roteiros do Orca de teste** (`tools/orca-de-teste-hierarquia/`): `portao-de-memoria.mjs` (só abre com 9 GB livres e
+nenhum outro Orca de teste), `roteiro-fato.mjs --cena 1|2` (queda, X, atalho, volta), `roteiro-porta.mjs` (porta, 3
+lançamentos com 1 chat de teste por vez, aviso guardado, vigia que troca de código), `caso-real-13-11.mjs` (cópia do
+registro real, casos `corte` e `comando-preso`).
+
 ## 14/11/2026 (ordem o-044) — estados dos cards, projeto apagado, Suspender e Fechar de vez, fluxograma leve, um Orca de teste só
 
 Branch `while-kaique/conferir-pacote-estados-fluxograma` (era `while-kaique/barramundi`). Spec:
