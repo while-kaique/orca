@@ -9,6 +9,7 @@ import {
   abrirOrca,
   ambienteDoMundo,
   apagarMundo,
+  arvore,
   CLI_DO_MUNDO,
   confiarNoMundo,
   contarDoMundo,
@@ -154,6 +155,12 @@ function ordemTeste(nome, titulo, objetivo, ambiente) {
     { env: ambiente, cwd: projeto, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }
   )
 }
+const juntarSaida = (filho) => {
+  const coletor = { texto: '' }
+  filho.stdout.on('data', (d) => (coletor.texto += d))
+  filho.stderr.on('data', (d) => (coletor.texto += d))
+  return coletor
+}
 const fimDe = (filho) =>
   filho.exitCode !== null ? Promise.resolve() : new Promise((pronto) => filho.on('exit', pronto))
 const chatDaOrdem = (ordemId) => {
@@ -181,6 +188,7 @@ try {
   }
   // O `hierarquia` fala com o Orca de teste por um comando que anota cada chamada (linha do worker-start).
   const logDasChamadas = path.join(saida, 'chamadas-do-orca.log')
+  writeFileSync(logDasChamadas, '')
   const comandoRegistrado = path.join(MUNDO, 'orca-registrado.cmd')
   writeFileSync(
     comandoRegistrado,
@@ -214,13 +222,22 @@ try {
     'Nao leia nada e nao mexa em nada. Responda apenas OK e espere a proxima mensagem.',
     ambientePo
   )
+  const saidaPai = juntarSaida(lancPai)
   await fimDe(lancPai)
+  guardar('lancamento-pai.txt', saidaPai.texto)
   const pai = chatDaOrdem('o-001')
   if (!pai) {
     throw new Error('a ordem do pai nao abriu chat')
   }
   dizer(
     `pai: aba ${pai.tabId}, terminal ${pai.handle}; caixa pronta = ${await esperarCaixa(pai.handle)}`
+  )
+  // Antes de o filho nascer, o unico Claude do mundo e o do pai: o PID dele e o do shell que o abriu sao anotados agora.
+  const mundoComSoOPai = processosDoMundo(pidsDoOrca)
+  const claudeDoPai = mundoComSoOPai.find((p) => /^claude/iu.test(p.nome))
+  const shellDoPai = claudeDoPai ? mundoComSoOPai.find((p) => p.pid === claudeDoPai.pai) : null
+  dizer(
+    `PID anotado: claude do pai ${claudeDoPai?.pid ?? '(nao achei)'}, shell do terminal ${shellDoPai?.pid ?? '(nao achei)'} (${shellDoPai?.nome ?? '-'})`
   )
   const ambientePai = ambienteDoMundo({
     ...ambienteRegistrado,
@@ -234,7 +251,9 @@ try {
     'Nao leia nada e nao mexa em nada. Responda apenas OK e espere.',
     ambientePai
   )
+  const saidaFilho = juntarSaida(lancFilho)
   await fimDe(lancFilho)
+  guardar('lancamento-filho.txt', saidaFilho.texto)
   const filho = chatDaOrdem('o-002')
   if (!filho) {
     throw new Error('a ordem do filho nao abriu chat')
@@ -279,7 +298,7 @@ try {
         .join('\n')
     )
     dizer(
-      `worker-start de teste: ${linhas.map((l) => (l.match(/--model \S+ --effort \S+/u) ?? ['sem --model/--effort'])[0]).join(' | ')}`
+      `worker-start de teste: ${linhas.map((l) => (l.match(/--model \S+( --effort \S+)?/u) ?? ['sem --model'])[0]).join(' | ')}`
     )
   }
   guardar('antes-estado.txt', hierarquia(['estado'], ambientePo))
@@ -291,37 +310,37 @@ try {
   )
   const antes = await fluxograma('antes', ambientePo)
 
-  // O PID do terminal do pai: o claude que tem a ordem o-001 na linha de comando e o shell que o abriu.
-  const lista = processosDoMundo(pidsDoOrca)
-  const claudeDoPai = lista.find(
-    (p) => /^claude/iu.test(p.nome) && p.comando.includes('ORDEM o-001 ')
-  )
+  // O PID do terminal do pai: o `processId` que o Orca informa dele (anotado antes de matar) e a arvore que nasce dele.
   if (!claudeDoPai) {
-    throw new Error('nao achei o processo claude do pai pela ordem o-001')
+    throw new Error('nao achei o processo claude do pai antes de criar o filho')
   }
-  const shellDoPai = lista.find((p) => p.pid === claudeDoPai.pai)
-  dizer(
-    `PID anotado: claude do pai ${claudeDoPai.pid}, shell do terminal ${shellDoPai?.pid ?? '(nao achei)'} (${shellDoPai?.nome ?? '-'})`
-  )
-  guardar(
-    'pids-do-pai.txt',
-    `claude ${claudeDoPai.pid}\nshell ${shellDoPai?.pid ?? '-'} ${shellDoPai?.nome ?? ''}\n`
-  )
-  const alvo =
+  const pidDoTerminal =
     shellDoPai && /^(powershell|pwsh|cmd|bash)/iu.test(shellDoPai.nome)
       ? shellDoPai.pid
       : claudeDoPai.pid
-  execFileSync('taskkill', ['/F', '/T', '/PID', String(alvo)], {
-    stdio: 'ignore',
-    windowsHide: true
-  })
-  dizer(`terminal do pai morto pelo PID ${alvo} (arvore dele)`)
+  const arvoreDoPai = arvore(processos(), [pidDoTerminal])
+  const linhasDaArvore = arvoreDoPai
+    .map((p) => `${p.pid} ${p.pai} ${p.nome} ${p.comando.slice(0, 160)}`)
+    .join('\n')
+  guardar('pids-do-pai.txt', `PID do terminal do pai: ${pidDoTerminal}\n${linhasDaArvore}\n`)
+  dizer(
+    `PID anotado do terminal do pai: ${pidDoTerminal}; arvore dele: ${arvoreDoPai.map((p) => `${p.pid} ${p.nome}`).join(', ')}`
+  )
+  try {
+    execFileSync('taskkill', ['/F', '/T', '/PID', String(pidDoTerminal)], {
+      stdio: 'ignore',
+      windowsHide: true
+    })
+  } catch {
+    // Parte da arvore ja tinha saido (comandos curtos do chat): o taskkill sai com erro mas mata o resto.
+  }
+  dizer(`terminal do pai morto pelo PID ${pidDoTerminal} (so a arvore dele)`)
   await esperar(8000)
-  const vivosDepois = processos().filter((p) => p.pid === claudeDoPai.pid)
+  const vivosDepois = arvore(processos(), [pidDoTerminal])
   const terminais = orcaTeste(['terminal', 'list']).result?.terminals ?? []
   guardar('depois-da-morte-terminais.json', terminais)
   dizer(
-    `depois da morte: claude do pai vivo = ${vivosDepois.length > 0}; terminal do pai na lista = ${JSON.stringify(terminais.find((t) => t.tabId === pai.tabId) ?? 'sumiu')}`
+    `depois da morte: processos da arvore do pai vivos = ${vivosDepois.length}; terminal do pai na lista = ${JSON.stringify(terminais.find((t) => t.tabId === pai.tabId) ?? 'sumiu')}`
   )
   await foto('morto')
 
