@@ -380,22 +380,24 @@ Restaurado = o chat voltou **com a memória dele**, ligado à **mesma ordem** no
    ordem; `git status` da pasta do chat; o que o trabalho deixou gravado (arquivos de estado, log).
 2. **Ache a conversa guardada.** Fica em `~/.claude/projects/<pasta do chat, com "-" no lugar de
    barra, dois-pontos e espaço>/`. É o `.jsonl` maior e mais recente; o nome do arquivo é o id.
-3. **Reabra na mesma pasta, com a mesma conversa:**
-   `orca-dev terminal create --worktree "path:<pasta do chat>" --title "<titulo da ordem> (o-NNN, restaurado pelo PO)" --command "claude --plugin-dir <pasta orca-agent-view> --model <modelo do papel> --permission-mode auto --resume <id da conversa>" --json`.
-   A pasta `orca-agent-view` é a mesma da linha de comando do seu próprio processo
-   (`Get-CimInstance Win32_Process`, o `claude.exe` com o seu `--resume`). Guarde o `handle` e o
-   `tabId` da resposta. Modo de permissão: sempre `auto`, mesmo que o chat tenha nascido em outro.
-4. **Ligue o chat novo à ordem no registro.** O chat é a aba; aba nova é chat novo para o comando, e
-   sem este passo `hierarquia perguntar` e `entregar` recusam. Escreva um evento `chat_lancado` com
-   `ordemId`, `chatId` (o `tabId` novo), `handle`, `pasta`, `modelo`, `dispatchId` (o da ordem),
-   `situacaoDoLancamento: "ready"`, e mais `restauradoPeloPo: true`, `chatAnterior`, `conversa` e
-   `motivo`. Use a função `anotar` do `registro.mjs` num roteiro descartável fora do repositório;
-   nunca edite o `registro.jsonl` na mão. Confira com `hierarquia estado`.
+3. **Restaure com o comando:** `hierarquia restaurar --chat <id do chat antigo> [--conversa <id>]`.
+   Ele acha a ordem (ou o papel de PO) do chat antigo, abre o terminal na mesma pasta com
+   `claude --plugin-dir <orca-agent-view> --model <modelo do papel> --effort high --permission-mode auto --resume <conversa>`
+   (sem `--conversa`, usa a que recebeu a ordem, ou a maior das recentes da pasta) e grava **um
+   evento só**, `chat_restaurado`. O registro faz o chat novo **herdar tudo** do antigo: papel, pai,
+   ordem e a situação dela (aprovada continua aprovada), os filhos do antigo passam a ter o novo
+   como pai e, se o antigo era o PO, o novo vira o PO. O antigo fica inativo. Recusa chat que ainda
+   tem terminal vivo. Nunca escreva `chat_lancado` nem edite o `registro.jsonl` na mão para isso:
+   `chat_lancado` trata aba nova como chat novo e volta a ordem aprovada para "trabalhando".
+   Confira com `hierarquia estado`. O PO morto é restaurado por um chat qualquer do projeto (o
+   projeto fica sem PO até lá).
+4. **Veja o resultado:** `hierarquia estado` mostra o chat novo no lugar do antigo, com a ordem na
+   mesma situação de antes.
 5. **Leia a tela uma vez:** a conversa carregou e o modo é "auto".
 6. **Mande o AVISO DO PO** (formato de "aviso que destrava"): o que aconteceu, o que está gravado,
    de onde retomar, e os limites da ordem de novo, com as regras absolutas do projeto. Confira
    `accepted` e leia a tela mais uma vez: o aviso chegou **uma vez só** e o chat começou.
-7. **Religue o vigia.** O pid está em `.hierarquia/vigias/<seu id>.json`. Se o processo não está
+7. **Confira o vigia.** Ao restaurar um PO o comando já liga o do chat novo. O pid está em `.hierarquia/vigias/<seu id>.json`. Se o processo não está
    vivo: `node <hierarquia.mjs> vigiar --projeto <projeto>`, solto e com janela escondida. Sem ele o
    "PEDIDO FECHADO" não chega.
 8. **Deixe um alarme de fundo** se o trabalho é longo: um roteiro seu que termina (e acorda você)

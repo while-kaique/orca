@@ -8,6 +8,10 @@ export const USO = {
     uso: 'hierarquia ordem --para executor --arquivo ordem.json [--pedido NOME] [--na-frente] [--na-pasta-do-criador] [--teste]',
     exige: ['para', 'arquivo']
   },
+  restaurar: {
+    uso: 'hierarquia restaurar --chat ID_DO_CHAT_ANTIGO [--conversa ID] [--pasta PASTA] (o chat voltou sem aba: reabre a conversa dele e herda o lugar)',
+    exige: ['chat']
+  },
   'lancar-espera': { uso: 'hierarquia lancar-espera', exige: [] },
   vigiar: { uso: 'hierarquia vigiar [--chat ID] (ligado sozinho pelo comando ordem)', exige: [] },
   retomar: {

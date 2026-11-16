@@ -51,6 +51,7 @@ import { avisarChat, mostrarGuardadosNoComando } from './avisos-guardados.mjs'
 import { liberacaoEmAberto } from './porta-do-orca.mjs'
 import { comandoPorta, comandoRetomar } from './comandos-da-porta.mjs'
 import { comandoCriarPo } from './comando-criar-po.mjs'
+import { comandoRestaurar } from './comando-restaurar.mjs'
 import { garantirVigia, vigiar } from './vigia-do-criador.mjs'
 
 const ESPERA_DO_LANCAMENTO_MS = '180000'
@@ -191,6 +192,7 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
 
 const comandos = {
   'criar-po': (op) => comandoCriarPo(op, quemSou(), meuTerminal()),
+  restaurar: (op) => comandoRestaurar(op, quemSou(), import.meta.filename),
 
   async ordem(op) {
     const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')

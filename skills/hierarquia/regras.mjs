@@ -1,4 +1,5 @@
 // Regras da hierarquia PO > Planejador > Executor (spec 001). Puro: sem disco, sem rede, sem Orca.
+import { herdarLugar } from './chat-restaurado.mjs'
 
 /** Desde 16/11/2026 nao existe mais planejador: o PO (Opus) planeja e so cria executores (Sonnet). */
 export const PAPEIS = {
@@ -177,6 +178,9 @@ export function montarEstado(eventos) {
         if (estado.po === ev.chatId) {
           estado.po = null
         }
+        break
+      case 'chat_restaurado':
+        herdarLugar(estado, ev)
         break
       case 'chat_reconectado':
         if (estado.chats[ev.chatId]) {
