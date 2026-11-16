@@ -1,7 +1,7 @@
 // O FATO e o X (o-041 partes 1, 3, 4 e 5; versao enxuta da o-043): um Orca de teste com a opcao do fork ligada,
 // no maximo 3 chats Claude (haiku) vivos, e o que acontece quando ele cai, fecha pelo X e reabre.
 // Uso: node tools/orca-de-teste-hierarquia/roteiro-fato.mjs PASTA_DE_SAIDA --cena 1|2
-//   cena 1: parado (livre), comando longo (ordem TESTE da hierarquia), comando em segundo plano (livre).
+//   cena 1: comando longo (ordem TESTE da hierarquia) e comando em segundo plano (livre); no maximo 2 chats.
 //           Queda (so o programa morre) + atalho com chat vivo; reabre; X; atalho sem chat; reabre; a volta.
 //   cena 2: chat que abriu um chat filho (teste com filhos) + ordem recem-lancada ainda nascendo; X; reabre.
 import { execFileSync, spawn } from 'node:child_process'
@@ -435,14 +435,13 @@ try {
   dizer(hierarquia(['criar-po', '--projeto', projetoA]).trim().split('\n')[0])
 
   if (cena === 1) {
+    // No maximo 2 chats TESTE vivos (decisao do PO, 16/11): segundo plano (livre) e o comando longo (ordem).
     const chats = {
-      parado: abrirClaude(projetoA, 'TESTE fato: parado'),
       fundo: abrirClaude(B, 'TESTE fato: comando em segundo plano')
     }
     for (const [nome, chat] of Object.entries(chats)) {
       dizer(`${nome}: caixa do Claude pronta = ${await esperarCaixa(chat)}`)
     }
-    enviar(chats.parado.handle, 'Responda apenas: OK PARADO')
     enviar(
       chats.fundo.handle,
       'Use a ferramenta Bash com run_in_background true e rode exatamente: sleep 1500 && echo FIM-FUNDO . Depois responda apenas: FUNDO LIGADO e encerre o turno.'

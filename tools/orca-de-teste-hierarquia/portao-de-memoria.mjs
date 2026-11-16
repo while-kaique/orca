@@ -1,10 +1,11 @@
-// Portao de memoria (decisao do PO na o-043): so abre Orca de teste com 9 GB livres e nenhum outro Orca de teste vivo
+// Portao de memoria (decisao do PO na o-043): so abre Orca de teste com 6 GB livres e nenhum outro Orca de teste vivo
 // na maquina. Sem isso, espera 5 min e mede de novo, por ate 90 min, sem ocupar a maquina (so um relogio parado).
 // Uso: node tools/orca-de-teste-hierarquia/portao-de-memoria.mjs [ARQUIVO_DE_LOG]   (sai 0 = pode, 1 = nao abriu)
 import { execFileSync } from 'node:child_process'
 import { appendFileSync } from 'node:fs'
 
-export const MINIMO_LIVRE_GB = 9
+// O PO baixou para 6 em 16/11: sem processo pesado sobrando, a maquina nao chega a 9 GB livres.
+export const MINIMO_LIVRE_GB = 6
 const ESPERA_MS = 5 * 60_000
 const PRAZO_MS = 90 * 60_000
 
