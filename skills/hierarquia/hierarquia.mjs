@@ -16,6 +16,7 @@ import {
 } from './regras.mjs'
 import {
   abaDoChat,
+  argumentosDoWorkerStart,
   branchDoProjeto,
   citar,
   dormir,
@@ -30,6 +31,7 @@ import {
   soltarLancamentoSemChat
 } from './orca-lancador.mjs'
 import {
+  comRegraDeProcesso,
   pedidoDaCorrecao,
   pedidoParaOrca,
   textoDaOrdem,
@@ -106,24 +108,16 @@ async function lancar(projeto, estado, ordem, modelo, fechar) {
   const titulo = tituloDaTarefa(ordem)
   // A etiqueta do fluxograma já diz o papel: a aba leva só o título da ordem.
   const tituloDaAba = ordem.campos.titulo ?? ordem.id
-  const argsComEspera = (esperaMs) => [
-    'orchestration',
-    'worker-start',
-    ...(souPo ? [] : ['--from', meuTerminal()]),
-    '--spec',
-    citar(pedido),
-    '--task-title',
-    citar(titulo),
-    '--worktree',
-    pasta,
-    ...(pasta === 'new-child' ? ['--base-branch', citar(branchDoProjeto(projeto))] : []),
-    '--agent',
-    'claude',
-    '--model',
-    modelo,
-    '--timeout-ms',
-    esperaMs
-  ]
+  const argsComEspera = (esperaMs) =>
+    argumentosDoWorkerStart({
+      de: souPo ? null : meuTerminal(),
+      pedido,
+      titulo,
+      pasta,
+      baseBranch: pasta === 'new-child' ? branchDoProjeto(projeto) : null,
+      modelo,
+      esperaMs
+    })
   const registrar = (chat, situacao) =>
     anotar(projeto, 'chat_lancado', {
       ordemId: ordem.id,
@@ -202,10 +196,10 @@ const comandos = {
     const projeto = acharProjeto(op.projeto) ?? sair('Não achei a pasta .hierarquia deste projeto.')
     if (!op.para || !op.arquivo) {
       sair(
-        'Uso: hierarquia ordem --para planejador|executor --arquivo ordem.json [--pedido NOME] [--na-frente]'
+        'Uso: hierarquia ordem --para executor --arquivo ordem.json [--pedido NOME] [--na-frente]'
       )
     }
-    const campos = JSON.parse(readFileSync(resolve(op.arquivo), 'utf8'))
+    const campos = comRegraDeProcesso(JSON.parse(readFileSync(resolve(op.arquivo), 'utf8')))
     const eu = quemSou()
     // Dois lançamentos juntos: o número da ordem e a vaga do teto se decidem um de cada vez.
     const soltar = pegarTrava(join(caminhos(projeto).base, 'trava-ordem'))

@@ -1,6 +1,6 @@
 // Conversa com o Orca: lançar chat, manter aberto e avisar. Usado pelo comando `hierarquia`.
 import { execFile, execFileSync } from 'node:child_process'
-import { acharTarefaNova, acharTerminalNovo, ondeEstaOTexto } from './regras.mjs'
+import { acharTarefaNova, acharTerminalNovo, ESFORCO, ondeEstaOTexto } from './regras.mjs'
 
 /** O texto que vai para o Orca precisa ser ASCII puro: acento vira lixo na ordem. */
 export function semAcento(texto) {
@@ -43,6 +43,38 @@ export function orca(args) {
     saida = String(erro.stdout)
   }
   return lerResposta(saida)
+}
+
+/** A linha do `worker-start` de todo lancamento: modelo do papel e esforco alto (o PO e os executores, desde 16/11/2026). */
+export function argumentosDoWorkerStart({
+  de,
+  pedido,
+  titulo,
+  pasta,
+  baseBranch,
+  modelo,
+  esperaMs
+}) {
+  return [
+    'orchestration',
+    'worker-start',
+    ...(de ? ['--from', de] : []),
+    '--spec',
+    citar(pedido),
+    '--task-title',
+    citar(titulo),
+    '--worktree',
+    pasta,
+    ...(baseBranch ? ['--base-branch', citar(baseBranch)] : []),
+    '--agent',
+    'claude',
+    '--model',
+    modelo,
+    '--effort',
+    ESFORCO,
+    '--timeout-ms',
+    esperaMs
+  ]
 }
 
 export function orcaEmSegundoPlano(args) {

@@ -1,16 +1,20 @@
 // Regras da hierarquia PO > Planejador > Executor (spec 001). Puro: sem disco, sem rede, sem Orca.
 
+/** Desde 16/11/2026 nao existe mais planejador: o PO (Opus) planeja e so cria executores (Sonnet). */
 export const PAPEIS = {
-  po: { modelo: 'fable', cria: ['planejador', 'executor'] },
-  planejador: { modelo: 'opus', cria: ['executor'] },
+  po: { modelo: 'opus', cria: ['executor'] },
+  planejador: { modelo: 'opus', cria: [] },
   executor: { modelo: 'sonnet', cria: [] }
 }
+
+/** Esforco do raciocinio de todo chat lancado pelo comando (Orca: --effort). */
+export const ESFORCO = 'high'
 
 /** Chat de teste usa o modelo mais leve: so prova que o lancamento funciona (decisao do PO na o-043). */
 export const MODELO_DO_TESTE = 'haiku'
 
-/** Por projeto: chats trabalhando ao mesmo tempo. Executores somam todos os criadores (adendo 2 da o-021). */
-export const TETO = { planejadoresPorProjeto: 2, executoresPorProjeto: 2, testesPorProjeto: 2 }
+/** Por projeto: chats trabalhando ao mesmo tempo. Quatro executores por PO; com o PO, ate cinco chats abertos. */
+export const TETO = { executoresPorProjeto: 4, testesPorProjeto: 2 }
 
 export const CAMPOS_DA_ORDEM = ['objetivo', 'porque', 'criterios', 'limites', 'territorio']
 
@@ -252,7 +256,6 @@ function ocupandoVaga(estado, papel) {
 }
 
 const TETO_DO_PAPEL = {
-  planejador: () => TETO.planejadoresPorProjeto,
   executor: () => TETO.executoresPorProjeto,
   teste: () => TETO.testesPorProjeto
 }
@@ -262,14 +265,14 @@ function vagaDa(ordem) {
   return ordem.teste ? 'teste' : ordem.papel
 }
 
+/** Papel sem teto (planejador de registro antigo) nunca sai da espera: ninguem o cria mais. */
 function vagaLivre(estado, para) {
-  return ocupandoVaga(estado, para) < TETO_DO_PAPEL[para]()
+  return para in TETO_DO_PAPEL && ocupandoVaga(estado, para) < TETO_DO_PAPEL[para]()
 }
 
 /** O que `hierarquia estado` mostra do teto: quem trabalha, o limite e quem espera vaga. */
 export function ocupacao(estado) {
   return {
-    planejadores: ocupandoVaga(estado, 'planejador'),
     executores: ocupandoVaga(estado, 'executor'),
     testes: ocupandoVaga(estado, 'teste'),
     teto: TETO,
@@ -311,6 +314,13 @@ export function decidirOrdem(estado, { de, para, campos, teste = false, liberaca
     return {
       acao: 'recusar',
       motivo: `há uma liberação para reabrir o Orca em aberto desde ${liberacao.desde} (${liberacao.por ?? 'sem autor'}): lançar e reabrir nunca juntos. Espere o Orca reabrir (ela fecha sozinha) ou cancele com: hierarquia porta --cancelar`
+    }
+  }
+  if (para === 'planejador') {
+    return {
+      acao: 'recusar',
+      motivo:
+        'Não existe mais planejador (regra do Kaique, 16/11/2026): o PO planeja e a ordem vai direto a um executor (--para executor).'
     }
   }
   // Chat de teste: qualquer papel cria (até o executor), só executor, título começando com TESTE.

@@ -115,8 +115,8 @@ export function rotuloDaSituacao(ordem, chat = null, vida = null, agora = Date.n
 }
 
 function linhaDoTeto(estado) {
-  const { planejadores, executores, teto, emEspera } = ocupacao(estado)
-  return `Teto: planejadores ${planejadores} de ${teto.planejadoresPorProjeto}, executores ${executores} de ${teto.executoresPorProjeto} trabalhando; esperando vaga: ${emEspera.length}`
+  const { executores, teto, emEspera } = ocupacao(estado)
+  return `Teto: executores ${executores} de ${teto.executoresPorProjeto} trabalhando; esperando vaga: ${emEspera.length}`
 }
 
 /** Pedidos já terminados há tempo ficam numa linha só; os abertos mostram cada ordem. */

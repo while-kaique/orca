@@ -5,7 +5,7 @@ import { sair } from './registro.mjs'
 export const USO = {
   'criar-po': { uso: 'hierarquia criar-po [--projeto PASTA] [--teste]', exige: [] },
   ordem: {
-    uso: 'hierarquia ordem --para planejador|executor --arquivo ordem.json [--pedido NOME] [--na-frente] [--na-pasta-do-criador] [--teste]',
+    uso: 'hierarquia ordem --para executor --arquivo ordem.json [--pedido NOME] [--na-frente] [--na-pasta-do-criador] [--teste]',
     exige: ['para', 'arquivo']
   },
   'lancar-espera': { uso: 'hierarquia lancar-espera', exige: [] },

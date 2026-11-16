@@ -11,11 +11,11 @@ const CAMPOS = {
   territorio: 'v'
 }
 
-/** PO com dois executores trabalhando: o teto de executores está cheio. */
+/** PO com quatro executores trabalhando: o teto de executores está cheio. */
 function tetoCheio() {
   return montarEstado([
     { t: '2026-11-13T10:00:00.000Z', tipo: 'po_criado', chatId: 'PO' },
-    ...['e1', 'e2'].flatMap((id) => [
+    ...['e1', 'e2', 'e3', 'e4'].flatMap((id) => [
       {
         t: '2026-11-13T10:00:00.000Z',
         tipo: 'ordem_criada',
@@ -39,10 +39,10 @@ test('lancar e reabrir nunca juntos: com a liberacao aberta a ordem e recusada',
   const estado = montarEstado([{ t: '2026-11-13T10:00:00.000Z', tipo: 'po_criado', chatId: 'PO' }])
   const liberacao = { desde: '2026-11-13T10:00:00.000Z', por: 'PO' }
   assert.equal(
-    decidirOrdem(estado, { de: 'PO', para: 'planejador', campos: CAMPOS, liberacao }).acao,
+    decidirOrdem(estado, { de: 'PO', para: 'executor', campos: CAMPOS, liberacao }).acao,
     'recusar'
   )
-  assert.equal(decidirOrdem(estado, { de: 'PO', para: 'planejador', campos: CAMPOS }).acao, 'criar')
+  assert.equal(decidirOrdem(estado, { de: 'PO', para: 'executor', campos: CAMPOS }).acao, 'criar')
 })
 
 test('a liberacao fecha quando o Orca reabre ou depois de 30 min', () => {
