@@ -9,7 +9,7 @@ import { vidaDosChats } from './fechar-chats.mjs'
 import { abaDoChat, citar, orca, semAcento } from './orca-lancador.mjs'
 import { acharProjeto, anotar, caminhos, lerEventos, sair } from './registro.mjs'
 import { decidirRestauracao } from './decisao-de-restauracao.mjs'
-import { ESFORCO, montarEstado } from './regras.mjs'
+import { esforcoDoModelo, montarEstado } from './regras.mjs'
 import { garantirVigia } from './vigia-do-criador.mjs'
 
 /** Conversas menores que isto sao abas recem-abertas, nunca o chat que trabalhava. */
@@ -110,8 +110,7 @@ export async function comandoRestaurar(op, eu, script) {
     ...(plugin ? ['--plugin-dir', plugin] : []),
     '--model',
     decisao.modelo,
-    '--effort',
-    ESFORCO,
+    ...(esforcoDoModelo(decisao.modelo) ? ['--effort', esforcoDoModelo(decisao.modelo)] : []),
     '--permission-mode',
     'auto',
     '--resume',
@@ -150,7 +149,7 @@ export async function comandoRestaurar(op, eu, script) {
   console.log(
     [
       `Chat ${antigo.id} restaurado como ${chatId} (${decisao.papel}${ordem ? `, ${ordem.id}` : ''}), terminal ${handle}.`,
-      `Conversa ${conversa.sessao} (${conversa.como}); pasta ${pasta}; ${decisao.modelo}, esforco ${ESFORCO}, modo auto.`,
+      `Conversa ${conversa.sessao} (${conversa.como}); pasta ${pasta}; ${decisao.modelo}, esforco ${esforcoDoModelo(decisao.modelo) ?? 'padrao'}, modo auto.`,
       'Falta ver a tela uma vez (conversa carregada, modo auto) e mandar o AVISO DO PO; confira com: hierarquia estado.'
     ].join('\n')
   )

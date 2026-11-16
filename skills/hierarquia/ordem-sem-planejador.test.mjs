@@ -12,11 +12,11 @@ const BASE = {
   esperaMs: '180000'
 }
 
-test('o executor de verdade sai com --model sonnet --effort high; o de teste, haiku com --effort high', () => {
+test('o executor de verdade sai com --model sonnet --effort high; o de teste (haiku, que nao aceita esforco), sem --effort', () => {
   const executor = argumentosDoWorkerStart({ ...BASE, modelo: 'sonnet' }).join(' ')
   assert.match(executor, /--agent claude --model sonnet --effort high --timeout-ms 180000$/u)
   const teste = argumentosDoWorkerStart({ ...BASE, modelo: 'haiku' }).join(' ')
-  assert.match(teste, /--agent claude --model haiku --effort high --timeout-ms 180000$/u)
+  assert.match(teste, /--agent claude --model haiku --timeout-ms 180000$/u)
 })
 
 test('toda ordem leva a regra de processo no fim dos limites, uma vez so', () => {

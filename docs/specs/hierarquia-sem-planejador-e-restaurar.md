@@ -12,7 +12,8 @@ projeto, ficam até 5 chats abertos".
 - Teto: 4 executores trabalhando por projeto (um PO por projeto); o 5º entra em espera e sai quando abre vaga. O campo de
   planejadores saiu do teto e de `hierarquia estado` ("Teto: executores N de 4 trabalhando").
 - Todo `worker-start` leva `--effort high` junto do `--model` (`argumentosDoWorkerStart`, em `orca-lancador.mjs`). O chat
-  de teste continua em `haiku`, também com `--effort high`.
+  de teste continua em `haiku` e vai **sem** `--effort`: o Orca recusa o lançamento ("model haiku does not support effort
+  high", achado no Orca de teste em 16/11).
 - Planejador de registro antigo em espera nunca sai dela (sem teto, sem vaga).
 
 ## 2. Restaurar herda o lugar

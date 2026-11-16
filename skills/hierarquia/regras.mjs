@@ -11,6 +11,9 @@ export const PAPEIS = {
 /** Esforco do raciocinio de todo chat lancado pelo comando (Orca: --effort). */
 export const ESFORCO = 'high'
 
+/** O Haiku nao aceita esforco (o Orca recusa o lancamento: "model haiku does not support effort high", visto em 16/11). */
+export const esforcoDoModelo = (modelo) => (modelo === 'haiku' ? null : ESFORCO)
+
 /** Chat de teste usa o modelo mais leve: so prova que o lancamento funciona (decisao do PO na o-043). */
 export const MODELO_DO_TESTE = 'haiku'
 
