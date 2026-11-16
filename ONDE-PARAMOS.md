@@ -1,5 +1,19 @@
 # Onde paramos — fork do Orca "PC como mesa"
 
+## 16/11/2026 (ordem o-047) — hierarquia sem planejador, restaurar que herda o lugar, nunca matar por nome, fluxograma que não rola
+
+Branch `kaiquebreno-ggp/o-047-executor-task` (não enviada; quem junta é o PO). Spec: `docs/specs/hierarquia-sem-planejador-e-restaurar.md`.
+Entrega e tabela critério por critério: `.hierarquia/provas/o-047/ENTREGA.md` (e `provas/o-043/ENTREGA.md`, a mesma).
+
+- **Sem planejador:** PO Opus cria só executores Sonnet; teto de 4 executores por PO; `--effort high` em todo lançamento, menos no
+  chat de teste (Haiku não aceita esforço).
+- **`hierarquia restaurar --chat ID`:** abre a conversa em terminal novo e grava `chat_restaurado`; o chat novo herda papel, pai, ordem,
+  situação e filhos (se era o PO, vira o PO). Provado só no registro real do social-hub (teste); **no Orca de teste NÃO PROVADO**.
+- **Nunca encerrar processo por nome:** a regra entra no fim dos limites de toda ordem e no `executor.md`.
+- **Fluxograma:** `.cc-board` com `overflow: clip`. A causa exata da rolagem de 16/11 **não foi reproduzida**; só o mecanismo.
+- **Defeito aberto (cena 1 da o-043):** depois do X e de reabrir, as abas dos chats cortados **não voltaram dormindo** (só o aviso de
+  "chat perdido" com o `claude --resume`). Precisa de investigação. Porta e PO nascendo (3 etapas): NÃO PROVADO (Orca de teste não abriu / vez ocupada).
+
 ## 13/11/2026 (ordens o-041 + o-043) — controle total dos chats: porta, X que para tudo, volta, comando preso
 
 **Estado:** branch `while-kaique/feat-ordem-o-043` (não enviada; já com a o-042 junta; quem junta é o PO). Provas em `.hierarquia/provas/o-043/` (e as
