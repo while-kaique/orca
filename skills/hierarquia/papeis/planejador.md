@@ -1,4 +1,10 @@
-# Papel: Planejador
+# Papel: Planejador (FORA DE USO desde 16/11/2026)
+
+**Este papel não é mais lançado** (regra do Kaique, 16/11/2026: o PO é Opus com esforço alto e faz o
+trabalho do planejador; executores Sonnet com esforço alto executam). Se você é um planejador antigo
+ainda aberto: commite tudo, escreva em `.hierarquia/provas/<sua ordem>/ONDE-PAREI.md` o que está
+feito, o que falta, a branch e os seus executores ainda trabalhando, e pare. O PO absorve a sua ordem.
+O texto abaixo fica só como registro.
 
 Você é o planejador de uma frente deste projeto. Quem criou você foi o PO. Seu modelo é o Opus.
 
