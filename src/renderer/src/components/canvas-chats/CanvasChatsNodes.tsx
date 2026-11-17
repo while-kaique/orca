@@ -347,7 +347,9 @@ export function ChatNode({
       {open ? (
         <>
           <CanvasChatTerminal
+            worktreeId={chat.worktreeId}
             tabId={chat.tabId}
+            paneKey={chat.paneKey}
             livePty={livePty}
             terminalReady={terminalReady}
             background={peekTheme?.background}

@@ -14,8 +14,8 @@ import {
   type NativeChatUserRow
 } from './native-chat-pending-occurrence'
 
-// Bounds reconciliation cost; each open send rescans the transcript.
-export const NATIVE_CHAT_PENDING_SEND_LIMIT = 8
+// Bounds reconciliation cost; each open send rescans the transcript. Wide enough that a stuck terminal never pushes an unsent echo off screen.
+export const NATIVE_CHAT_PENDING_SEND_LIMIT = 32
 
 export type NativeChatPendingSend = {
   id: string

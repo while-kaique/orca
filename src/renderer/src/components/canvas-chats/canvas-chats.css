@@ -1979,3 +1979,36 @@
 .cc-chat.cc-shape-crest[data-status='suspended'] {
   border: none;
 }
+
+/* open card: the chat screen and its switch to the terminal */
+.cc-screen-bar {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 8px 0;
+}
+.cc-screen-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: #ffffff10;
+  color: #b0b0ba;
+  font: 11px system-ui;
+  cursor: pointer;
+}
+.cc-screen-switch:hover {
+  background: #ffffff26;
+  color: #fff;
+}
+.cc-chat-screen {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin: 6px;
+  border-radius: 8px;
+  overflow: hidden;
+}

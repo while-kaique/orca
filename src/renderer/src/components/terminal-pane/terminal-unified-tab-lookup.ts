@@ -3,6 +3,8 @@ import type { Tab } from '../../../../shared/tab-types'
 export type UnifiedTerminalTabFields = {
   unifiedTabId: string | undefined
   isChatViewMode: boolean
+  /** The tab's saved choice; undefined means nobody has chosen terminal or chat for it yet. */
+  savedViewMode: Tab['viewMode']
   unifiedTabLabel: string | undefined
   isTabPinned: boolean
 }
@@ -59,6 +61,7 @@ export function selectUnifiedTerminalTabFields(
   return {
     unifiedTabId: tab?.id,
     isChatViewMode: tab?.viewMode === 'chat',
+    savedViewMode: tab?.viewMode,
     unifiedTabLabel: tab?.label,
     isTabPinned: tab?.isPinned === true
   }

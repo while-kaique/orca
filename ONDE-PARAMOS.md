@@ -12,6 +12,16 @@ Branch `kaiquebreno-ggp/o-049-executor-hierarquia` (não enviada; quem junta é 
   ordem no rascunho manda o Enter mesmo com o começo dela visível na tela.
 - **`roteiro-po-nascendo.mjs`** sai com código 1 quando registra erro.
 
+## 17/11/2026 (ordem o-048) — tela de chat: o chat do Claude abre na tela de chat (fluxograma, barra lateral, chat novo)
+
+Branch `kaiquebreno-ggp/hydra` (não enviada; quem junta é o PO). Spec: `docs/specs/tela-de-chat-do-claude.md`. Entrega: `.hierarquia/provas/o-048/ENTREGA.md`.
+
+- **Fluxograma:** card aberto de chat do Claude mostra a tela de chat (a do Orca oficial, sem reescrever) no lugar da cópia do terminal; botão "Ver o terminal" / "Ver a tela de chat". Só troca depois que o terminal de verdade respondeu; chat dormindo, sem conversa legível ou que não é Claude: terminal como antes.
+- **Barra lateral e chat novo:** aba com o Claude sem escolha guardada abre em chat (`resolveDefaultNativeChatViewMode`). A escolha do Kaique por aba vale mais e sobrevive a reabrir (viewMode vai para o disco).
+- **Chat lento:** o limite de marcas de espera subiu de 8 para 32; a marca nunca sai antes da linha da conversa chegar.
+- **Peso:** card fechado não monta a tela; leitor da conversa só liga com a tela visível.
+- **NÃO PROVADO no programa de verdade** (regra E: sem Orca de teste). Prova é o Kaique reiniciando o Orca e vendo; lista curta no ENTREGA.md.
+
 ## 16/11/2026 (ordem o-047) — hierarquia sem planejador, restaurar que herda o lugar, nunca matar por nome, fluxograma que não rola
 
 Branch `kaiquebreno-ggp/o-047-executor-task` (não enviada; quem junta é o PO). Spec: `docs/specs/hierarquia-sem-planejador-e-restaurar.md`.
