@@ -1,5 +1,16 @@
 # Onde paramos — fork do Orca "PC como mesa"
 
+## 17/11/2026 (ordem o-050) — abas que somem depois do X: causa NÃO confirmada, anotação de diagnóstico no lugar
+
+Branch `kaiquebreno-ggp/periwinkle` (não enviada; quem junta é o PO). Entrega: `.hierarquia/provas/o-050/ENTREGA.md` e `CAMINHO.md`. Sem Orca de teste (regra E).
+
+- **Caminho preferido não fecha:** o X já grava registro de conversa (`use-app-session-persistence.ts:76-78`) e o chat "fundo" da cena 1
+  tinha esse registro (`origin quit`) e perdeu a aba mesmo assim. Os dois pontos que fecham aba por saída de terminal
+  (`pty-exit-hibernate.ts:272` e `terminal-parked-pty-watcher.ts:111` (linhas da base `b014ded923`)) não olham o registro fora do ramo "saída suprimida", que só existe na memória da tela.
+- **Nada do comportamento foi mudado.** Só anotação: cada decisão sobre aba de chat (fecha, retoma no lugar) vira uma linha em
+  `%APPDATA%\orca-fork\fork-abas-fechadas.jsonl` (tela → `console.warn` com prefixo `[fork-aba-fechada]` → `console-message` no main, `fork-aba-fechada-diagnostico.ts`).
+- **Desligar a parte "o X para os chats":** tirar a linha `set "ORCA_FORK_FECHAR_PARA_CHATS=1"` do `abrir-orca-montado.bat`. Volta ao X oficial: o guarda dos terminais fica vivo e as abas voltam como antes da o-043.
+
 ## 17/11/2026 (ordem o-049) — sobras da o-047: card do chat restaurado, "começou" falso, roteiro com saída 1
 
 Branch `kaiquebreno-ggp/o-049-executor-hierarquia` (não enviada; quem junta é o PO). Entrega: `.hierarquia/provas/o-049/ENTREGA.md`. Sem Orca de teste (regra E).

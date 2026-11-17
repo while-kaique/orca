@@ -19,6 +19,7 @@ import { armRestartReplacement } from './restart-replacement-on-show'
 import { noteHiddenAgentResumePtyEnded } from './hidden-agent-resume-deferral'
 import { expectExitedSplitPaneClose } from './exited-split-pane-close'
 import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../../../../shared/layout-owner-switch'
+import { anotarAbaDeChat, lerAbaDeChat } from './fork-aba-fechada-diagnostico'
 
 // Why live+done arms too: kept from #16308's wake-sweep widening; hibernation itself only writes worktree-sleep notes.
 export function noteArmsHibernatedPaneWake(record: SleepingAgentSessionRecord): boolean {
@@ -166,6 +167,17 @@ export function installPtyExitHibernate(session: ConnectPanePtySession): void {
       scheduleRuntimeGraphSync()
       return
     }
+    // Fork: read before removeAgentStatus drops the row; the note says which branch below decided this chat tab.
+    const abaDeChat = lerAbaDeChat({ tabId: session.deps.tabId, paneKey: session.cacheKey })
+    const anotarRamo = (ramo: string): void =>
+      anotarAbaDeChat(abaDeChat, {
+        ramo,
+        ptyId,
+        codigoDeSaida: exitCode,
+        restaurado: Boolean(session.restoredPtyIdForTransport),
+        morteConfirmadaAoReabrir: session.reconciledDeadPtyId === ptyId,
+        digitouNoTerminal: Number.isFinite(session.lastTerminalInputAt)
+      })
     // Fork (PC-desk): a reattached session found dead after a restart is not the user closing the
     // chat — resume it in place. Built before removeAgentStatus below drops the hydrated status.
     const restartResumeStartup =
@@ -204,6 +216,7 @@ export function installPtyExitHibernate(session: ConnectPanePtySession): void {
     if (isUnverifiedExit && !isSuppressedExit) {
       // Record unknown liveness before any close branch can remove the row.
       session.manager.setPaneGpuRendering(session.pane.id, true)
+      anotarRamo('saida-nao-verificada-entrega-ao-fechador')
       session.deps.onPtyExitRef.current(ptyId, exitCode)
       return
     }
@@ -241,6 +254,7 @@ export function installPtyExitHibernate(session: ConnectPanePtySession): void {
     }
     session.manager.setPaneGpuRendering(session.pane.id, true)
     if (restartResumeStartup) {
+      anotarRamo('retoma-no-lugar')
       void session.startFreshColdRestoreAgentResume(restartResumeStartup, {
         forceBlankRestoredViewport: true
       })
@@ -269,6 +283,7 @@ export function installPtyExitHibernate(session: ConnectPanePtySession): void {
       if (keepsUntouchedFreshPane(session, ptyId)) {
         return
       }
+      anotarRamo('painel-unico-fecha-aba')
       session.deps.onPtyExitRef.current(ptyId, exitCode)
       return
     }
@@ -294,6 +309,7 @@ export function installPtyExitHibernate(session: ConnectPanePtySession): void {
     ) {
       return
     }
+    anotarRamo('divisao-fecha-painel')
     session.manager.closePane(session.pane.id)
   }
 

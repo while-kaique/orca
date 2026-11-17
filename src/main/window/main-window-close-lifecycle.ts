@@ -14,6 +14,7 @@ import {
   forkCloseStopsChatsEnabled,
   marcarTempoDoX
 } from '../startup/fork-close-stops-chats'
+import { installForkAbaFechadaDiagnostico } from '../startup/fork-aba-fechada-diagnostico'
 
 export const WINDOW_QUIT_RENDERER_ACK_TIMEOUT_MS = QUIT_RENDERER_ACK_TIMEOUT_MS
 
@@ -153,6 +154,8 @@ export function installMainWindowCloseLifecycle(args: {
       requestId
     })
   })
+  // Fork (o-050): which branch closed each chat tab is written to fork-abas-fechadas.jsonl.
+  installForkAbaFechadaDiagnostico(mainWindow.webContents)
   mainWindow.webContents.on('will-prevent-unload', () => {
     // A veto cancels quit; resume bounds persistence for subsequent user resizing.
     state.resumeBoundsPersistence()

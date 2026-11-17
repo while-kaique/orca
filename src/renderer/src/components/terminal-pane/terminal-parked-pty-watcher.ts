@@ -5,6 +5,7 @@ import { useAppStore } from '@/store'
 import { closeTerminalTab } from '../terminal/terminal-tab-actions'
 import { startParkedTerminalByteWatcher } from './parked-terminal-byte-watcher'
 import { subscribeToPtyExit } from './pty-dispatcher'
+import { anotarAbaFechadaPorVigiaEscondido } from './pty-connection/fork-aba-fechada-diagnostico'
 import { isPtyExitReplacedByRestart } from './pty-exit-delivery'
 import {
   consumePreHandlerPtyState,
@@ -108,6 +109,13 @@ export function startParkedPtyWatcher(args: {
     // Why: the empty entry prevents a pending pinned-close confirmation from restarting the dead PTY.
     entry.disposersByPtyId.get(ptyId)?.()
     entry.disposersByPtyId.delete(ptyId)
+    // Fork: note which chat tab this watcher closes (o-050).
+    anotarAbaFechadaPorVigiaEscondido({
+      tabId: tab.id,
+      leafId: pane.leafId,
+      ptyId,
+      codigoDeSaida: code
+    })
     closeTerminalTab(tab.id, {
       captureRecentlyClosed: false,
       hostCloseReason: 'pty-exit',
