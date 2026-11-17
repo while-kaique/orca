@@ -1,5 +1,14 @@
 # Onde paramos — fork do Orca "PC como mesa"
 
+## 17/11/2026 (ordem o-051) — X suspende todos os chats do Claude e só depois sai
+
+Branch `kaiquebreno-ggp/yabby` (não enviada; quem junta e religa a chave é o PO). Spec: `docs/specs/x-suspende-todos.md`. Entrega: `.hierarquia/provas/o-051/ENTREGA.md` e `CAMINHO.md`. Sem Orca de teste (regra E).
+
+- **Com a chave ligada** o X, ao responder "Fechar e suspender todos" (ou sem chat trabalhando), pede à tela (`executeJavaScript`, sem canal novo) que suspenda todo chat do Claude local pelo caminho do botão Suspender, espera até 20 s, **salva a sessão de novo** e só então sai; a varredura por PID do quit pega o que sobrar.
+- **Premissa não provada:** o chat suspenso pode voltar acordado (retoma no lugar) ou perder a aba, pelo mesmo desvio da o-050. O reinício do Kaique decide; ler `CAMINHO.md`.
+- **Hierarquia:** a volta dos cortados não mudou (já trata chat sem Claude aberto como "voltou DORMINDO" e o aviso fica guardado).
+- A chave `ORCA_FORK_FECHAR_PARA_CHATS` continua desligada no `abrir-orca-montado.bat` (não mexido).
+
 ## 17/11/2026 (ordem o-050) — abas que somem depois do X: causa NÃO confirmada, anotação de diagnóstico no lugar
 
 Branch `kaiquebreno-ggp/periwinkle` (não enviada; quem junta é o PO). Entrega: `.hierarquia/provas/o-050/ENTREGA.md` e `CAMINHO.md`. Sem Orca de teste (regra E).

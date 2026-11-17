@@ -22,6 +22,7 @@ import {
 import { showShutdownCheckpointFailureToast } from '../lib/shutdown-checkpoint-failure-toast'
 import { isPairedWebClientWindow } from '../lib/desktop-window-chrome'
 import { createShutdownCheckpointPersist } from './shutdown-checkpoint-persist'
+import { installSuspendAllOnWindow } from '../components/sidebar/pc-desk-switcher/suspend-all-pc-desk-chats'
 import { shutdownBufferCaptures } from '../components/terminal-pane/shutdown-buffer-captures'
 import {
   dispatchWindowCloseRequest,
@@ -44,6 +45,8 @@ const SLEEPING_AGENT_RESUME_CAPTURE_AFTER_CHANGE_MS = 2_000
 /** Persist renderer sessions through per-host debounced writes and a synchronous shutdown checkpoint. */
 export function useAppSessionPersistence(): void {
   useEffect(() => registerUpdaterBeforeUnloadBypass(), [])
+  // Fork (o-051): lets the main process ask this window to suspend every Claude chat before the close.
+  useEffect(() => installSuspendAllOnWindow(), [])
 
   // Subscribe outside React: disk persistence needs no renders on tab/file/browser changes.
   useEffect(() => {
