@@ -55,10 +55,33 @@ export function ondeEstaAOrdem(linhas, rascunho, trechos) {
   const digitado = emUmaLinha([String(rascunho ?? '')]).trim()
   const ordemNoRascunho =
     trechos.some((t) => digitado.includes(t)) || digitado.startsWith(MARCA_DE_COLAGEM)
-  if (naTela !== 'no_historico' && digitado !== '' && ordemNoRascunho) {
+  // O fim da ordem no rascunho vale mais que o "no_historico" da tela (o-049, 17/11: caixa com "↑ 64 more"); só o começo
+  // não basta, porque a sugestão de próximo pedido do Claude repete o começo do último pedido.
+  const fimNoRascunho = digitado.includes(trechos[1]) || digitado.startsWith(MARCA_DE_COLAGEM)
+  if (digitado !== '' && ordemNoRascunho && (naTela !== 'no_historico' || fimNoRascunho)) {
     return 'na_caixa'
   }
   return naTela
+}
+
+const LINHA_DE_RESPOSTA = /^[●⏺]/u
+
+/** O Claude já respondeu depois da ordem: há linha de resposta (● ou ⏺) na conversa, abaixo do texto da ordem. */
+export function haRespostaDepoisDaOrdem(linhas, trecho) {
+  if (!linhas) {
+    return false
+  }
+  const tela = linhas.map((linha) => String(linha).trim())
+  const caixa = tela.findLastIndex((linha) => linha.startsWith('❯'))
+  const conversa = caixa === -1 ? tela : tela.slice(0, caixa)
+  let lido = ''
+  for (let i = 0; i < conversa.length; i++) {
+    lido = emUmaLinha([lido, conversa[i]])
+    if (lido.includes(trecho)) {
+      return conversa.slice(i + 1).some((linha) => LINHA_DE_RESPOSTA.test(linha))
+    }
+  }
+  return false
 }
 
 export const ESTABILIDADE_DA_CAIXA_MS = 4000
@@ -80,9 +103,10 @@ export function decidirInicio(vigia, visto, agora) {
   if (vigia.comecouEm) {
     return { acao: 'comecou', vigia }
   }
-  // Só prova positiva vale: trabalhando, ou a ordem já na conversa. 'done' não prova nada (o Orca o marca
-  // também em chat que nunca recebeu a ordem, como o da o-033).
-  if (visto.atividade === 'working' || visto.onde === 'no_historico') {
+  // Só sinal de turno iniciado vale: trabalhando, ou a ordem na conversa com resposta do Claude depois dela. 'done' não
+  // prova nada (o Orca o marca também em chat que nunca recebeu a ordem, o-033), e a ordem só "na conversa" também não
+  // (o-048 e o-049, 17/11: a ordem estava no rascunho e o comando disse "começou").
+  if (visto.atividade === 'working' || (visto.onde === 'no_historico' && visto.resposta === true)) {
     const fonte = visto.atividade === 'working' ? 'atividade' : 'tela'
     return { acao: 'comecou', vigia: { ...vigia, comecouEm: agora, fonte, onde: visto.onde } }
   }
