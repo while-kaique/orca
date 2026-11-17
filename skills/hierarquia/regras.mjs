@@ -1,13 +1,24 @@
 // Regras da hierarquia PO > Planejador > Executor (spec 001). Puro: sem disco, sem rede, sem Orca.
+import { herdarLugar } from './chat-restaurado.mjs'
 
+/** Desde 16/11/2026 nao existe mais planejador: o PO (Opus) planeja e so cria executores (Sonnet). */
 export const PAPEIS = {
-  po: { modelo: 'fable', cria: ['planejador', 'executor'] },
-  planejador: { modelo: 'opus', cria: ['executor'] },
+  po: { modelo: 'opus', cria: ['executor'] },
+  planejador: { modelo: 'opus', cria: [] },
   executor: { modelo: 'sonnet', cria: [] }
 }
 
-/** Por projeto: chats trabalhando ao mesmo tempo. Executores somam todos os criadores (adendo 2 da o-021). */
-export const TETO = { planejadoresPorProjeto: 2, executoresPorProjeto: 2 }
+/** Esforco do raciocinio de todo chat lancado pelo comando (Orca: --effort). */
+export const ESFORCO = 'high'
+
+/** O Haiku nao aceita esforco (o Orca recusa o lancamento: "model haiku does not support effort high", visto em 16/11). */
+export const esforcoDoModelo = (modelo) => (modelo === 'haiku' ? null : ESFORCO)
+
+/** Chat de teste usa o modelo mais leve: so prova que o lancamento funciona (decisao do PO na o-043). */
+export const MODELO_DO_TESTE = 'haiku'
+
+/** Por projeto: chats trabalhando ao mesmo tempo. Quatro executores por PO; com o PO, ate cinco chats abertos. */
+export const TETO = { executoresPorProjeto: 4, testesPorProjeto: 2 }
 
 export const CAMPOS_DA_ORDEM = ['objetivo', 'porque', 'criterios', 'limites', 'territorio']
 
@@ -23,10 +34,10 @@ const SITUACOES_ATIVAS = new Set([
 ])
 
 /** Ocupa vaga: o chat está trabalhando. Entrega esperando conferência solta a vaga, senão a fila trava com o criador dormindo. */
-const OCUPA_VAGA = new Set(['trabalhando', 'em_prova', 'devolvido'])
+export const OCUPA_VAGA = new Set(['trabalhando', 'em_prova', 'devolvido'])
 
 /** Ainda não terminou, do ponto de vista de quem criou. */
-const NAO_TERMINADA = new Set([...OCUPA_VAGA, 'em_espera'])
+export const NAO_TERMINADA = new Set([...OCUPA_VAGA, 'em_espera'])
 
 function campoVazio(valor) {
   if (Array.isArray(valor)) {
@@ -41,7 +52,7 @@ export function camposFaltando(campos) {
 
 /** Reconstrói o estado do projeto a partir das linhas do registro, na ordem em que foram escritas. */
 export function montarEstado(eventos) {
-  const estado = { po: null, chats: {}, ordens: {}, perguntas: {}, avisos: {} }
+  const estado = { po: null, chats: {}, ordens: {}, perguntas: {}, avisos: {}, guardados: {} }
   for (const ev of eventos) {
     const ordem = ev.ordemId ? estado.ordens[ev.ordemId] : undefined
     switch (ev.tipo) {
@@ -68,6 +79,8 @@ export function montarEstado(eventos) {
           pedido: ev.pedido ?? ev.ordemId,
           prioridade: Boolean(ev.prioridade),
           pastaDoCriador: ev.pastaDoCriador ?? null,
+          teste: Boolean(ev.teste),
+          criadaEm: ev.t,
           chegada: Object.keys(estado.ordens).length,
           chatId: null,
           reprovacoes: 0,
@@ -92,7 +105,8 @@ export function montarEstado(eventos) {
           pai: ordem.de,
           ordemId: ordem.id,
           ativo: true,
-          mexidoPeloKaique: false
+          mexidoPeloKaique: false,
+          ...(ordem.teste ? { teste: true } : {})
         }
         break
       case 'lancamento_respondeu':
@@ -153,6 +167,12 @@ export function montarEstado(eventos) {
         ordem.situacao = 'parou'
         ordem.motivoDaParada = ev.motivo
         ordem.paradaAutomatica = Boolean(ev.automatico)
+        ordem.paradaEm = ev.t
+        break
+      case 'conversa_perdida_avisada':
+        if (ordem) {
+          ordem.conversaAvisada = { sessao: ev.sessao ?? null, t: ev.t }
+        }
         break
       case 'chat_encerrado':
         if (estado.chats[ev.chatId]) {
@@ -161,6 +181,9 @@ export function montarEstado(eventos) {
         if (estado.po === ev.chatId) {
           estado.po = null
         }
+        break
+      case 'chat_restaurado':
+        herdarLugar(estado, ev)
         break
       case 'chat_reconectado':
         if (estado.chats[ev.chatId]) {
@@ -190,6 +213,42 @@ export function montarEstado(eventos) {
       case 'pedido_fechado':
         estado.avisos[`${ev.chatId} ${ev.pedido}`] = ev.assinatura
         break
+      case 'aviso_guardado':
+        estado.guardados[ev.avisoId] = {
+          id: ev.avisoId,
+          chatId: ev.chatId,
+          texto: ev.texto,
+          t: ev.t
+        }
+        break
+      case 'aviso_entregue':
+        delete estado.guardados[ev.avisoId]
+        break
+      case 'chat_cortado':
+        if (ordem) {
+          ordem.cortadoEm = ev.t
+        }
+        if (estado.chats[ev.chatId]) {
+          estado.chats[ev.chatId].cortadoEm = ev.t
+          estado.chats[ev.chatId].retomadoEm = null
+          estado.chats[ev.chatId].corteAvisado = false
+        }
+        break
+      case 'comando_preso':
+        if (ordem) {
+          ordem.comandoPreso = { ferramentaId: ev.ferramentaId, desde: ev.desde, avisadoEm: ev.t }
+        }
+        break
+      case 'chat_retomado':
+        if (estado.chats[ev.chatId]) {
+          estado.chats[ev.chatId].retomadoEm = ev.t
+        }
+        break
+      case 'corte_avisado':
+        if (estado.chats[ev.chatId]) {
+          estado.chats[ev.chatId].corteAvisado = true
+        }
+        break
     }
   }
   return estado
@@ -197,24 +256,32 @@ export function montarEstado(eventos) {
 
 function ocupandoVaga(estado, papel) {
   return Object.values(estado.ordens).filter(
-    (ordem) => ordem.papel === papel && OCUPA_VAGA.has(ordem.situacao)
+    (ordem) =>
+      (papel === 'teste' ? ordem.teste : ordem.papel === papel && !ordem.teste) &&
+      OCUPA_VAGA.has(ordem.situacao)
   ).length
 }
 
 const TETO_DO_PAPEL = {
-  planejador: () => TETO.planejadoresPorProjeto,
-  executor: () => TETO.executoresPorProjeto
+  executor: () => TETO.executoresPorProjeto,
+  teste: () => TETO.testesPorProjeto
 }
 
+/** Chat de teste tem vaga própria: nunca disputa com trabalho de verdade. */
+function vagaDa(ordem) {
+  return ordem.teste ? 'teste' : ordem.papel
+}
+
+/** Papel sem teto (planejador de registro antigo) nunca sai da espera: ninguem o cria mais. */
 function vagaLivre(estado, para) {
-  return ocupandoVaga(estado, para) < TETO_DO_PAPEL[para]()
+  return para in TETO_DO_PAPEL && ocupandoVaga(estado, para) < TETO_DO_PAPEL[para]()
 }
 
 /** O que `hierarquia estado` mostra do teto: quem trabalha, o limite e quem espera vaga. */
 export function ocupacao(estado) {
   return {
-    planejadores: ocupandoVaga(estado, 'planejador'),
     executores: ocupandoVaga(estado, 'executor'),
+    testes: ocupandoVaga(estado, 'teste'),
     teto: TETO,
     emEspera: Object.values(estado.ordens)
       .filter((ordem) => ordem.situacao === 'em_espera')
@@ -222,21 +289,74 @@ export function ocupacao(estado) {
   }
 }
 
+/**
+ * O criador da ordem nao existe mais: o chat dele foi encerrado (ou a aba fechou, com `vidas`) ou ele e um PO antigo,
+ * trocado por outro (complemento 3 da o-043: o-036/o-037 do planejador que caiu, o-001/o-014/o-015/o-018 de POs antigos).
+ */
+export function criadorSumiu(estado, ordem, vidas = null) {
+  const criador = estado.chats[ordem.de]
+  return (
+    !criador ||
+    !criador.ativo ||
+    (criador.papel === 'po' && estado.po !== criador.id) ||
+    vidas?.get(criador.id) === 'fechado'
+  )
+}
+
+/** Quem pode dar baixa e fechar o chat da ordem: quem a criou, ou o PO atual quando o criador sumiu (ele herda). */
+export function podeCuidarDaOrdem(estado, eu, ordem, vidas = null) {
+  if (!ordem) {
+    return false
+  }
+  return ordem.de === eu || (eu === estado.po && criadorSumiu(estado, ordem, vidas))
+}
+
 /** FR-3, FR-4, FR-5, FR-10, FR-20: quem cria quem, modelo por papel, cinco campos e teto. */
-export function decidirOrdem(estado, { de, para, campos }) {
+export function decidirOrdem(estado, { de, para, campos, teste = false, liberacao = null }) {
   const criador = estado.chats[de]
   if (!criador) {
     return { acao: 'recusar', motivo: 'Este chat está fora da hierarquia do projeto.' }
   }
-  if (!PAPEIS[para] || !PAPEIS[criador.papel].cria.includes(para)) {
-    return { acao: 'recusar', motivo: `Um ${criador.papel} não pode criar um ${para}.` }
+  if (liberacao) {
+    return {
+      acao: 'recusar',
+      motivo: `há uma liberação para reabrir o Orca em aberto desde ${liberacao.desde} (${liberacao.por ?? 'sem autor'}): lançar e reabrir nunca juntos. Espere o Orca reabrir (ela fecha sozinha) ou cancele com: hierarquia porta --cancelar`
+    }
+  }
+  if (para === 'planejador') {
+    return {
+      acao: 'recusar',
+      motivo:
+        'Não existe mais planejador (regra do Kaique, 16/11/2026): o PO planeja e a ordem vai direto a um executor (--para executor).'
+    }
+  }
+  // Chat de teste: qualquer papel cria (até o executor), só executor, título começando com TESTE.
+  const podeCriar = teste
+    ? para === 'executor'
+    : PAPEIS[para] && PAPEIS[criador.papel].cria.includes(para)
+  if (!podeCriar) {
+    return {
+      acao: 'recusar',
+      motivo: teste
+        ? 'Chat de teste é sempre --para executor.'
+        : `Um ${criador.papel} não pode criar um ${para}.`
+    }
+  }
+  if (teste && !/^TESTE\b/u.test(String(campos?.titulo ?? ''))) {
+    return {
+      acao: 'recusar',
+      motivo: 'Chat de teste precisa de titulo começando com "TESTE" e dizendo o que testa.'
+    }
   }
   const faltando = camposFaltando(campos)
   if (faltando.length > 0) {
     return { acao: 'recusar', motivo: `Faltam campos na ordem: ${faltando.join(', ')}.` }
   }
-  if (!vagaLivre(estado, para)) {
-    return { acao: 'esperar', modelo: PAPEIS[para].modelo }
+  if (!vagaLivre(estado, teste ? 'teste' : para)) {
+    return { acao: 'esperar', modelo: teste ? MODELO_DO_TESTE : PAPEIS[para].modelo }
+  }
+  if (teste) {
+    return { acao: 'criar', modelo: MODELO_DO_TESTE }
   }
   const fechar = chatParaFecharAoAbrir(estado, de, para)
   return { acao: 'criar', modelo: PAPEIS[para].modelo, ...(fechar ? { fechar } : {}) }
@@ -250,7 +370,7 @@ function chatParaFecharAoAbrir(estado, de, para) {
   const teto = TETO_DO_PAPEL[para]()
   // Só fecha chat criado pelo mesmo criador: chat de outro nunca é tocado.
   const abertos = Object.values(estado.chats).filter(
-    (chat) => chat.ativo && chat.papel === para && chat.pai === de
+    (chat) => chat.ativo && chat.papel === para && chat.pai === de && !chat.teste
   )
   if (abertos.length < teto) {
     return null
@@ -266,7 +386,7 @@ export function ordensLiberadasDaEspera(estado) {
   const liberadas = []
   const simulado = { ...estado, ordens: { ...estado.ordens } }
   for (const ordem of filaDeEspera(estado)) {
-    if (ordem.situacao === 'em_espera' && vagaLivre(simulado, ordem.papel)) {
+    if (ordem.situacao === 'em_espera' && vagaLivre(simulado, vagaDa(ordem))) {
       liberadas.push(ordem.id)
       simulado.ordens[ordem.id] = { ...ordem, situacao: 'trabalhando' }
     }
@@ -558,143 +678,5 @@ export function destinoDaPergunta(estado, de) {
   return chat.pai ?? 'kaique'
 }
 
-const MARCA_DE_COLAGEM = '[Pasted text'
-const LINHA_DE_SEPARACAO = /^[─━-]{10,}$/u
-
-function emUmaLinha(linhas) {
-  return linhas.join(' ').replace(/\s+/gu, ' ')
-}
-
-/**
- * A tarefa nova é a que não existia antes e tem o título dado ao worker-start. O `task-list` já a mostra,
- * com `dispatchId`, enquanto o worker ainda está `starting` (sem terminal no `worker-list`).
- */
-export function acharTarefaNova(tarefas, antes, titulo) {
-  return tarefas.find((t) => t.title === titulo && t.dispatchId && !antes.has(t.id)) ?? null
-}
-
-/**
- * O terminal do chat novo: o `assignee` da tarefa, quando já existe; antes disso, o único terminal
- * de agente (`agentIdentity`) que não existia antes. Com dois ou mais candidatos não adivinha.
- */
-export function acharTerminalNovo(terminais, antes, assignee) {
-  if (assignee) {
-    return terminais.find((t) => t.handle === assignee) ?? null
-  }
-  const novos = terminais.filter((t) => t.agentIdentity === 'claude' && !antes.has(t.handle))
-  return novos.length === 1 ? novos[0] : null
-}
-
-/** Onde o texto enviado está na tela do chat: digitado na caixa de entrada (ainda não enviado) ou já no histórico. */
-export function ondeEstaOTexto(linhas, trecho) {
-  const tela = linhas.map((linha) => String(linha).trim())
-  const caixa = tela.findLastIndex((linha) => linha.startsWith('❯'))
-  if (caixa === -1) {
-    return emUmaLinha(tela).includes(trecho) ? 'no_historico' : 'ausente'
-  }
-  let fim = tela.findIndex((linha, i) => i > caixa && LINHA_DE_SEPARACAO.test(linha))
-  fim = fim === -1 ? tela.length : fim
-  const dentro = emUmaLinha(tela.slice(caixa, fim))
-  if (dentro.includes(trecho) || dentro.includes(MARCA_DE_COLAGEM)) {
-    return 'na_caixa'
-  }
-  return emUmaLinha(tela.slice(0, caixa)).includes(trecho) ? 'no_historico' : 'ausente'
-}
-
-/**
- * Onde está a ordem. O `terminal read` do Orca tira da tela o texto digitado e ainda não enviado e o
- * devolve à parte, em `rascunho`: a caixa aparece vazia e a ordem inteira está ali (o-033). Rascunho com
- * o começo ou o fim da ordem, ou o marcador de texto colado que o Claude põe no lugar de texto longo,
- * conta como ordem parada na caixa; a conversa tem prioridade.
- */
-export function ondeEstaAOrdem(linhas, rascunho, trechos) {
-  const naTela = linhas ? ondeEstaOTexto(linhas, trechos[0]) : 'desconhecido'
-  const digitado = emUmaLinha([String(rascunho ?? '')]).trim()
-  const ordemNoRascunho =
-    trechos.some((t) => digitado.includes(t)) || digitado.startsWith(MARCA_DE_COLAGEM)
-  if (naTela !== 'no_historico' && digitado !== '' && ordemNoRascunho) {
-    return 'na_caixa'
-  }
-  return naTela
-}
-
-export const ESTABILIDADE_DA_CAIXA_MS = 4000
-/** Depois de enviar, o texto precisa continuar na caixa por este tempo para valer um novo envio (a tecla pode ter se perdido). */
-export const REENVIO_APOS_MS = 20000
-/** Enquanto a ordem estiver parada, o Enter segue sendo reenviado (a cada REENVIO_APOS_MS); o prazo de 45 min do vigia é o freio. */
-export const MAXIMO_DE_ENVIOS = 60
-/** O comando que lancou o chat tem ate isto para confirmar o inicio; depois, quem insiste e o vigia do criador. */
-export const JANELA_DO_COMANDO_MS = 10 * 60 * 1000
-/** Quanto tempo o vigia do criador insiste num chat que nao comecou, a contar do lancamento. */
-export const PRAZO_DE_INSISTIR_MS = 45 * 60 * 1000
-
-/**
- * Um passo da conferência do início do turno. `vigia` guarda o que já foi visto/feito; `visto` é
- * {atividade, onde}. Só envia com o texto parado na caixa; chat que já trabalha nunca recebe tecla.
- * Reenvia se o texto continua na caixa bem depois do último envio.
- */
-export function decidirInicio(vigia, visto, agora) {
-  if (vigia.comecouEm) {
-    return { acao: 'comecou', vigia }
-  }
-  // Só prova positiva vale: trabalhando, ou a ordem já na conversa. 'done' não prova nada (o Orca o marca
-  // também em chat que nunca recebeu a ordem, como o da o-033).
-  if (visto.atividade === 'working' || visto.onde === 'no_historico') {
-    const fonte = visto.atividade === 'working' ? 'atividade' : 'tela'
-    return { acao: 'comecou', vigia: { ...vigia, comecouEm: agora, fonte, onde: visto.onde } }
-  }
-  const proximo = { ...vigia, onde: visto.onde }
-  if (visto.onde !== 'na_caixa') {
-    // Leitura que falhou (máquina carregada) não prova que o texto saiu da caixa: a contagem continua.
-    const desde = visto.onde === 'desconhecido' ? vigia.naCaixaDesde : null
-    return { acao: 'esperar', vigia: { ...proximo, onde: vigia.onde, naCaixaDesde: desde } }
-  }
-  const desde = vigia.naCaixaDesde ?? agora
-  const envios = vigia.envios ?? (vigia.tentouEnviarEm ? 1 : 0)
-  const paradoDesde = envios === 0 ? desde : Math.max(desde, vigia.tentouEnviarEm ?? 0)
-  const espera = envios === 0 ? ESTABILIDADE_DA_CAIXA_MS : REENVIO_APOS_MS
-  if (envios < MAXIMO_DE_ENVIOS && agora - paradoDesde >= espera) {
-    return { acao: 'enviar', vigia: { ...proximo, naCaixaDesde: desde, envios: envios + 1 } }
-  }
-  return { acao: 'esperar', vigia: { ...proximo, naCaixaDesde: desde, envios } }
-}
-
-/** A aba do criador some da lista do Orca com outro identificador depois de o Orca reabrir: vale achá-la também pelo terminal. */
-export function criadorSemAba(terminais, chatId, handles) {
-  const certos = handles.filter(Boolean)
-  return (
-    terminais.length > 0 && !terminais.some((t) => t.tabId === chatId || certos.includes(t.handle))
-  )
-}
-
-/**
- * Ordens do criador cujo chat ainda não comecou e que o vigia deve destravar: as que o comando
- * já declarou sem início e as que ficaram "lançando" além da janela do comando (ele morreu).
- * `desistir` lista as que passaram do prazo de insistir e ainda não foram declaradas desistidas.
- */
-export function ordensSemInicio(estado, eu, agora) {
-  const tentar = []
-  const desistir = []
-  for (const ordem of Object.values(estado.ordens)) {
-    const chat = ordem.chatId ? estado.chats[ordem.chatId] : null
-    if (
-      ordem.de !== eu ||
-      ordem.situacao !== 'trabalhando' ||
-      !chat?.ativo ||
-      ordem.inicio === 'confirmado' ||
-      ordem.inicioDesistido
-    ) {
-      continue
-    }
-    const idade = agora - Date.parse(ordem.lancadoEm)
-    if (Number.isNaN(idade)) {
-      continue
-    }
-    if (idade >= PRAZO_DE_INSISTIR_MS) {
-      desistir.push(ordem)
-    } else if (ordem.inicio !== 'pendente' || idade >= JANELA_DO_COMANDO_MS) {
-      tentar.push(ordem)
-    }
-  }
-  return { tentar, desistir }
-}
+// O início do turno (tela, rascunho, Enter) mora em regras-do-inicio.mjs; quem importa daqui continua igual.
+export * from './regras-do-inicio.mjs'

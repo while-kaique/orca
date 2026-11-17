@@ -18,7 +18,8 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  /* clip, not hidden: focus or scrollIntoView inside the board must never scroll it (legend left mid-screen, 16/11) */
+  overflow: clip;
   touch-action: none;
   background-color: #1a1a1d;
   background-image: radial-gradient(#2e2e34 1.2px, transparent 1.2px);

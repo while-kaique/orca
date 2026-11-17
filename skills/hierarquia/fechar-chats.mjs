@@ -1,11 +1,11 @@
 // `hierarquia fechar`: quem criou fecha o chat de uma ordem sua, ligado ou dormindo (adendo 5 da o-021).
 import { abasGuardadas } from './abas-do-orca.mjs'
 import { citar, orca } from './orca-lancador.mjs'
-import { vidaDoChat } from './regras.mjs'
+import { podeCuidarDaOrdem, vidaDoChat } from './regras.mjs'
 
 const TERMINADA = new Set(['aprovado', 'liberado', 'esperando_kaique', 'parou'])
 
-/** As ordens que o pedido fecha: uma, as terminadas do criador ou as terminadas de um pedido dele. */
+/** As ordens que o pedido fecha: uma, as terminadas do criador (ou herdadas pelo PO) ou as de um pedido dele. */
 export function ordensParaFechar(estado, eu, { ordem, terminados, pedido }) {
   if (ordem) {
     return [ordem]
@@ -13,7 +13,10 @@ export function ordensParaFechar(estado, eu, { ordem, terminados, pedido }) {
   return Object.values(estado.ordens)
     .filter(
       (o) =>
-        o.de === eu && o.chatId && TERMINADA.has(o.situacao) && (terminados || o.pedido === pedido)
+        podeCuidarDaOrdem(estado, eu, o) &&
+        o.chatId &&
+        TERMINADA.has(o.situacao) &&
+        (terminados || o.pedido === pedido)
     )
     .map((o) => o.id)
 }
@@ -64,14 +67,16 @@ function fecharUm(estado, ordem, { vidas, abas, terminais }, projeto) {
     : 'sem terminal e sem sessao do Orca para conferir'
 }
 
-/** Fecha os chats das ordens pedidas, só as criadas por quem pede. Nunca remove pasta nem branch. */
+/** Fecha os chats das ordens pedidas: as criadas por quem pede, ou herdadas pelo PO atual. Nunca remove pasta nem branch. */
 export async function fecharChats({ projeto, estado, eu, ids, anotar }) {
   const vida = await vidaDosChats(estado)
   const linhas = []
   for (const id of ids) {
     const ordem = estado.ordens[id]
-    if (!ordem || ordem.de !== eu) {
-      linhas.push(`${id}: recusado, so quem criou a ordem fecha o chat dela`)
+    if (!podeCuidarDaOrdem(estado, eu, ordem, vida.vidas)) {
+      linhas.push(
+        `${id}: recusado, so quem criou a ordem fecha o chat dela (ou o PO atual, quando quem criou nao existe mais)`
+      )
       continue
     }
     if (!ordem.chatId || !estado.chats[ordem.chatId]) {
@@ -82,7 +87,7 @@ export async function fecharChats({ projeto, estado, eu, ids, anotar }) {
     if (!resultado.startsWith('NAO')) {
       anotar('chat_encerrado', {
         chatId: ordem.chatId,
-        motivo: `fechado por quem criou: ${resultado}`
+        motivo: `${ordem.de === eu ? 'fechado por quem criou' : `fechado pelo PO atual, herdeiro de ${ordem.de}`}: ${resultado}`
       })
     }
     linhas.push(`${id} (${vida.vidas.get(ordem.chatId)}): ${resultado}`)

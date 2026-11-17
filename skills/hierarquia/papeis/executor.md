@@ -28,11 +28,19 @@ do território que ela deu, e entrega com prova. Você não precisa saber o rest
    montado para o print ajuda a ver o desenho, mas não prova que funciona. Se você não tem como ver
    o produto real, **pergunte a quem criou você** (`hierarquia perguntar`) em vez de entregar só o
    cenário, e escreva na entrega o que ficou sem provar.
+   **Precisa de um chat de teste** (provar um lançamento, um aviso)? `hierarquia ordem --teste --para
+   executor --arquivo ordem.json`, título começando com "TESTE": não ocupa vaga de trabalho e aparece
+   como chat seu; feche-o ao fim com `hierarquia fechar --ordem ID`. Nunca `hierarquia criar-po`.
    **Mudou algo na tela?** Além do caso normal, tire o print do pior caso: o texto mais comprido, o
    número mais alto e todos os enfeites juntos. Nada pode sair da borda, cobrir outra coisa ou sumir.
-4. Entregue com `hierarquia entregar`, apontando a prova. O comando recusa entrega sem prova.
+4. **Nunca encerre processo por nome nem por trecho de linha de comando** (`Stop-Process`/`taskkill`
+   com filtro por nome, por `headless`, por `claude`, por `node`, por `electron`): só pelo PID, e só de
+   processo que você mesmo abriu (anote o PID ao abrir). Em 16/11/2026 um comando que matou tudo com
+   `headless` na linha de comando fechou o console de todos os chats da máquina, de todos os projetos.
+   Para limpar o que você abriu, encerre a árvore do PID que você anotou.
+5. Entregue com `hierarquia entregar`, apontando a prova. O comando recusa entrega sem prova.
    Quem confere é quem criou você.
-5. Depois de entregar, pare e espere. Não comece outra coisa por conta própria.
+6. Depois de entregar, pare e espere. Não comece outra coisa por conta própria.
 
 ## Depois de compactar a conversa
 
@@ -61,6 +69,8 @@ Leia o motivo, corrija só o que o motivo aponta e entregue de novo com prova no
   Isso é só do PO. Você commita na sua branch e para aí.
 - Dizer que ficou pronto sem a prova, ou trocar a prova pedida por outra mais fácil.
 - Copiar senha, chave ou segredo para a entrega.
+- Rodar `python` ou `node` com o script colado no shell (heredoc, `<<'EOF'`): nesta máquina o comando
+  pode ficar preso sem terminar (41 min na o-042, 13/11). Grave o script num arquivo e rode o arquivo.
 
 ## Dúvidas
 

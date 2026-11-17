@@ -37,6 +37,12 @@ import { mainProcessState as state } from './main-process-state'
 import { isDevParentShutdownRequested } from './configure-process'
 import { getCanonicalUserDataPath } from '../persistence/loading-store/user-data-path'
 import { flushUnsavedCloudSessions } from '../orca-profiles/profile-cloud-session-owner'
+import {
+  forkCloseStopsChatsEnabled,
+  marcarTempoDoX,
+  scheduleForkVolta,
+  stopForkChatTree
+} from './fork-close-stops-chats'
 
 // First will-quit pass awaits teardown; the re-fired pass must exit without starting writes again.
 let daemonDisconnectDone = false
@@ -109,6 +115,7 @@ function installWillQuitHandler(): void {
     if (!quitTeardownStartGate.tryStart(event)) {
       return
     }
+    marcarTempoDoX('will-quit')
     // Include pane grids still inside their write burst in final save.
     const paneGridFlush = state.runtime?.flushPaneGrids() ?? null
     // A renderer can veto before-quit; push must survive until quit is committed.
@@ -263,7 +270,12 @@ function installWillQuitHandler(): void {
       rpcStopAndClear
     ]).then(() => state.runtime?.closeNotificationDismissals())
     // Normal quits preserve the detached daemon for warm reattach; dev-parent death leaves its temporary profile ownerless.
-    const daemonTeardown = isDevParentShutdownRequested() ? shutdownDaemon() : disconnectDaemon()
+    // Fork: a user close stops this Orca's chats (a crash never reaches will-quit, so chats survive it).
+    const daemonTeardown = isDevParentShutdownRequested()
+      ? shutdownDaemon()
+      : forkCloseStopsChatsEnabled()
+        ? stopForkChatTree(shutdownDaemon)
+        : disconnectDaemon()
     // Bound unsettled transports and final writes so quit cannot hang (#9447). Failures still exit; atomic swaps preserve old files if the final debounce is lost.
     settleTeardownWithinDeadline([
       { name: 'daemon', promise: daemonTeardown },
@@ -286,6 +298,7 @@ function installWillQuitHandler(): void {
       { name: 'state', promise: storeFlush }
     ])
       .then((pendingTeardowns) => {
+        marcarTempoDoX(`teardown-fim:${pendingTeardowns.join(',') || 'nada-pendente'}`)
         if (pendingTeardowns.length > 0) {
           console.warn('[shutdown] Quit teardown deadline reached', { pendingTeardowns })
         }
@@ -297,6 +310,7 @@ function installWillQuitHandler(): void {
       })
       .then(() => {
         daemonDisconnectDone = true
+        marcarTempoDoX('app-quit')
         app.quit()
       })
   })
@@ -324,4 +338,5 @@ export function installMainProcessQuitHandlers(): void {
   installBeforeQuitHandler()
   installWillQuitHandler()
   installWindowAllClosedHandler()
+  scheduleForkVolta()
 }

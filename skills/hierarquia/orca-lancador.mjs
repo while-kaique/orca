@@ -1,6 +1,6 @@
 // Conversa com o Orca: lançar chat, manter aberto e avisar. Usado pelo comando `hierarquia`.
 import { execFile, execFileSync } from 'node:child_process'
-import { acharTarefaNova, acharTerminalNovo, ondeEstaOTexto } from './regras.mjs'
+import { acharTarefaNova, acharTerminalNovo, esforcoDoModelo, ondeEstaOTexto } from './regras.mjs'
 
 /** O texto que vai para o Orca precisa ser ASCII puro: acento vira lixo na ordem. */
 export function semAcento(texto) {
@@ -43,6 +43,37 @@ export function orca(args) {
     saida = String(erro.stdout)
   }
   return lerResposta(saida)
+}
+
+/** A linha do `worker-start` de todo lancamento: modelo do papel e esforco alto (menos o Haiku, dos chats de teste). */
+export function argumentosDoWorkerStart({
+  de,
+  pedido,
+  titulo,
+  pasta,
+  baseBranch,
+  modelo,
+  esperaMs
+}) {
+  return [
+    'orchestration',
+    'worker-start',
+    ...(de ? ['--from', de] : []),
+    '--spec',
+    citar(pedido),
+    '--task-title',
+    citar(titulo),
+    '--worktree',
+    pasta,
+    ...(baseBranch ? ['--base-branch', citar(baseBranch)] : []),
+    '--agent',
+    'claude',
+    '--model',
+    modelo,
+    ...(esforcoDoModelo(modelo) ? ['--effort', esforcoDoModelo(modelo)] : []),
+    '--timeout-ms',
+    esperaMs
+  ]
 }
 
 export function orcaEmSegundoPlano(args) {
@@ -138,32 +169,52 @@ export function renomearAba(handle, titulo) {
   ]).catch(() => null)
 }
 
+const enterMs = () => Number(process.env.HIERARQUIA_ENTER_MS) || 4000
+const ENTERS_A_MAIS = 3
+
 /**
- * Escreve uma linha no chat como se alguém digitasse e enviasse; se ela ficar parada na caixa de
- * texto, envia de novo uma vez. `%` sai porque o shell do Windows o trocaria.
+ * O texto continua na caixa: na tela (o comeco dele, ou a marca de colagem) ou no rascunho com o comeco E o fim dele.
+ * So o comeco nao basta: o rascunho tambem traz a sugestao de proximo pedido do Claude, que ninguem digitou e costuma
+ * repetir o comeco do ultimo pedido (visto no Orca de teste em 15/11). Enter a mais nela enviaria a sugestao.
+ */
+export function textoParadoNaCaixa(terminal, [comeco, fim]) {
+  const tela = terminal.tail ?? null
+  const naTela = tela ? ondeEstaOTexto(tela, comeco) : 'desconhecido'
+  if (naTela === 'no_historico') {
+    return false
+  }
+  const rascunho = String(terminal.draft ?? '').replace(/\s+/gu, ' ')
+  return naTela === 'na_caixa' || (rascunho.includes(comeco) && rascunho.includes(fim))
+}
+
+/**
+ * Escreve uma linha no chat como se alguém digitasse e enviasse. O texto vai sem Enter e o Enter vai sozinho, como
+ * uma tecla: texto e Enter juntos podem chegar ao Claude como colagem, e o Enter vira quebra de linha na caixa
+ * (avisos parados na caixa em 13/11). Enquanto o texto continuar na caixa, outro Enter sozinho, até 3 vezes.
+ * O `terminal read` tira da tela o que foi digitado e não enviado e o devolve em `draft`: os dois contam.
+ * `%` sai porque o shell do Windows o trocaria.
  */
 export async function escreverNoChat(handle, texto) {
   const linha = semAcento(texto).replace(/%/gu, ' por cento')
-  const enviar = (conteudo) =>
-    orcaEmSegundoPlano([
-      'terminal',
-      'send',
-      '--terminal',
-      handle,
-      '--text',
-      citar(conteudo),
-      '--enter'
-    ])
-  const resposta = await enviar(linha)
+  const mandar = (extra) =>
+    orcaEmSegundoPlano(['terminal', 'send', '--terminal', handle, ...extra]).catch(() => ({
+      ok: false
+    }))
+  const resposta = await mandar(['--text', citar(linha)])
   if (!resposta.ok) {
     return false
   }
-  await esperar(4000)
-  const tela = (
-    await orcaEmSegundoPlano(['terminal', 'read', '--terminal', handle]).catch(() => null)
-  )?.result?.terminal?.tail
-  if (tela && ondeEstaOTexto(tela, linha.slice(0, 40)) === 'na_caixa') {
-    await enviar(' ')
+  const trechos = [linha.slice(0, 40), linha.slice(-40)]
+  for (let enter = 0; enter <= ENTERS_A_MAIS; enter++) {
+    await esperar(enter === 0 ? enterMs() / 2 : enterMs())
+    await mandar(['--enter'])
+    await esperar(enterMs())
+    const terminal = (
+      await orcaEmSegundoPlano(['terminal', 'read', '--terminal', handle]).catch(() => null)
+    )?.result?.terminal
+    if (!terminal || !textoParadoNaCaixa(terminal, trechos)) {
+      return true
+    }
   }
   return true
 }

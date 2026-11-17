@@ -8,6 +8,12 @@ import type { MainWindowFocusLifecycle } from './main-window-focus-lifecycle'
 import type { MainWindowStateLifecycle } from './main-window-state-lifecycle'
 import { syncTrafficLightPosition } from './main-window-visual-lifecycle'
 import { consumeUserQuitWindowClose } from './user-quit-window-close'
+import {
+  askForkCloseGate,
+  forkCloseGateHolds,
+  forkCloseStopsChatsEnabled,
+  marcarTempoDoX
+} from '../startup/fork-close-stops-chats'
 
 export const WINDOW_QUIT_RENDERER_ACK_TIMEOUT_MS = QUIT_RENDERER_ACK_TIMEOUT_MS
 
@@ -103,7 +109,27 @@ export function installMainWindowCloseLifecycle(args: {
       rendererProcessGone: focus.isRendererProcessGone(),
       isRendererCrashed
     })
+    marcarTempoDoX(`janela-close:${closeAction}`)
     if (closeAction !== 'request-confirmation') {
+      // Fork: with chats working, ask before a close that stops them (X, Alt+F4, Quit, tray).
+      if (closeAction === 'allow-confirmed' && forkCloseGateHolds()) {
+        e.preventDefault()
+        askForkCloseGate(
+          mainWindow,
+          () => {
+            if (!mainWindow.isDestroyed()) {
+              mainWindow.close()
+            }
+          },
+          () => {
+            windowCloseConfirmed = false
+            clearQuitRendererAckTimer()
+            state.resumeBoundsPersistence()
+            opts?.onQuitAborted?.()
+          }
+        )
+        return
+      }
       // Confirmed close reenters here; truly gone renderers cannot answer and must remain closable.
       if (closeAction === 'allow-confirmed') {
         windowCloseConfirmed = false
@@ -113,7 +139,9 @@ export function installMainWindowCloseLifecycle(args: {
       return
     }
     e.preventDefault()
-    const isQuitting = opts?.getIsQuitting?.() ?? false
+    // Fork: the close question with the chat list comes from the fork gate; as on a quit, the renderer skips its own
+    // "terminals running" question for local terminals, so the user sees one question, not two.
+    const isQuitting = (opts?.getIsQuitting?.() ?? false) || forkCloseStopsChatsEnabled()
     const requestId = ++closeRequestSequence
     // User Quit on serve closes windows without quitting the host; still bound frozen-renderer acknowledgement.
     if (isQuitting || userQuitClose) {
@@ -134,6 +162,7 @@ export function installMainWindowCloseLifecycle(args: {
   })
 
   const onConfirmClose = (): void => {
+    marcarTempoDoX('renderer-confirmou')
     clearQuitRendererAckTimer()
     windowCloseConfirmed = true
     if (!mainWindow.isDestroyed()) {

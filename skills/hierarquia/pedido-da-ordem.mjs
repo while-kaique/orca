@@ -26,6 +26,18 @@ export function pedidoDaCorrecao(ordemId, motivo) {
   )
 }
 
+/** Em 16/11/2026 um comando que encerrou processo pelo trecho "headless" da linha de comando fechou todos os chats da maquina. */
+export const REGRA_DE_PROCESSO =
+  'Nunca encerrar processo por nome nem por trecho de linha de comando: so pelo PID, e so de processo que voce mesmo abriu (anote o PID ao abrir).'
+
+/** Toda ordem leva a regra no fim dos limites, sem repetir se o PO ja a escreveu. */
+export function comRegraDeProcesso(campos) {
+  const limites = String(campos.limites ?? '').trimEnd()
+  return limites.includes(REGRA_DE_PROCESSO)
+    ? campos
+    : { ...campos, limites: `${limites}\n${REGRA_DE_PROCESSO}` }
+}
+
 export function textoDaOrdem(ordemId, papel, campos) {
   const criterios = campos.criterios.map((item, i) => `${i + 1}. ${item}`).join('\n')
   return [

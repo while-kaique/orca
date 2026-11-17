@@ -5,11 +5,19 @@ import { sair } from './registro.mjs'
 export const USO = {
   'criar-po': { uso: 'hierarquia criar-po [--projeto PASTA] [--teste]', exige: [] },
   ordem: {
-    uso: 'hierarquia ordem --para planejador|executor --arquivo ordem.json [--pedido NOME] [--na-frente] [--na-pasta-do-criador]',
+    uso: 'hierarquia ordem --para executor --arquivo ordem.json [--pedido NOME] [--na-frente] [--na-pasta-do-criador] [--teste]',
     exige: ['para', 'arquivo']
   },
+  restaurar: {
+    uso: 'hierarquia restaurar --chat ID_DO_CHAT_ANTIGO [--conversa ID] [--pasta PASTA] (o chat voltou sem aba: reabre a conversa dele e herda o lugar)',
+    exige: ['chat']
+  },
   'lancar-espera': { uso: 'hierarquia lancar-espera', exige: [] },
-  vigiar: { uso: 'hierarquia vigiar (ligado sozinho pelo comando ordem)', exige: [] },
+  vigiar: { uso: 'hierarquia vigiar [--chat ID] (ligado sozinho pelo comando ordem)', exige: [] },
+  retomar: {
+    uso: 'hierarquia retomar (o Orca do fork roda ao abrir: liga os vigias com trabalho pendente)',
+    exige: []
+  },
   baixa: { uso: 'hierarquia baixa --ordem ID --motivo "..."', exige: ['ordem', 'motivo'] },
   responder: {
     uso: 'hierarquia responder --pergunta p-NNN --texto "..."',
@@ -33,6 +41,10 @@ export const USO = {
   },
   encerrar: { uso: 'hierarquia encerrar --chat ID [--motivo "..."] (só o Orca)', exige: ['chat'] },
   estado: { uso: 'hierarquia estado [--json]', exige: [] },
+  porta: {
+    uso: 'hierarquia porta [--liberar | --cancelar] [--json] [--rapido] [--registrar-corte [--porta-salva ARQUIVO]] (pode fechar ou reabrir o Orca agora?)',
+    exige: []
+  },
   fechar: { uso: 'hierarquia fechar --ordem ID | --terminados | --pedido NOME', exige: [] }
 }
 

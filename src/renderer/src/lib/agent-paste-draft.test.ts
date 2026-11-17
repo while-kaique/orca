@@ -307,8 +307,11 @@ describe('pasteDraftWhenAgentReady', () => {
     await vi.advanceTimersByTimeAsync(49)
     expect(testState.sendRuntimePtyInputVerified).toHaveBeenCalledTimes(1)
     await vi.advanceTimersByTimeAsync(1)
-    await expect(promise).resolves.toBe(true)
     expect(testState.sendRuntimePtyInputVerified).toHaveBeenNthCalledWith(2, 'pty-1', '\r')
+    // Claude retries Enter once after 2 s (a no-op when the first one landed).
+    await vi.advanceTimersByTimeAsync(2000)
+    await expect(promise).resolves.toBe(true)
+    expect(testState.sendRuntimePtyInputVerified).toHaveBeenNthCalledWith(3, 'pty-1', '\r')
   })
 
   it('does not submit when the verified paste write fails', async () => {

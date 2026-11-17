@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-function pastaDeDadosDoOrca() {
+export function pastaDeDadosDoOrca() {
   if (process.env.HIERARQUIA_ORCA_DADOS) {
     return process.env.HIERARQUIA_ORCA_DADOS
   }
@@ -54,16 +54,14 @@ export async function abasGuardadas() {
       }
       const abas = new Map()
       const pastaDe = (worktreeId) => String(worktreeId ?? '').split('::')[1] ?? null
+      // O fluxograma só desenha a aba guardada de uma pasta que existe; sessão dormindo sem aba não vira card (o-041, sobras da o-021).
       for (const [worktreeId, lista] of Object.entries(sessao.tabsByWorktree)) {
-        for (const aba of lista ?? []) {
-          abas.set(aba.id, { pasta: pastaDe(worktreeId), titulo: aba.title })
+        const pasta = pastaDe(worktreeId)
+        if (!pasta || !existsSync(pasta)) {
+          continue
         }
-      }
-      // O fluxograma também desenha a sessão de agente dormindo cuja aba não voltou à lista.
-      const fechadas = sessao.closedTerminalTabTombstonesByTabId ?? {}
-      for (const dormindo of Object.values(sessao.sleepingAgentSessionsByPaneKey ?? {})) {
-        if (dormindo?.tabId && !abas.has(dormindo.tabId) && !fechadas[dormindo.tabId]) {
-          abas.set(dormindo.tabId, { pasta: pastaDe(dormindo.worktreeId), titulo: null })
+        for (const aba of lista ?? []) {
+          abas.set(aba.id, { pasta, titulo: aba.title })
         }
       }
       return abas

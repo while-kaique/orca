@@ -1,5 +1,6 @@
 import type { BrowserWindow } from 'electron'
 import type { Store } from '../persistence/loading-store/store'
+import { markOsSessionEnding } from '../startup/fork-close-stops-chats'
 
 /**
  * Fork (PC-desk): Windows shutdown/logoff kills the app without before-quit or beforeunload,
@@ -13,6 +14,8 @@ export function installOsSessionEndFlush(window: BrowserWindow, store: Store): v
     return
   }
   const flush = (): void => {
+    // Fork: Windows shutting down never waits on the close question.
+    markOsSessionEnding()
     try {
       store.flush()
     } catch {

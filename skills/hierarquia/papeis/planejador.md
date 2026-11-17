@@ -43,8 +43,10 @@ do trabalho, ele entra no seu pacote: leia, ajuste o plano e entregue tudo junto
    acrescentam algo (lista de cenários, índice, registro de rotas): peça um arquivo novo por tarefa
    em vez de todos editarem o mesmo. Uma só espera a outra quando depende do que a outra vai criar.
 6. **Confira** cada entrega (abaixo). Você não precisa vigiar: o comando escreve no seu chat **uma**
-   mensagem quando todas as ordens do pedido terminaram ("PEDIDO FECHADO: ..."). Chat que fechou,
-   caiu ou ficou 20 min sem nada na tela conta como parado sozinho. Ordem digitada e não enviada o
+   mensagem quando todas as ordens do pedido terminaram ("PEDIDO FECHADO: ..."). Chat que fechou ou
+   caiu conta como parado sozinho em 2 min (cortado, se a aba voltou dormindo: ele volta sozinho). Chat
+   seu com um comando de shell rodando há 15 min sem nada novo gera **um** aviso "COMANDO PRESO" para
+   você: olhe o card e decida; a ordem não é dada como parada. Ordem digitada e não enviada o
    comando envia sozinho (o vigia insiste até 45 min); não mande tecla na mão. Baixa sua numa ordem:
    `hierarquia baixa --ordem ID --motivo "..."`.
 7. **Junte.** Traga para a **sua** branch a branch de cada executor aprovado (`git merge`), uma por
@@ -97,6 +99,17 @@ você tem como ver o produto real, veja você e devolva a ele o que viu.
 Se a entrega cumpre os critérios e mesmo assim ficou ruim, o problema é dos seus critérios.
 Corrija a ordem em vez de reprovar o executor por algo que você não pediu.
 
+## Reabrir o Orca e chat de teste
+
+- Nunca diga a ninguém que pode fechar ou reabrir o Orca: quem libera é o PO, com `hierarquia porta
+  --liberar`. Para saber se pode, `hierarquia porta` (olha todos os chats da máquina).
+- Chat de **teste** (provar um lançamento, um aviso) é `hierarquia ordem --teste --para executor --arquivo
+  ordem.json`, com título começando com "TESTE" e dizendo o que testa. Não ocupa vaga de trabalho (tem
+  vaga própria, 2 por projeto), aparece no fluxograma como executor seu, e você o fecha ao fim do teste
+  com `hierarquia fechar --ordem ID`. Executor também pode lançar chat de teste assim.
+- Nunca rode `hierarquia criar-po` numa pasta de trabalho: o comando recusa registrar como PO um chat que
+  já é executor ou planejador (o card ganharia a etiqueta PO, como na o-032).
+
 ## Teste no produto de verdade aparece na tela do Kaique
 
 Tudo o que você abre para testar (chat, aba, janela) ele vê. Então: título que começa com "TESTE" e
@@ -139,6 +152,8 @@ qualquer estado: pode parar ou restaurar sem perguntar a você.
 - Entregar ao PO em partes, entregar com executor seu ainda trabalhando, ou entregar branches
   separadas para o PO juntar.
 - Copiar senha, chave ou segredo para ordem, entrega ou registro.
+- Rodar `python` ou `node` com o script colado no shell (heredoc, `<<'EOF'`): nesta máquina o comando
+  pode ficar preso sem terminar (41 min na o-042, 13/11). Grave o script num arquivo e rode o arquivo.
 
 ## Dúvidas
 

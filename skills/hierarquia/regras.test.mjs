@@ -14,6 +14,7 @@ import {
   destinoDaPergunta,
   filaDoKaique,
   montarEstado,
+  ocupacao,
   ondeEstaOTexto,
   ordensLiberadasDaEspera,
   ordensSemInicio,
@@ -61,25 +62,22 @@ function comExecutores(eventos, pai, quantos, prefixo) {
   return saida
 }
 
-test('PO cria planejador com Opus e executor com Sonnet', () => {
+test('PO (Opus) cria executor com Sonnet; planejador nao existe mais', () => {
   const estado = montarEstado([ev('po_criado', { chatId: 'PO' })])
-  assert.deepEqual(decidirOrdem(estado, { de: 'PO', para: 'planejador', campos: CAMPOS }), {
-    acao: 'criar',
-    modelo: 'opus'
-  })
+  assert.equal(estado.chats.PO.modelo, 'opus')
   assert.deepEqual(decidirOrdem(estado, { de: 'PO', para: 'executor', campos: CAMPOS }), {
     acao: 'criar',
     modelo: 'sonnet'
   })
+  const recusa = decidirOrdem(estado, { de: 'PO', para: 'planejador', campos: CAMPOS })
+  assert.equal(recusa.acao, 'recusar')
+  assert.match(recusa.motivo, /Não existe mais planejador/u)
 })
 
-test('planejador cria executor, mas nao cria outro planejador', () => {
+test('planejador de registro antigo ainda e lido, mas nao cria chat nenhum', () => {
   const estado = montarEstado(base())
-  assert.equal(decidirOrdem(estado, { de: 'P1', para: 'executor', campos: CAMPOS }).acao, 'criar')
-  assert.deepEqual(decidirOrdem(estado, { de: 'P1', para: 'planejador', campos: CAMPOS }), {
-    acao: 'recusar',
-    motivo: 'Um planejador não pode criar um planejador.'
-  })
+  assert.equal(estado.chats.P1.papel, 'planejador')
+  assert.equal(decidirOrdem(estado, { de: 'P1', para: 'executor', campos: CAMPOS }).acao, 'recusar')
 })
 
 test('executor nao cria chat nenhum', () => {
@@ -101,43 +99,29 @@ test('chat que nao esta no registro e recusado', () => {
 test('ordem sem um dos cinco campos e recusada dizendo qual falta', () => {
   const estado = montarEstado(base())
   const semDois = { ...CAMPOS, porque: '  ', criterios: [] }
-  assert.deepEqual(decidirOrdem(estado, { de: 'P1', para: 'executor', campos: semDois }), {
+  assert.deepEqual(decidirOrdem(estado, { de: 'PO', para: 'executor', campos: semDois }), {
     acao: 'recusar',
     motivo: 'Faltam campos na ordem: porque, criterios.'
   })
 })
 
-test('terceiro planejador entra em espera', () => {
-  const eventos = [
-    ...base(),
-    ev('ordem_criada', { ordemId: 'o-p2', de: 'PO', para: 'planejador', campos: CAMPOS }),
-    ev('chat_lancado', { ordemId: 'o-p2', chatId: 'P2', modelo: 'opus' })
-  ]
+test('quarto executor cabe e o quinto espera na fila, so contando quem trabalha', () => {
+  const quatro = comExecutores([ev('po_criado', { chatId: 'PO' })], 'PO', 3, 'E')
   assert.equal(
-    decidirOrdem(montarEstado(eventos), { de: 'PO', para: 'planejador', campos: CAMPOS }).acao,
-    'esperar'
+    decidirOrdem(montarEstado(quatro), { de: 'PO', para: 'executor', campos: CAMPOS }).acao,
+    'criar'
   )
-})
-
-test('terceiro executor do projeto espera, mesmo pedido por outro planejador', () => {
-  const eventos = comExecutores(
-    [
-      ...base(),
-      ev('ordem_criada', { ordemId: 'o-p2', de: 'PO', para: 'planejador', campos: CAMPOS }),
-      ev('chat_lancado', { ordemId: 'o-p2', chatId: 'P2', modelo: 'opus' })
-    ],
-    'P1',
-    2,
-    'E'
-  )
-  const estado = montarEstado(eventos)
-  assert.equal(decidirOrdem(estado, { de: 'P1', para: 'executor', campos: CAMPOS }).acao, 'esperar')
-  assert.equal(decidirOrdem(estado, { de: 'P2', para: 'executor', campos: CAMPOS }).acao, 'esperar')
+  const cheio = comExecutores([ev('po_criado', { chatId: 'PO' })], 'PO', 4, 'E')
+  const estado = montarEstado(cheio)
+  assert.equal(decidirOrdem(estado, { de: 'PO', para: 'executor', campos: CAMPOS }).acao, 'esperar')
+  assert.equal(ocupacao(estado).executores, 4)
+  assert.equal(ocupacao(estado).teto.executoresPorProjeto, 4)
+  assert.equal('planejadores' in ocupacao(estado), false)
 })
 
 test('entrega solta a vaga, e a ordem que passa na frente sai antes da mais antiga', () => {
   const eventos = [
-    ...comExecutores(base(), 'P1', 2, 'E'),
+    ...comExecutores(base(), 'P1', 4, 'E'),
     ev('ordem_criada', {
       ordemId: 'o-fila1',
       de: 'P1',
@@ -326,12 +310,12 @@ test('o registro marca o chat em que o Kaique mexeu e o que parou sem entregar',
 })
 
 test('chat que terminou continua aberto; so fecha para dar lugar a outro', () => {
-  const eventos = comExecutores(base(), 'P1', 2, 'E')
+  const eventos = comExecutores(base(), 'PO', 4, 'E')
   eventos.push(ev('entrega', { ordemId: 'o-E2', portao: 'plano', provas: ['prova.png'] }))
-  eventos.push(ev('conferencia', { ordemId: 'o-E2', por: 'P1', aprovada: true }))
+  eventos.push(ev('conferencia', { ordemId: 'o-E2', por: 'PO', aprovada: true }))
   const estado = montarEstado(eventos)
   assert.equal(estado.chats.E2.ativo, true)
-  assert.deepEqual(decidirOrdem(estado, { de: 'P1', para: 'executor', campos: CAMPOS }), {
+  assert.deepEqual(decidirOrdem(estado, { de: 'PO', para: 'executor', campos: CAMPOS }), {
     acao: 'criar',
     modelo: 'sonnet',
     fechar: 'E2'
@@ -343,7 +327,7 @@ test('com vaga sobrando nada e fechado, mesmo havendo chat terminado', () => {
   eventos.push(ev('entrega', { ordemId: 'o-E1', portao: 'plano', provas: ['prova.png'] }))
   eventos.push(ev('conferencia', { ordemId: 'o-E1', por: 'P1', aprovada: true }))
   assert.deepEqual(
-    decidirOrdem(montarEstado(eventos), { de: 'P1', para: 'executor', campos: CAMPOS }),
+    decidirOrdem(montarEstado(eventos), { de: 'PO', para: 'executor', campos: CAMPOS }),
     {
       acao: 'criar',
       modelo: 'sonnet'
@@ -369,7 +353,7 @@ test('o chat e a aba; o identificador de terminal muda quando o Orca reabre', ()
   assert.equal(estado.po, 'aba-po')
   assert.equal(estado.chats['aba-po'].handle, 'term-2')
   assert.equal(
-    decidirOrdem(estado, { de: 'aba-po', para: 'planejador', campos: CAMPOS }).acao,
+    decidirOrdem(estado, { de: 'aba-po', para: 'executor', campos: CAMPOS }).acao,
     'criar'
   )
 })
