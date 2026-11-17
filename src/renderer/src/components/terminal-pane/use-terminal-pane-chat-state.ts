@@ -42,7 +42,7 @@ export function useTerminalPaneChatState(controller: TerminalPaneTitleController
     toggleTabViewMode
   } = useTerminalPaneStoreActions()
   // Bundle unified-tab reads to reduce lookups and subscriptions per mounted tab.
-  const { unifiedTabId, isChatViewMode, unifiedTabLabel, isTabPinned } = useAppStore(
+  const { unifiedTabId, isChatViewMode, savedViewMode, unifiedTabLabel, isTabPinned } = useAppStore(
     useShallow((store) =>
       selectUnifiedTerminalTabFields(store.unifiedTabsByWorktree, worktreeId, tabId)
     )
@@ -271,6 +271,7 @@ export function useTerminalPaneChatState(controller: TerminalPaneTitleController
     clearCodexRestartNotice,
     unifiedTabId,
     isChatViewMode,
+    savedViewMode,
     effectiveChatViewMode,
     unifiedTabLabel,
     isTabPinned,
