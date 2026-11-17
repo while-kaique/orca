@@ -14,10 +14,16 @@ import { resolveTerminalTeardownOwner } from '@/store/terminals/terminal-teardow
 import type { AgentStatusEntry } from '../../../../../shared/agent-status/contracts/agent-status-types'
 
 type ChatPane = { paneKey: string; leafId: string; ptyId: string; entry: AgentStatusEntry }
+type ChatPaneState = Pick<
+  ReturnType<typeof useAppStore.getState>,
+  'agentStatusByPaneKey' | 'terminalLayoutsByTabId' | 'ptyIdsByTabId'
+>
 
 /** The chat's agent pane: its newest status row and the process behind it; null when there is nothing to resume. */
-function findChatPane(tabId: string): ChatPane | null {
-  const state = useAppStore.getState()
+export function findChatPane(
+  tabId: string,
+  state: ChatPaneState = useAppStore.getState()
+): ChatPane | null {
   let best: { paneKey: string; leafId: string; entry: AgentStatusEntry } | null = null
   for (const [paneKey, entry] of Object.entries(state.agentStatusByPaneKey)) {
     const parsed = parsePaneKey(paneKey)
@@ -45,10 +51,20 @@ function findChatPane(tabId: string): ChatPane | null {
  * the others save the resume record the way a manual workspace sleep does and stop only this chat's process
  * (the workspace sleep stops every chat of the folder, which would take down neighbours).
  */
-export async function suspendPcDeskChat(worktreeId: string, tabId: string): Promise<boolean> {
+export async function suspendPcDeskChat(
+  worktreeId: string,
+  tabId: string,
+  // Fork (o-051): the close's batch passes quiet so one failing chat does not stack an error toast per chat.
+  opts: { quiet?: boolean } = {}
+): Promise<boolean> {
+  const notify = (message: string): void => {
+    if (!opts.quiet) {
+      toast.error(message)
+    }
+  }
   const pane = findChatPane(tabId)
   if (!pane) {
-    toast.error(
+    notify(
       translate(
         'fork.canvas.suspendNothing',
         'Este chat não tem uma conversa para guardar, então não dá para suspender.'
@@ -57,18 +73,8 @@ export async function suspendPcDeskChat(worktreeId: string, tabId: string): Prom
     return false
   }
   const state = useAppStore.getState()
-  const teardownOwner = resolveTerminalTeardownOwner(resolveTerminalPtyOwner(state, worktreeId), [
-    pane.ptyId
-  ])
-  // Remote chats are stopped by their own host; this window cannot prove the stop, so it does not try.
-  if (
-    teardownOwner.kind === 'refused' ||
-    teardownOwner.runtimeEnvironmentId !== null ||
-    isRemoteRuntimePtyId(pane.ptyId)
-  ) {
-    toast.error(
-      translate('fork.canvas.suspendRemote', 'Só chats desta máquina podem ser suspensos.')
-    )
+  if (!isLocalChatPane(state, worktreeId, pane)) {
+    notify(translate('fork.canvas.suspendRemote', 'Só chats desta máquina podem ser suspensos.'))
     return false
   }
   try {
@@ -84,11 +90,27 @@ export async function suspendPcDeskChat(worktreeId: string, tabId: string): Prom
     return await suspendWorkingChat(worktreeId, tabId, pane)
   } catch (error) {
     console.warn('[suspend-chat] failed to suspend chat', error)
-    toast.error(
+    notify(
       translate('fork.canvas.suspendFailed', 'Não consegui suspender o chat. Ele continua ligado.')
     )
     return false
   }
+}
+
+/** Remote chats are stopped by their own host; this window cannot prove that stop, so it never tries. */
+export function isLocalChatPane(
+  state: Parameters<typeof resolveTerminalPtyOwner>[0],
+  worktreeId: string,
+  pane: Pick<ChatPane, 'ptyId'>
+): boolean {
+  const teardownOwner = resolveTerminalTeardownOwner(resolveTerminalPtyOwner(state, worktreeId), [
+    pane.ptyId
+  ])
+  return (
+    teardownOwner.kind !== 'refused' &&
+    teardownOwner.runtimeEnvironmentId === null &&
+    !isRemoteRuntimePtyId(pane.ptyId)
+  )
 }
 
 async function suspendWorkingChat(

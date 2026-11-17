@@ -8,6 +8,7 @@ import { getDaemonProvider, listLiveDaemonSessions } from '../daemon/daemon-prov
 import { endHiddenSessions } from './fork-hidden-chat-sessions'
 import { mainProcessState } from './main-process-state'
 import { marcarTempoDoX } from './fork-close-timing'
+import { askWindowToSuspendAllChats, closeSuspendingAllChats } from './fork-close-suspend-all'
 
 export { marcarTempoDoX } from './fork-close-timing'
 export {
@@ -32,6 +33,8 @@ type ChatNaPorta = {
 type Porta = { pode: boolean; resumo: string; chats: ChatNaPorta[]; recentes: unknown[] }
 
 let decidido = false
+// Fork (o-051): a second X while the chats are being suspended must neither ask again nor close halfway.
+let suspendendo = false
 let sessaoDoWindowsTerminando = false
 
 export function forkCloseStopsChatsEnabled(): boolean {
@@ -140,13 +143,25 @@ export function askForkCloseGate(
   seguir: () => void,
   desistir: () => void
 ): void {
+  if (suspendendo) {
+    return
+  }
   void (async () => {
     marcarTempoDoX('porta-inicio')
     const porta = await rodarPorta([], PORTA_PRAZO_MS)
     marcarTempoDoX(`porta-fim:${porta ? (porta.pode ? 'pode' : 'pergunta') : 'sem-resposta'}`)
     if (porta?.pode) {
-      decidido = true
-      seguir()
+      // Fork (o-051): idle chats are suspended too, or the quit sweep would end them and their tabs would be lost.
+      suspendendo = true
+      await closeSuspendingAllChats({
+        suspendAll: () => askWindowToSuspendAllChats(janela),
+        recordCut: async () => {},
+        proceed: () => {
+          decidido = true
+          seguir()
+        },
+        mark: marcarTempoDoX
+      })
       return
     }
     const lista = porta?.chats ?? []
@@ -158,17 +173,17 @@ export function askForkCloseGate(
       ? `\n${porta.recentes.length} ordem(ns) lancada(s) ha pouco: o chat ainda pode estar nascendo.`
       : ''
     const detalhe = porta
-      ? `${linhas.join('\n')}${recentes}\n\nFechar agora para estes chats no meio. Ao abrir de novo, eles voltam e retomam a conversa; o que estava rodando se perde.`
-      : 'Nao consegui conferir quais chats estao trabalhando. Fechar agora para todos os chats deste Orca.'
+      ? `${linhas.join('\n')}${recentes}\n\nFechar suspende todos os chats do Claude deste Orca: a conversa de cada um fica guardada e eles voltam no mesmo card ao abrir de novo (um clique acorda o que estiver dormindo). O que estava no meio de uma resposta para.`
+      : 'Não consegui conferir quais chats estão trabalhando. Fechar suspende todos os chats do Claude deste Orca: a conversa de cada um fica guardada.'
     const visivel = !janela.isDestroyed() && janela.isVisible()
     const opcoes = {
       type: 'warning' as const,
       title: 'Fechar o Orca',
       message: porta
         ? `${lista.length} chat(s) trabalhando neste Orca`
-        : 'Fechar o Orca para todos os chats',
+        : 'Fechar o Orca e suspender os chats',
       detail: detalhe,
-      buttons: ['Fechar e parar todos', 'Cancelar'],
+      buttons: ['Fechar e suspender todos', 'Cancelar'],
       defaultId: 1,
       cancelId: 1,
       noLink: true
@@ -180,10 +195,17 @@ export function askForkCloseGate(
     }
     // A hierarquia anota quem foi cortado: ao reabrir, a volta avisa cada um (so com o Claude aberto).
     marcarTempoDoX('respondeu-fechar')
-    await rodarPorta(['--registrar-corte', ...portaSalva(porta)], CORTE_PRAZO_MS)
-    marcarTempoDoX('corte-registrado')
-    decidido = true
-    seguir()
+    suspendendo = true
+    await closeSuspendingAllChats({
+      suspendAll: () => askWindowToSuspendAllChats(janela),
+      recordCut: () => rodarPorta(['--registrar-corte', ...portaSalva(porta)], CORTE_PRAZO_MS),
+      proceed: () => {
+        marcarTempoDoX('corte-registrado')
+        decidido = true
+        seguir()
+      },
+      mark: marcarTempoDoX
+    })
   })()
 }
 
