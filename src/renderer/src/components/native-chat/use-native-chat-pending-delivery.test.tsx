@@ -175,6 +175,18 @@ describe('terminal Chat pending delivery', () => {
       expect(result.current.pending).toEqual([])
     }
   )
+  it('keeps every echo of a terminal that stays slow past the hold, in order and once each', async () => {
+    const { result } = render()
+    const texts = Array.from({ length: 12 }, (_, index) => `message ${index + 1}`)
+    act(() => {
+      for (const text of texts) {
+        result.current.holdUnconfirmed(result.current.record(text))
+      }
+    })
+    await tick(NATIVE_CHAT_UNCONFIRMED_SEND_HOLD_MS * 3)
+    expect(result.current.pending.map((entry) => entry.text)).toEqual(texts)
+    expect(result.current.pending.every((entry) => entry.delivery === 'unconfirmed')).toBe(true)
+  })
   it('keeps a failed send through Stop while dropping sends Stop may have cancelled', () => {
     const { result } = render()
     act(() => {
