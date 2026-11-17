@@ -95,4 +95,35 @@ describe('linkProjectChats', () => {
     linkProjectChats([settled.po, settled.child], new Map(), registry, ['C:/p/orca'], lineage)
     expect([settled.child.parentKey, settled.child.launching ?? false]).toEqual([null, false])
   })
+
+  // Chaves da prova juncao-o-047/restaurar (depois-cards.json): o antigo dd95f879 e o novo 6beb0dd2 do mesmo chat.
+  describe('chat restored by hierarquia restaurar', () => {
+    const OLD = 'dd95f879-84c8-4ef3-84e4-712c3f28e393'
+    const NEW = '6beb0dd2-8f66-4023-b29e-64e020b39cc0'
+    const registry = {
+      folder: 'C:/p/orca',
+      chats: {
+        po: { papel: 'po', pai: null, ativo: true },
+        [OLD]: { papel: 'executor', pai: 'po', ativo: false, substituidoPor: NEW },
+        [NEW]: { papel: 'executor', pai: 'po', ativo: true, restauradoDe: OLD },
+        filho: { papel: 'executor', pai: NEW, ativo: true }
+      },
+      ordens: {},
+      fila: []
+    } as unknown as CanvasHierarchySnapshot
+
+    it('draws one card: the old tab is dropped and its children hang under the new chat', () => {
+      const filho = { ...chat('filho'), parentKey: OLD } as CanvasChat
+      const chats = [chat('po'), chat(OLD), chat(NEW), filho]
+      linkProjectChats(chats, new Map(), [registry], ['C:/p/orca'])
+      expect(chats.map((c) => c.key)).toEqual(['po', NEW, 'filho'])
+      expect(filho.parentKey).toBe(NEW)
+    })
+
+    it('keeps the old card while the new chat has no open tab', () => {
+      const chats = [chat('po'), chat(OLD)]
+      linkProjectChats(chats, new Map(), [registry], ['C:/p/orca'])
+      expect(chats.map((c) => c.key)).toEqual(['po', OLD])
+    })
+  })
 })

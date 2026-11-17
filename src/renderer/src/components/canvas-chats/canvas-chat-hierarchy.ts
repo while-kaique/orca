@@ -220,6 +220,52 @@ export function applyCanvasHierarchy(
   }))
 }
 
+/**
+ * Fork: `hierarquia restaurar` leaves the old tab open in Orca (a dead terminal cannot be closed by id), and the registry
+ * marks it `substituidoPor` the new chat. Only the new chat draws a card; the old one's children move under it.
+ * An old chat stays visible while its replacement has no open tab.
+ */
+export function dropReplacedChats(
+  chats: CanvasChat[],
+  snapshots: readonly CanvasHierarchySnapshot[]
+): void {
+  const successorOf = new Map<string, string>()
+  for (const snapshot of snapshots) {
+    for (const [id, known] of Object.entries(snapshot.chats)) {
+      const next = (known as { substituidoPor?: string }).substituidoPor
+      if (next && !known.ativo) {
+        successorOf.set(id, next)
+      }
+    }
+  }
+  if (successorOf.size === 0) {
+    return
+  }
+  const open = new Set(chats.map((chat) => chat.key))
+  const heirOf = new Map<string, string>()
+  for (const id of successorOf.keys()) {
+    let heir = id
+    for (const seen = new Set([id]); successorOf.has(heir) && !seen.has(successorOf.get(heir)!);) {
+      heir = successorOf.get(heir)!
+      seen.add(heir)
+    }
+    if (open.has(id) && open.has(heir) && heir !== id) {
+      heirOf.set(id, heir)
+    }
+  }
+  if (heirOf.size === 0) {
+    return
+  }
+  for (const chat of chats) {
+    const heir = chat.parentKey ? heirOf.get(chat.parentKey) : undefined
+    if (heir) {
+      chat.parentKey = heir
+    }
+  }
+  const kept = chats.filter((chat) => !heirOf.has(chat.key))
+  chats.splice(0, chats.length, ...kept)
+}
+
 /** One project's chats: who created whom, then role, delivery state and the user's queue. */
 export function linkProjectChats(
   chats: CanvasChat[],
@@ -231,9 +277,11 @@ export function linkProjectChats(
 ): CanvasQueueItem[] {
   linkCreatedChats(chats, latestByChat)
   // Why: a worktree can hold its own `.hierarquia/`; taking only the first one left the main registry's chats as free.
-  const queue = snapshots
-    .filter((candidate) => projectFolders.includes(candidate.folder))
-    .flatMap((snapshot) => applyCanvasHierarchy(chats, snapshot))
+  const projectSnapshots = snapshots.filter((candidate) =>
+    projectFolders.includes(candidate.folder)
+  )
+  dropReplacedChats(chats, projectSnapshots)
+  const queue = projectSnapshots.flatMap((snapshot) => applyCanvasHierarchy(chats, snapshot))
   holdUnregisteredChildren(chats, creatorByWorktree, newTabs)
   return queue
 }

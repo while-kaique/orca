@@ -1,5 +1,17 @@
 # Onde paramos — fork do Orca "PC como mesa"
 
+## 17/11/2026 (ordem o-049) — sobras da o-047: card do chat restaurado, "começou" falso, roteiro com saída 1
+
+Branch `kaiquebreno-ggp/o-049-executor-hierarquia` (não enviada; quem junta é o PO). Entrega: `.hierarquia/provas/o-049/ENTREGA.md`. Sem Orca de teste (regra E).
+
+- **Card do chat antigo (parte 1):** o Orca não fecha aba morta por id, então `canvas-chat-hierarchy.ts` (`dropReplacedChats`) não
+  desenha o chat que o registro marca `substituidoPor` quando o novo está aberto. **A aba antiga continua na barra lateral.**
+- **Abas que não voltam (parte 2):** causa **não confirmada**. A hipótese "queda antes do X" não bate com as provas (a cena 2 de 15/11, sem
+  queda, também perdeu as abas). Medida que falta e o resto: ENTREGA.md.
+- **"Chat começou" falso (parte 4):** `decidirInicio` só aceita turno iniciado (Claude trabalhando ou resposta depois da ordem); o fim da
+  ordem no rascunho manda o Enter mesmo com o começo dela visível na tela.
+- **`roteiro-po-nascendo.mjs`** sai com código 1 quando registra erro.
+
 ## 16/11/2026 (ordem o-047) — hierarquia sem planejador, restaurar que herda o lugar, nunca matar por nome, fluxograma que não rola
 
 Branch `kaiquebreno-ggp/o-047-executor-task` (não enviada; quem junta é o PO). Spec: `docs/specs/hierarquia-sem-planejador-e-restaurar.md`.
