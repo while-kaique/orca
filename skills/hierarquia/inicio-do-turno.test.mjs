@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { decidirInicio, ondeEstaAOrdem } from './regras.mjs'
+import { decidirInicio, haRespostaDepoisDaOrdem, ondeEstaAOrdem } from './regras.mjs'
 
 const LINHA = '─'.repeat(112)
 const BASE = { naCaixaDesde: null, tentouEnviarEm: null, enviadaEm: null, comecouEm: null }
@@ -41,15 +41,72 @@ test('chat ocioso sem a ordem na conversa e sem rascunho nunca vira "comecou"', 
   assert.equal(decidirInicio(BASE, { atividade: 'done', onde }, 9000).acao, 'esperar')
 })
 
-test('a ordem ja na conversa vale mais que o rascunho', () => {
-  const conversa = [
-    '❯ ORDEM o-033 (executor). PAPEL: executor na hierarquia',
-    '● lendo o papel',
-    LINHA,
-    '❯',
-    LINHA
-  ]
-  assert.equal(ondeEstaAOrdem(conversa, RASCUNHO_DA_O033, TRECHOS), 'no_historico')
+const CONVERSA_COM_RESPOSTA = [
+  '❯ ORDEM o-033 (executor). PAPEL: executor na hierarquia',
+  '● lendo o papel',
+  LINHA,
+  '❯',
+  LINHA
+]
+
+test('a ordem ja na conversa vale mais que um rascunho que so repete o comeco dela (sugestao do Claude)', () => {
+  const sugestao = 'ORDEM o-033 (executor). PAPEL: executor '
+  assert.equal(ondeEstaAOrdem(CONVERSA_COM_RESPOSTA, sugestao, TRECHOS), 'no_historico')
+})
+
+test('o fim da ordem no rascunho vale mais que a ordem vista na tela', () => {
+  assert.equal(ondeEstaAOrdem(CONVERSA_COM_RESPOSTA, RASCUNHO_DA_O033, TRECHOS), 'na_caixa')
+})
+
+// Valores do registro de 17/11 (o-048 e o-049): chat_iniciou com fonte "tela", visto {atividade: "done",
+// onde: "no_historico"}, enviadaPeloComando false, horasDosEnvios []. O PO leu a ordem parada no rascunho.
+const TRECHOS_DA_O049 = [
+  'ORDEM o-049 (executor). PAPEL: executor ',
+  'e so depois envie worker_done como manda o seu preambulo.'
+]
+const TELA_DA_O049 = [
+  'ORDEM o-049 (executor). PAPEL: executor na hierarquia de chats do projeto',
+  '  ↑ 64 more',
+  LINHA,
+  '❯ arquivo), e so depois envie worker_done como manda o seu preambulo.',
+  LINHA
+]
+
+test('o-049: done com a ordem vista na tela mas sem resposta nao e "comecou"', () => {
+  const visto = { atividade: 'done', onde: 'no_historico', resposta: false }
+  assert.equal(decidirInicio(BASE, visto, 1000).acao, 'esperar')
+  assert.equal(
+    decidirInicio(BASE, { atividade: 'done', onde: 'no_historico' }, 1000).acao,
+    'esperar'
+  )
+})
+
+test('o-049: ordem no rascunho (so o fim dela) com a tela mostrando o comeco: manda o Enter, nunca "comecou"', () => {
+  const rascunho = 'arquivo), e so depois envie worker_done como manda o seu preambulo.'
+  const onde = ondeEstaAOrdem(TELA_DA_O049, rascunho, TRECHOS_DA_O049)
+  assert.equal(onde, 'na_caixa')
+  assert.equal(haRespostaDepoisDaOrdem(TELA_DA_O049, TRECHOS_DA_O049[0]), false)
+  const primeiro = decidirInicio(BASE, { atividade: 'done', onde, resposta: false }, 1000)
+  assert.equal(primeiro.acao, 'esperar')
+  assert.equal(
+    decidirInicio(primeiro.vigia, { atividade: 'done', onde, resposta: false }, 5200).acao,
+    'enviar'
+  )
+})
+
+test('so conta como comecou com o Claude trabalhando ou respondendo depois da ordem', () => {
+  assert.equal(haRespostaDepoisDaOrdem(CONVERSA_COM_RESPOSTA, TRECHOS[0]), true)
+  const resposta = decidirInicio(
+    BASE,
+    { atividade: 'done', onde: 'no_historico', resposta: true },
+    1000
+  )
+  assert.equal(resposta.acao, 'comecou')
+  assert.equal(resposta.vigia.fonte, 'tela')
+  assert.equal(
+    decidirInicio(BASE, { atividade: 'working', onde: 'na_caixa' }, 1000).acao,
+    'comecou'
+  )
 })
 
 // Caso de 13/11 (o-034), reconstruido da leitura do PO em DECISOES.md (o rascunho exato nao foi guardado):

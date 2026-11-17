@@ -253,6 +253,7 @@ try {
 } catch (falha) {
   if (falha.message !== 'FIM') {
     dizer(`ERRO: ${falha.message}`)
+    process.exitCode = 1
     await foto('erro').catch(() => undefined)
   }
 } finally {

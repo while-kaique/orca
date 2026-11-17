@@ -1,6 +1,6 @@
 // Confere se o chat novo começou a trabalhar e, se a ordem ficou parada na caixa de texto, envia até ele aceitar.
 import { esperar, orcaEmSegundoPlano } from './orca-lancador.mjs'
-import { decidirInicio, ondeEstaAOrdem } from './regras.mjs'
+import { decidirInicio, haRespostaDepoisDaOrdem, ondeEstaAOrdem } from './regras.mjs'
 import { trechosDoPedido } from './pedido-da-ordem.mjs'
 
 const INTERVALO_MS = 2000
@@ -40,6 +40,9 @@ function motivoDoFracasso(vigia, chatId) {
       : ' (o comando nao conseguiu enviar)'
     return `a ordem esta digitada no chat ${chat}, falta enviar${enviou}`
   }
+  if (vigia.onde === 'no_historico') {
+    return `a ordem aparece na conversa do chat ${chat}, mas o Claude ainda nao respondeu (sem sinal de que o turno comecou)`
+  }
   const ocioso =
     vigia.atividade === 'done'
       ? " (o Orca marca 'done' tambem em chat que nunca recebeu a ordem: sem a ordem na conversa nao ha prova de que comecou)"
@@ -70,7 +73,8 @@ export function criarVigia(pedido) {
       telaDoChat(alvo.handle).catch(() => null)
     ])
     const onde = ondeEstaAOrdem(terminal?.tail ?? null, terminal?.draft, trechos)
-    const decisao = decidirInicio(vigia, { atividade, onde }, Date.now())
+    const resposta = haRespostaDepoisDaOrdem(terminal?.tail ?? null, trechos[0])
+    const decisao = decidirInicio(vigia, { atividade, onde, resposta }, Date.now())
     vigia = { ...decisao.vigia, atividade }
     if (decisao.acao === 'enviar') {
       vigia = { ...vigia, tentouEnviarEm: Date.now() }
