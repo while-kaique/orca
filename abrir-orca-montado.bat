@@ -8,7 +8,8 @@ set "ORCA_CLOUD_API_URL=https://login.onorca.dev"
 set "ORCA_CLOUD_CLIENT_ID=orca-desktop"
 set "ELECTRON_RUN_AS_NODE="
 rem Fork (o-041): fechar pelo X para os chats deste Orca; com chat trabalhando, pergunta antes (a porta da hierarquia).
-set "ORCA_FORK_FECHAR_PARA_CHATS=1"
+rem DESLIGADO em 17/11/2026 (Kaique): com o X parando os chats, as abas nao voltavam ao reabrir. Religar quando o X passar a suspender os chats.
+rem set "ORCA_FORK_FECHAR_PARA_CHATS=1"
 set "ORCA_FORK_PORTA=%~dp0skills\hierarquia\hierarquia.mjs"
 if not exist "%ORCA_DEV_USER_DATA_PATH%" (
   robocopy "%APPDATA%\orca\profiles" "%ORCA_DEV_USER_DATA_PATH%\profiles" /E /NFL /NDL /NJH /NJS >nul
