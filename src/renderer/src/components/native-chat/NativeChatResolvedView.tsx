@@ -26,6 +26,7 @@ import { NativeChatPromptStrip } from './NativeChatPromptCollapse'
 import { NativeChatEmptyState } from './NativeChatEmptyState'
 import { useNativeChatInteractiveSend } from './use-native-chat-interactive-send'
 import { shouldClearNativeChatWorkingSuppression } from '../../../../shared/native-chat/native-chat-working-suppression'
+import { useNativeChatSendingTail } from './native-chat-sending-state'
 import { resolveNativeChatTerminalTurn } from '../../../../shared/native-chat/native-chat-terminal-turn'
 import { useNativeChatTerminalTurnTiming } from './use-native-chat-terminal-turn-timing'
 import { launchPromptAsMessage, shouldPruneLaunchPrompt } from './native-chat-pending'
@@ -278,6 +279,8 @@ export function NativeChatResolvedView({
     interrupted: workingInterrupted,
     hasPromptCard: promptCard !== null
   })
+  // Fork: between the send and the turn starting, the tail line says "Enviando…" instead of staying empty.
+  const sendingTail = useNativeChatSendingTail(pending, turnActive)
   const turnTiming = useNativeChatTerminalTurnTiming(paneKey, session.messages, turnActive)
   useRecheckNativeChatFileLinksWhenTurnEnds(turnActive)
 
@@ -360,7 +363,7 @@ export function NativeChatResolvedView({
             ref={messageListRef}
             session={sessionWithPending}
             isVisible={isVisible}
-            isWorking={turnActive}
+            {...sendingTail}
             expandSignal={false}
             {...turnTiming}
             awaitingInput={awaitingInput}
