@@ -49,6 +49,10 @@ export function launchPcDeskChat(worktreeId: string, mode: PcDeskChatMode = 'liv
   if (po && result.surface.kind === 'local-terminal') {
     registerLaunchRecord({ tabId: result.surface.tabId, worktreeId, launchText: po.prompt })
   }
+  // A free chat (Claude, no hierarchy) opens behind its own steps screen; nothing is registered with the hierarchy.
+  if (!po && agent === 'claude' && result.surface.kind === 'local-terminal') {
+    registerLaunchRecord({ kind: 'free', tabId: result.surface.tabId, worktreeId, launchText: '' })
+  }
   return true
 }
 

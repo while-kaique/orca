@@ -1,6 +1,10 @@
 import { translate } from '@/i18n/i18n'
 import type { CanvasHierarchyOrderState } from '../../../../shared/canvas-hierarchy'
-import { useCanvasChatTranscriptModel } from './canvas-chat-context-tokens'
+import {
+  useCanvasChatTranscriptModel,
+  useCanvasChatTranscriptModelChangedAt
+} from './canvas-chat-context-tokens'
+import { resolveCardModel, useCanvasChatModelChoice } from './canvas-chat-model-choice'
 import { canvasChatModelLabel } from './canvas-chat-model-label'
 import type { CanvasChat } from './canvas-chats-layout'
 
@@ -62,7 +66,11 @@ export function CanvasChatRole({ chat }: { chat: CanvasChat }): React.JSX.Elemen
 /** The model the chat runs now: its transcript (Claude's status record has none), else the status record. */
 export function CanvasChatModel({ chat }: { chat: CanvasChat }): React.JSX.Element | null {
   const transcriptModel = useCanvasChatTranscriptModel(chat.transcriptPath)
-  const label = canvasChatModelLabel(transcriptModel ?? chat.model)
+  const transcriptChangedAt = useCanvasChatTranscriptModelChangedAt(chat.transcriptPath)
+  const choice = useCanvasChatModelChoice(chat.tabId)
+  const label = canvasChatModelLabel(
+    resolveCardModel({ choice, transcriptModel, transcriptChangedAt, statusModel: chat.model })
+  )
   return label ? (
     <span className="cc-model" data-family={label.family}>
       {label.label}

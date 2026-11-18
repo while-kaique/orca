@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 import { terminalPreviewApiFor } from '../dashboard-popout/terminal-preview-api'
-import type { ITheme } from '@xterm/xterm'
 import { noteCanvasChatArtifacts } from './canvas-chat-artifacts'
-import { readPeekScreen, type PeekLine } from './canvas-chat-peek-screen'
 
 /** Drops terminal escape codes (colors, cursor moves, window titles) so only the text remains. */
 function stripTerminalCodes(raw: string): string {
@@ -52,9 +50,9 @@ function conversationRows(text: string): string[] {
   return lines.slice(0, end).filter((line) => line.trim().length > 1 && !FRAME_ONLY.test(line))
 }
 
-export type CanvasTerminalTail = { clean: string[]; peek: PeekLine[] }
+export type CanvasTerminalTail = { clean: string[] }
 
-const EMPTY_TAIL: CanvasTerminalTail = { clean: [], peek: [] }
+const EMPTY_TAIL: CanvasTerminalTail = { clean: [] }
 
 // Card reads run two at a time so opening the flowchart doesn't serialize every chat's terminal at once.
 const MAX_PARALLEL_READS = 2
@@ -86,16 +84,11 @@ const deeplyScanned = new Set<string>()
 const DEEP_SCAN_ROWS = 2000
 const RECENT_ROWS = 300
 
-/**
- * Last readable lines of the chat's terminal: `clean` (prose only, for the card text) and
- * `peek` (the last 7 lines styled like the terminal, for hover). `live` re-reads every second.
- */
+/** Last readable lines of the chat's terminal (prose only, for the card text); read again whenever `refreshKey` changes. */
 export function useTerminalTail(
   ptyId: string | null,
   refreshKey: string,
-  tabId: string,
-  live: boolean,
-  theme: ITheme | null
+  tabId: string
 ): CanvasTerminalTail {
   const [tail, setTail] = useState<CanvasTerminalTail>(EMPTY_TAIL)
   useEffect(() => {
@@ -105,10 +98,9 @@ export function useTerminalTail(
     let alive = true
     // Only undo a connect that happened: a skipped read must not cut the open card's live terminal.
     let connected = false
-    let timer: ReturnType<typeof setTimeout> | undefined
     const api = terminalPreviewApiFor(ptyId)
     const connect = (): ReturnType<typeof api.connect> => {
-      const deep = !live && !deeplyScanned.has(ptyId)
+      const deep = !deeplyScanned.has(ptyId)
       return api
         .connect(ptyId, { scrollbackRows: deep ? DEEP_SCAN_ROWS : RECENT_ROWS })
         .then((result) => {
@@ -120,18 +112,16 @@ export function useTerminalTail(
         })
     }
     const read = (): void => {
-      // Hover reads skip the queue: they are one card, and the user is looking at it.
-      void (live ? connect() : withReadSlot(() => (alive ? connect() : Promise.reject())))
-        .then(async (result) => {
+      void withReadSlot(() => (alive ? connect() : Promise.reject()))
+        .then((result) => {
           const raw = `${result.snapshot?.scrollbackAnsi ?? ''}\n${result.snapshot?.data ?? ''}`
           noteCanvasChatArtifacts(tabId, raw)
           const clean = conversationRows(stripTerminalCodes(raw))
             .map((line) => line.trim())
             .filter((line) => !AGENT_UI_LINE.test(line))
             .slice(-6)
-          const peek = live && result.snapshot ? await readPeekScreen(result.snapshot, theme) : []
           if (alive) {
-            setTail({ clean, peek })
+            setTail({ clean })
           }
         })
         .catch(() => undefined)
@@ -140,16 +130,12 @@ export function useTerminalTail(
             connected = false
             void api.unsubscribe(ptyId).catch(() => undefined)
           }
-          if (alive && live) {
-            timer = setTimeout(read, 1000)
-          }
         })
     }
     read()
     return () => {
       alive = false
-      clearTimeout(timer)
     }
-  }, [ptyId, refreshKey, tabId, live, theme])
+  }, [ptyId, refreshKey, tabId])
   return tail
 }

@@ -1,5 +1,16 @@
 # Onde paramos — fork do Orca "PC como mesa"
 
+## 18/11/2026 (ordem o-052) — telas do card: prévia, acordar com etapas, chat livre, modelo na hora, "Enviando…"
+
+Branch `kaiquebreno-ggp/leaffish` (não enviada; quem junta é o PO). Spec: `docs/specs/telas-do-card.md`. Entrega: `.hierarquia/provas/o-052/ENTREGA.md` e `CAMINHO.md`. Sem Orca de teste (regra E).
+
+- **Prévia do card fechado:** última mensagem + última resposta formatadas, cortadas com "…"; sem ler terminal (saiu o leitor ao vivo de 1 s e `canvas-chat-peek-screen.ts`).
+- **Acordar chat dormindo:** tela de 3 etapas (terminal, conversa, Claude pronto) no lugar do "Restaurando o chat… Ns" do card; o componente é o da máscara do PO generalizado (`CanvasChatOpenSteps.tsx`).
+- **Chat livre nascendo:** mesma tela com etapas próprias; registrado em `launch-pc-desk-chat.ts` (autorizado pelo PO, p-015).
+- **Modelo do card:** a troca pelo seletor não grava "Set model to"; o card lê a linha `api-request` da conversa e usa a escolha do seletor na hora.
+- **"Enviando…"** na tela de chat entre o envio e o turno (`native-chat-sending-state.ts`).
+- **Não visto no programa real:** o Kaique reinicia e confere (lista curta no ENTREGA).
+
 ## 17/11/2026 (ordem o-051) — X suspende todos os chats do Claude e só depois sai
 
 Branch `kaiquebreno-ggp/yabby` (não enviada; quem junta e religa a chave é o PO). Spec: `docs/specs/x-suspende-todos.md`. Entrega: `.hierarquia/provas/o-051/ENTREGA.md` e `CAMINHO.md`. Sem Orca de teste (regra E).

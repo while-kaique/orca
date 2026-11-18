@@ -520,28 +520,45 @@
   text-wrap: balance;
   overflow-wrap: anywhere;
 }
-/* hover peek: the card widens and shows Claude's last 7 rows, live */
+/* hover peek: the card widens and shows the user's last message and Claude's last reply */
 .cc-peek {
   z-index: 36;
   box-shadow: 0 22px 60px #000c;
   animation: cc-grow 0.16s ease-out;
 }
 .cc-peek-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   overflow: hidden;
-  padding: 10px 14px 12px;
-  background: #0d0d10;
-  margin: 6px;
-  border-radius: 6px;
+  padding: 12px 14px 14px;
+  font: calc(12.5px * var(--cc-inv)) / 1.5 system-ui;
+  color: #b8b8c2;
+}
+.cc-peek-prompt {
+  font: 600 calc(11.5px * var(--cc-inv)) / 1.4 system-ui;
+  color: #8f8f9a;
+  overflow-wrap: anywhere;
+}
+.cc-peek-reply {
+  color: #e6e6ee;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.cc-peek-reply strong {
+  color: #fff;
+  font-weight: 700;
+}
+.cc-peek-reply code {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: #ffffff12;
+  color: #e6c07b;
   font:
-    calc(11.5px * var(--cc-inv)) / 1.45 ui-monospace,
+    0.92em ui-monospace,
     'Cascadia Code',
     Consolas,
     monospace;
-  color: #d4d4dc;
-}
-.cc-peek-line {
-  white-space: pre-wrap;
-  word-break: break-word;
 }
 .cc-chat-head {
   flex: none;

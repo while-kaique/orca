@@ -19,7 +19,12 @@ import {
   scenarioPicture,
   scenarioStoreWithStates
 } from './canvas-chats-fixture-scenario'
-import { launchScenario, type LaunchScenarioKind } from './canvas-chat-launch-fixture-scenario'
+import {
+  freeChatScenario,
+  launchScenario,
+  type FreeChatScenarioKind,
+  type LaunchScenarioKind
+} from './canvas-chat-launch-fixture-scenario'
 
 /**
  * Fork: the flowchart drawn from a copy of the real app state, so layout and colors can be checked
@@ -254,7 +259,13 @@ function launchMaskFixture(
   kind: LaunchScenarioKind,
   settleMs = 0
 ): ReturnType<typeof defineFixture> {
-  const scenario = launchScenario(kind)
+  return maskFixture(launchScenario(kind), settleMs)
+}
+
+function maskFixture(
+  scenario: ReturnType<typeof launchScenario>,
+  settleMs = 0
+): ReturnType<typeof defineFixture> {
   return defineFixture({
     width: 1280,
     store: scenario.store,
@@ -280,3 +291,12 @@ export const carregandoEsperando = launchMaskFixture('esperando')
 export const carregandoProblema = launchMaskFixture('problema', 7000)
 /** The agent is up but idle for over 2 minutes and never got the launch request. */
 export const carregandoSemPedido = launchMaskFixture('semPedido', 1500)
+
+/** A free chat just opened (o-052): its own steps screen at each point, and the problem case. */
+const freeChatFixture = (kind: FreeChatScenarioKind): ReturnType<typeof defineFixture> =>
+  maskFixture(freeChatScenario(kind))
+
+export const chatLivreTerminal = freeChatFixture('terminal')
+export const chatLivreClaude = freeChatFixture('claude')
+export const chatLivrePronto = freeChatFixture('pronto')
+export const chatLivreProblema = freeChatFixture('problema')
