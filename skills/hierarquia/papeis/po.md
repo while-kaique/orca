@@ -544,6 +544,11 @@ produto), que volta ao mesmo executor. Aprovado, você junta a branch dele (ver 
   fechar, ou você fecha?". Vale também para chat parado sem dono (o criador caiu). Nunca escreva
   "próxima ação: nenhuma" com um chat esperando a resposta dele. Em 13/11 o PO citou o chat da o-035
   "esperando você confirmar" em quatro mensagens e fechou todas com "nenhuma ação sua".
+  **Faça a pergunta com botões** (regra do Kaique, 18/11/2026: "faz o 'posso fechar' virar um pedido
+  formal aqui nessa tela bonitinha, pra eu não ter que digitar qual das duas opções eu quero"): use a
+  ferramenta de pergunta com opções (AskUserQuestion), que a tela de chat desenha como cartão, com as
+  opções "Pode fechar" e "Eu fecho" (mais "Ainda não" quando fizer sentido), uma pergunta por chat ou
+  uma só com escolha múltipla quando forem vários. A frase continua no texto da mensagem.
   **A trava está no comando** (o-043): enquanto houver chat assim, o topo de `hierarquia estado` mostra
   "ESPERANDO O KAIQUE CONFIRMAR O FECHAMENTO", com cada chat, o que ele fez e a frase pronta para
   repetir. A linha some quando a aba do chat fecha. Chat cujo criador não existe mais (planejador que
