@@ -10,6 +10,8 @@ export type LaunchProblem = { step: LaunchStep; reason: LaunchProblemReason }
 
 /** What the flowchart remembers about a PO chat it saw being launched; lives only in this window's memory. */
 export type LaunchRecord = {
+  /** A PO launched by the hierarchy, or a free chat opening on its own (no registry, no launch request). */
+  kind: 'po' | 'free'
   tabId: string
   worktreeId: string
   since: number
@@ -21,6 +23,8 @@ export type LaunchRecord = {
   runningSince: number | null
   /** When the first turn (a "done" after "working") finished while the chat was still not registered as PO. */
   turnEndedAt: number | null
+  /** When a free chat's Claude first reported itself: the screen stays this long showing every step lit. */
+  readyAt: number | null
   problem: LaunchProblem | null
 }
 
@@ -118,22 +122,25 @@ function watchLaunchTabs(): void {
 }
 
 export type LaunchRegistration = {
+  kind?: LaunchRecord['kind']
   tabId: string
   worktreeId: string
   launchText: string
   /** Fixtures only: start the record as if these facts had already been seen. */
-  seen?: Partial<Pick<LaunchRecord, 'sawWorking' | 'runningSince'>>
+  seen?: Partial<Pick<LaunchRecord, 'sawWorking' | 'runningSince' | 'hadTerminal' | 'readyAt'>>
 }
 
 export function registerLaunchRecord(args: LaunchRegistration): void {
   const { seen, ...base } = args
   records.set(args.tabId, {
+    kind: 'po',
     ...base,
     since: Date.now(),
     hadTerminal: false,
     sawWorking: false,
     runningSince: null,
     turnEndedAt: null,
+    readyAt: null,
     problem: null,
     ...seen
   })
@@ -151,7 +158,8 @@ export function endLaunchRecord(tabId: string): void {
 /** True while the mask is still due for this chat, so the flowchart already draws it where the PO goes. */
 export function isLaunchingChat(tabId: string, lastPrompt: string | undefined): boolean {
   const record = records.get(tabId)
-  return record !== undefined && !launchEnded(record, lastPrompt)
+  // A free chat opening is no PO launch: it must not take the place a launching PO has in the layout.
+  return record !== undefined && record.kind === 'po' && !launchEnded(record, lastPrompt)
 }
 
 /** Changes whenever a launch record is added, changed or removed. */
@@ -233,6 +241,46 @@ export function launchMaskView(record: LaunchRecord, facts: LaunchFacts): Launch
     return problem('never-started')
   }
   return { kind: 'steps', step, askingPermission: status === 'permission' }
+}
+
+export const FREE_READY_HOLD_MS = 2_500
+
+export type FreeChatFacts = {
+  hasTerminal: boolean
+  /** The Claude in the terminal reported its session (its SessionStart hook): it is up and waiting. */
+  claudeStarted: boolean
+  now: number
+}
+
+/** A free chat opening: terminal, then Claude starting, then ready; each step lights from a fact, the stopwatch only flags trouble. */
+export function freeChatMaskView(record: LaunchRecord, facts: FreeChatFacts): LaunchMaskView {
+  if (record.problem) {
+    return { kind: 'problem', problem: record.problem }
+  }
+  const { hasTerminal, claudeStarted, now } = facts
+  const step: LaunchStep = !hasTerminal ? 1 : !claudeStarted ? 2 : 3
+  const problem = (reason: LaunchProblemReason): LaunchMaskView => ({
+    kind: 'problem',
+    problem: { step, reason }
+  })
+  if (record.hadTerminal && !hasTerminal) {
+    return problem('terminal')
+  }
+  if (step < 3 && now - record.since > LAUNCH_NEVER_STARTED_MS) {
+    return problem('never-started')
+  }
+  return { kind: 'steps', step, askingPermission: false }
+}
+
+/** The screen has shown the last step lit long enough and can leave. */
+export const freeChatMaskDone = (record: LaunchRecord, now: number): boolean =>
+  record.readyAt !== null && now - record.readyAt >= FREE_READY_HOLD_MS
+
+/** The free chat's Claude just reported itself. */
+export function markFreeChatReady(tabId: string): void {
+  if (records.get(tabId)?.readyAt === null) {
+    updateLaunchRecord(tabId, { readyAt: Date.now() })
+  }
 }
 
 /**

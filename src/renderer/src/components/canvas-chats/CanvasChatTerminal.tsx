@@ -1,11 +1,12 @@
 import { useState } from 'react'
+import { useAppStore } from '@/store'
 import { MessageSquare, SquareTerminal } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { AgentTerminalPreview } from '../dashboard-popout/AgentTerminalPreview'
 import { terminalPreviewUnavailableMessage } from '../dashboard-popout/terminal-preview-unavailable-message'
-import { ChatRestoreLoading } from '../terminal-pane/SessionRestoredBanner'
 import { canvasChatLinkHandlers } from './canvas-chat-terminal-links'
 import { CanvasChatScreen } from './CanvasChatScreen'
+import { CanvasChatWakeMask } from './CanvasChatWakeMask'
 import { useCanvasChatScreenChoice } from './canvas-chat-screen-choice'
 import {
   CANVAS_GRID_CLAIMS,
@@ -15,7 +16,7 @@ import {
 
 /**
  * The open chat: its chat screen when the agent and conversation allow it, else its live terminal.
- * A chat still asleep after a restart shows "Restaurando o chat…" until it is back.
+ * A chat still asleep after a restart shows the steps of its waking until it is back.
  */
 export function CanvasChatTerminal({
   worktreeId,
@@ -23,7 +24,6 @@ export function CanvasChatTerminal({
   paneKey,
   livePty,
   terminalReady,
-  background,
   onWake
 }: {
   worktreeId: string
@@ -31,13 +31,21 @@ export function CanvasChatTerminal({
   paneKey: string | null
   livePty: string | null
   terminalReady: boolean
-  background: string | undefined
   onWake: () => void
 }): React.JSX.Element {
   const wake = useCanvasChatTerminalWake({ tabId, livePty, onWake })
   const screen = useCanvasChatScreenChoice({ worktreeId, tabId, paneKey })
   // The terminal is the proof that the PTY behind a saved id exists; the chat screen takes over once it answered.
   const [provenPty, setProvenPty] = useState<string | null>(null)
+  // Claude's SessionStart hook, after this wake began, is the conversation coming back.
+  const wakeStartedAt = wake.wakeStartedAt
+  const conversationLoaded = useAppStore(
+    (s) =>
+      wakeStartedAt !== null &&
+      Object.values(s.agentStatusByPaneKey).some(
+        (entry) => entry.tabId === tabId && entry.stateStartedAt >= wakeStartedAt
+      )
+  )
   const showChat =
     screen.mode === 'chat' &&
     livePty !== null &&
@@ -88,12 +96,15 @@ export function CanvasChatTerminal({
       ) : (
         <div className="cc-terminal" />
       )}
-      {wake.gaveUp ? (
-        <div className="cc-terminal-gone">
-          {terminalPreviewUnavailableMessage({ ptyId: livePty })}
-        </div>
-      ) : wake.restoreSeconds >= 0 ? (
-        <ChatRestoreLoading seconds={wake.restoreSeconds} background={background} />
+      {wake.gaveUp || wake.restoreSeconds >= 0 ? (
+        <CanvasChatWakeMask
+          facts={{
+            terminalAnswered: livePty !== null && provenPty === livePty && !wake.terminalGone,
+            conversationLoaded,
+            gaveUp: wake.gaveUp
+          }}
+          problemReason={terminalPreviewUnavailableMessage({ ptyId: livePty })}
+        />
       ) : null}
     </div>
   )

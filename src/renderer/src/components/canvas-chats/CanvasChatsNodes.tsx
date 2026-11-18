@@ -5,7 +5,6 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { revealTerminalPane } from '@/lib/reveal-terminal-pane'
 import { useTerminalTail } from './canvas-chat-terminal-tail'
-import { useCanvasTerminalTheme } from './canvas-chat-terminal-theme'
 import { CanvasChatPeekBody } from './CanvasChatPeekBody'
 import { PEEK_W, usePeek } from './use-canvas-chat-peek'
 import { CanvasChatTerminal } from './CanvasChatTerminal'
@@ -180,7 +179,6 @@ export function ChatNode({
   const launch = useCanvasLaunchRecord(chat.tabId, chat.lines.find((l) => l.role === 'user')?.text)
   const peeking = usePeek(open || chat.hierarchy?.role === 'executor' || launch !== null, cardRef)
   const livePty = useAppStore((s) => s.ptyIdsByTabId[chat.tabId]?.[0] ?? null)
-  const terminalTheme = useCanvasTerminalTheme()
   const tail = useTerminalTail(open ? null : chat.ptyId, status, chat.tabId)
   // The agent's last reply; a chat with a prompt but no reply yet (e.g. after a restart) falls back to its terminal.
   const replyText =
@@ -349,7 +347,6 @@ export function ChatNode({
             paneKey={chat.paneKey}
             livePty={livePty}
             terminalReady={terminalReady}
-            background={terminalTheme?.background}
             onWake={onWake}
           />
           {livePty ? (

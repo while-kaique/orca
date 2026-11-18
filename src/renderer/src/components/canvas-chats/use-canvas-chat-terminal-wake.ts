@@ -19,6 +19,10 @@ export function useCanvasChatTerminalWake(args: {
 }): {
   restoreSeconds: number
   gaveUp: boolean
+  /** The terminal preview said no terminal exists behind the saved id (yet). */
+  terminalGone: boolean
+  /** When the "waking" screen came up; null while the chat is not waking. */
+  wakeStartedAt: number | null
   connectAttempt: number
   onAvailability: (available: boolean) => void
 } {
@@ -28,6 +32,9 @@ export function useCanvasChatTerminalWake(args: {
   const [connectAttempt, setConnectAttempt] = useState(0)
   const restoreSeconds = useSecondsWhile(!livePty || restoring || terminalGone)
   const gaveUp = terminalGone && restoreSeconds >= RESTORE_GIVE_UP_SECONDS
+  const waking = restoreSeconds >= 0
+  const [wakeStartedAt, setWakeStartedAt] = useState<number | null>(null)
+  useEffect(() => setWakeStartedAt(waking ? Date.now() : null), [waking])
   const onWakeRef = useRef(onWake)
   onWakeRef.current = onWake
   const wokeRef = useRef(false)
@@ -51,6 +58,8 @@ export function useCanvasChatTerminalWake(args: {
   return {
     restoreSeconds,
     gaveUp,
+    terminalGone,
+    wakeStartedAt,
     connectAttempt,
     onAvailability: (available) => setTerminalGone(!available)
   }

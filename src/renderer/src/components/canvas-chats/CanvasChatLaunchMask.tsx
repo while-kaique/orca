@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Check } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { useWorktreeActivityStatus } from '../sidebar/workspace-card/activity/use-worktree-activity-status'
+import { CanvasChatOpenProblem, CanvasChatOpenSteps } from './CanvasChatOpenSteps'
 import {
   endLaunchRecord,
+  freeChatMaskDone,
+  freeChatMaskView,
   launchMaskView,
+  markFreeChatReady,
   useLaunchFactsKeeper,
   type LaunchFacts,
   type LaunchProblemReason,
@@ -53,7 +56,7 @@ function reasonLabel(reason: LaunchProblemReason): string {
 }
 
 /** Covers a freshly launched PO card with its three start-up steps, or with the problem that stopped it. */
-export function CanvasChatLaunchMask({
+function PoLaunchMask({
   chat,
   record,
   open
@@ -94,52 +97,125 @@ export function CanvasChatLaunchMask({
   }
   if (view.kind === 'problem') {
     return (
-      <div className="chat-restore-loading cc-launch cc-launch-problem" role="alert">
-        <b>{translate('fork.canvas.launch.problemTitle', 'Deu problema ao abrir o PO')}</b>
-        <small>
-          {translate('fork.canvas.launch.stoppedAt', 'Parou em: {{step}}', {
-            step: stepLabel(view.problem.step)
-          })}
-        </small>
-        <small>{reasonLabel(view.problem.reason)}</small>
-        <small className="cc-launch-hint">
-          {translate('fork.canvas.launch.openHint', 'Abra o chat para ver o que aconteceu.')}
-        </small>
-      </div>
+      <CanvasChatOpenProblem
+        title={translate('fork.canvas.launch.problemTitle', 'Deu problema ao abrir o PO')}
+        stoppedAt={translate('fork.canvas.launch.stoppedAt', 'Parou em: {{step}}', {
+          step: stepLabel(view.problem.step)
+        })}
+        reason={reasonLabel(view.problem.reason)}
+        hint={translate('fork.canvas.launch.openHint', 'Abra o chat para ver o que aconteceu.')}
+      />
     )
   }
   return (
-    <div className="chat-restore-loading cc-launch" role="status">
-      <b className="cc-launch-title">{translate('fork.canvas.launch.title', 'Abrindo o PO')}</b>
-      <ol className="cc-launch-steps">
-        {([1, 2, 3] as const).map((step) => {
-          const state = step < view.step ? 'done' : step === view.step ? 'now' : 'next'
-          return (
-            <li key={step} data-state={state}>
-              {state === 'done' ? (
-                <Check size={14} className="cc-launch-mark" />
-              ) : state === 'now' ? (
-                <span
-                  className={
-                    step === 3 ? 'cc-launch-wait' : 'chat-restore-loading-spin cc-launch-spin'
-                  }
-                />
-              ) : (
-                <span className="cc-launch-empty" />
-              )}
-              <span>{stepLabel(step)}</span>
-            </li>
-          )
+    <CanvasChatOpenSteps
+      title={translate('fork.canvas.launch.title', 'Abrindo o PO')}
+      labels={[stepLabel(1), stepLabel(2), stepLabel(3)]}
+      step={view.step}
+      note={
+        view.askingPermission
+          ? translate(
+              'fork.canvas.launch.permission',
+              'Pedindo permissão: abra o chat para responder'
+            )
+          : null
+      }
+    />
+  )
+}
+
+function freeStepLabel(step: LaunchStep): string {
+  switch (step) {
+    case 1:
+      return translate('fork.canvas.free.step1', 'Abrindo o terminal')
+    case 2:
+      return translate('fork.canvas.free.step2', 'Iniciando o Claude')
+    case 3:
+      return translate('fork.canvas.free.step3', 'Pronto para conversar')
+  }
+}
+
+/** Covers a free chat that is opening with its three steps; it leaves by itself once Claude is up. */
+function FreeChatLaunchMask({
+  chat,
+  record,
+  open
+}: {
+  chat: CanvasChat
+  record: LaunchRecord
+  open: boolean
+}): React.JSX.Element | null {
+  const status = useWorktreeActivityStatus(chat.worktreeId, chat.tabId)
+  const hasTerminal = useAppStore((s) => (s.ptyIdsByTabId[chat.tabId]?.length ?? 0) > 0)
+  // Claude's SessionStart hook is what makes the agent's state appear for this tab: the Claude is up and waiting.
+  const claudeStarted = useAppStore((s) =>
+    Object.values(s.agentStatusByPaneKey).some((entry) => entry.tabId === chat.tabId)
+  )
+  const [now, setNow] = useState(() => Date.now())
+  const stopped = record.problem !== null
+  useEffect(() => {
+    if (stopped) {
+      return
+    }
+    const tick = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(tick)
+  }, [stopped])
+  const view = freeChatMaskView(record, { hasTerminal, claudeStarted, now })
+  useLaunchFactsKeeper(chat.tabId, view, { status, role: null, hasTerminal, now })
+  const ready = view.kind === 'steps' && view.step === 3
+  useEffect(() => {
+    if (ready) {
+      markFreeChatReady(chat.tabId)
+    }
+  }, [ready, chat.tabId])
+  const finished = freeChatMaskDone(record, now)
+  useEffect(() => {
+    if (finished) {
+      endLaunchRecord(chat.tabId)
+    }
+  }, [finished, chat.tabId])
+  if (open || finished) {
+    return null
+  }
+  if (view.kind === 'problem') {
+    return (
+      <CanvasChatOpenProblem
+        title={translate('fork.canvas.free.problemTitle', 'Deu problema ao abrir o chat')}
+        stoppedAt={translate('fork.canvas.launch.stoppedAt', 'Parou em: {{step}}', {
+          step: freeStepLabel(view.problem.step)
         })}
-      </ol>
-      {view.askingPermission ? (
-        <small>
-          {translate(
-            'fork.canvas.launch.permission',
-            'Pedindo permissão: abra o chat para responder'
-          )}
-        </small>
-      ) : null}
-    </div>
+        reason={
+          view.problem.reason === 'terminal'
+            ? reasonLabel('terminal')
+            : translate(
+                'fork.canvas.free.reasonNeverStarted',
+                'O Claude não começou a rodar em 2 minutos.'
+              )
+        }
+        hint={translate('fork.canvas.launch.openHint', 'Abra o chat para ver o que aconteceu.')}
+      />
+    )
+  }
+  return (
+    <CanvasChatOpenSteps
+      title={translate('fork.canvas.free.title', 'Abrindo o chat')}
+      labels={[freeStepLabel(1), freeStepLabel(2), freeStepLabel(3)]}
+      step={view.step}
+      complete={ready}
+    />
+  )
+}
+
+/** The mask of a card that is opening: a PO launched by the hierarchy, or a free chat starting on its own. */
+export function CanvasChatLaunchMask(props: {
+  chat: CanvasChat
+  record: LaunchRecord
+  /** An open card shows its real terminal, but the mask keeps tracking the launch underneath. */
+  open: boolean
+}): React.JSX.Element | null {
+  return props.record.kind === 'free' ? (
+    <FreeChatLaunchMask {...props} />
+  ) : (
+    <PoLaunchMask {...props} />
   )
 }

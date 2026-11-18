@@ -98,3 +98,63 @@ export function launchScenario(kind: LaunchScenarioKind): {
     }
   }
 }
+
+export type FreeChatScenarioKind = 'terminal' | 'claude' | 'pronto' | 'problema'
+
+const FREE_TAB = 'livre-novo'
+
+/** A free chat just opened, at each point of its start-up (what the free chat's steps screen draws). */
+export function freeChatScenario(kind: FreeChatScenarioKind): {
+  store: Partial<AppState>
+  hierarchy: CanvasHierarchySnapshot[]
+  record: LaunchRegistration
+} {
+  const paneKey = `${FREE_TAB}:${LEAF}`
+  const entry: AgentStatusEntry = {
+    paneKey,
+    worktreeId: WORKTREE,
+    tabId: FREE_TAB,
+    agentType: 'claude',
+    // What Claude's SessionStart hook reports: up and waiting, no turn yet.
+    state: 'done',
+    prompt: '',
+    updatedAt: Date.now(),
+    stateStartedAt: Date.now(),
+    stateHistory: [],
+    providerSession: { key: 'session_id', id: FREE_TAB, transcriptPath: transcript(FREE_TAB) }
+  }
+  return {
+    store: {
+      repos: SCENARIO_STORE.repos,
+      worktreesByRepo: { [REPO]: [worktree] },
+      tabsByWorktree: {
+        [WORKTREE]: [
+          {
+            id: FREE_TAB,
+            ptyId: null,
+            worktreeId: WORKTREE,
+            title: 'Terminal 1',
+            customTitle: null,
+            color: null,
+            sortOrder: 0,
+            createdAt: NOW
+          }
+        ]
+      },
+      ptyIdsByTabId:
+        kind === 'terminal' || kind === 'problema'
+          ? {}
+          : { [FREE_TAB]: [`${WORKTREE}@@${FREE_TAB}`] },
+      agentStatusByPaneKey: kind === 'pronto' ? { [paneKey]: entry } : {}
+    },
+    hierarchy: [{ folder: FOLDER, chats: {}, ordens: {}, fila: [] }],
+    record: {
+      kind: 'free',
+      tabId: FREE_TAB,
+      worktreeId: WORKTREE,
+      launchText: '',
+      // The mask learns the terminal from live state; a fixture has none, so the problem case starts from it.
+      seen: kind === 'problema' ? { hadTerminal: true } : undefined
+    }
+  }
+}
