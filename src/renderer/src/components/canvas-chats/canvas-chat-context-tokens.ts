@@ -8,6 +8,7 @@ const REFRESH_MS = 20_000
 const listeners = new Set<() => void>()
 let tokensByTranscript: CanvasContextTokens = {}
 let modelByTranscript: CanvasChatModels = {}
+const modelChangedAt = new Map<string, number>()
 
 function subscribe(listener: () => void): () => void {
   listeners.add(listener)
@@ -33,6 +34,11 @@ export function useCanvasContextTokensRefresh(projects: readonly CanvasProject[]
         .then((next) => {
           const merged = { ...modelByTranscript, ...next }
           if (alive && JSON.stringify(merged) !== JSON.stringify(modelByTranscript)) {
+            for (const [path, model] of Object.entries(merged)) {
+              if (model !== modelByTranscript[path]) {
+                modelChangedAt.set(path, Date.now())
+              }
+            }
             modelByTranscript = merged
             listeners.forEach((listener) => listener())
           }
@@ -69,5 +75,12 @@ export function useCanvasContextTokens(transcriptPath: string | null): number | 
 export function useCanvasChatTranscriptModel(transcriptPath: string | null): string | null {
   return useSyncExternalStore(subscribe, () =>
     transcriptPath ? (modelByTranscript[transcriptPath] ?? null) : null
+  )
+}
+
+/** When the card first read the transcript's current model (0 while there is none). */
+export function useCanvasChatTranscriptModelChangedAt(transcriptPath: string | null): number {
+  return useSyncExternalStore(subscribe, () =>
+    transcriptPath ? (modelChangedAt.get(transcriptPath) ?? 0) : 0
   )
 }

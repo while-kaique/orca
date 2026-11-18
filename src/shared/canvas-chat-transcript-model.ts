@@ -9,7 +9,8 @@ const MODEL_SWITCH = /Set model to `([^`]+?)(?:\s*\([^)]*\))?`/u
 
 /**
  * Claude's status record carries no model, but its transcript does: every main-thread reply names the
- * model that wrote it, and a `/model` leaves a "Set model to" line right away, before the next reply.
+ * model that wrote it, a `/model` typed in the terminal leaves a "Set model to" line right away, and
+ * every request names its model as it is sent (the only trace of a switch made on the chat screen).
  */
 export function modelFromTranscriptTail(tail: string): string | null {
   const lines = tail.split('\n')
@@ -28,6 +29,17 @@ export function modelFromTranscriptTail(tail: string): string | null {
       entry = JSON.parse(line)
     } catch {
       // The tail starts mid-line, or the transcript was caught mid-write.
+      continue
+    }
+    if (isRecord(entry) && entry.type === 'api-request') {
+      const requested = isRecord(entry.params) ? entry.params.model : undefined
+      if (
+        entry.querySource === 'repl_main_thread' &&
+        typeof requested === 'string' &&
+        !requested.startsWith('<')
+      ) {
+        return requested
+      }
       continue
     }
     if (!isRecord(entry) || entry.isSidechain === true || !isRecord(entry.message)) {

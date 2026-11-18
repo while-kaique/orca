@@ -22,6 +22,7 @@ import {
 import { readClaudeSessionOptionsFromTerminalScreen } from './claude-terminal-session-options'
 
 import { enqueueSessionOptionSettingsWrite } from './native-chat-session-option-settings-write'
+import { noteCanvasChatModelChoice } from '../canvas-chats/canvas-chat-model-choice'
 
 const EMPTY_SNAPSHOT: SessionOptionDescriptor[] = []
 const subscribeEmpty = (): (() => void) => () => {}
@@ -93,13 +94,18 @@ export function useNativeChatSessionOptions(args: {
       dispatchCommand,
       canSwitchOmpModel,
       onAgentPicker,
-      persistSelection: ({ modelId, optionId, value, adoptModelAsLaunchDefault }) =>
+      persistSelection: ({ modelId, optionId, value, adoptModelAsLaunchDefault }) => {
+        // Fork: the flowchart card shows a model picked here at once; the transcript only names it at the next request.
+        if (agent === 'claude' && optionId === 'model' && typeof value === 'string') {
+          noteCanvasChatModelChoice(terminalTabId, value)
+        }
         // Paired PTY launches still assemble their launch preferences from client settings.
-        enqueueSessionOptionSettingsWrite(CLIENT_SETTINGS_TARGET, {
+        return enqueueSessionOptionSettingsWrite(CLIENT_SETTINGS_TARGET, {
           type: 'apply-picks',
           agent,
           picks: [{ modelId, optionId, value, adoptModelAsLaunchDefault }]
         })
+      }
     })
   }, [
     agent,
