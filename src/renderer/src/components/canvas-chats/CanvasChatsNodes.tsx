@@ -5,8 +5,8 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { revealTerminalPane } from '@/lib/reveal-terminal-pane'
 import { useTerminalTail } from './canvas-chat-terminal-tail'
-import { buildFontFamily } from '@/lib/monospace-font-family'
-import { savedChatPeek, usePeekTheme } from './canvas-chat-peek-screen'
+import { useCanvasTerminalTheme } from './canvas-chat-terminal-theme'
+import { CanvasChatPeekBody } from './CanvasChatPeekBody'
 import { PEEK_W, usePeek } from './use-canvas-chat-peek'
 import { CanvasChatTerminal } from './CanvasChatTerminal'
 import { CanvasVoiceBar } from './CanvasVoiceBar'
@@ -180,9 +180,8 @@ export function ChatNode({
   const launch = useCanvasLaunchRecord(chat.tabId, chat.lines.find((l) => l.role === 'user')?.text)
   const peeking = usePeek(open || chat.hierarchy?.role === 'executor' || launch !== null, cardRef)
   const livePty = useAppStore((s) => s.ptyIdsByTabId[chat.tabId]?.[0] ?? null)
-  const peekTheme = usePeekTheme()
-  const peekFont = useAppStore((s) => s.settings?.terminalFontFamily)
-  const tail = useTerminalTail(open ? null : chat.ptyId, status, chat.tabId, peeking.on, peekTheme)
+  const terminalTheme = useCanvasTerminalTheme()
+  const tail = useTerminalTail(open ? null : chat.ptyId, status, chat.tabId)
   // The agent's last reply; a chat with a prompt but no reply yet (e.g. after a restart) falls back to its terminal.
   const replyText =
     chat.lines
@@ -218,9 +217,7 @@ export function ChatNode({
       useAppStore.getState().setActiveView('terminal')
     }
   }
-  const peekLines =
-    tail.peek.length > 0 ? tail.peek : savedChatPeek(lastPrompt?.text, replyText, !livePty)
-  const peek = peeking.on && peekLines.length > 0
+  const peek = peeking.on
   // A planner is a slim card and an executor a hexagon, inside the same slot; open or peeking they are full cards.
   const shape = open || peek ? 'card' : chatShape(chat)
   const visual = shape === 'card' ? box : chatVisualBox(chat, box)
@@ -352,7 +349,7 @@ export function ChatNode({
             paneKey={chat.paneKey}
             livePty={livePty}
             terminalReady={terminalReady}
-            background={peekTheme?.background}
+            background={terminalTheme?.background}
             onWake={onWake}
           />
           {livePty ? (
@@ -360,34 +357,7 @@ export function ChatNode({
           ) : null}
         </>
       ) : peek ? (
-        <div
-          className="cc-peek-body"
-          style={{
-            background: peekTheme?.background,
-            color: peekTheme?.foreground,
-            fontFamily: buildFontFamily(peekFont ?? '')
-          }}
-        >
-          {peekLines.map((line, i) => (
-            <div key={i} className="cc-peek-line">
-              {line.map((span, j) => (
-                <span
-                  key={j}
-                  style={{
-                    color: span.color,
-                    background: span.background,
-                    fontWeight: span.bold ? 700 : undefined,
-                    fontStyle: span.italic ? 'italic' : undefined,
-                    opacity: span.dim ? 0.6 : undefined
-                  }}
-                >
-                  {span.text}
-                </span>
-              ))}
-              {line.length === 0 ? ' ' : null}
-            </div>
-          ))}
-        </div>
+        <CanvasChatPeekBody prompt={lastPrompt?.text} reply={replyText} asleep={!livePty} />
       ) : (
         <div className="cc-feed cc-feed-clean">
           {lastPrompt ? <div className="cc-prompt">› {lastPrompt.text}</div> : null}

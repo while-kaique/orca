@@ -24,7 +24,7 @@ type StateChat = {
   parent?: string
 }
 
-const LEAF = '22222222-2222-4222-8222-222222222222'
+export const LEAF = '22222222-2222-4222-8222-222222222222'
 
 export const STATE_PROJECTS = [
   { id: 'st-estados', name: 'Estados', folder: 'C:/demo/estados', color: '#f97316' },
