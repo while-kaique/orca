@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { NATIVE_CHAT_APPEARANCE_ROOT_CLASS } from './native-chat-appearance-style'
 import { useNativeChatStoreAppearanceStyle } from './use-native-chat-store-appearance-style'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNativeChatSessionWithTail } from './use-native-chat-session-with-tail'
 import { useAppStore } from '../../store'
 import { useNativeChatLaunchDraftSignal } from './use-native-chat-launch-draft-adoption'
 import { useNativeChatRetainedSession } from './use-native-chat-retained-session'
@@ -38,14 +39,10 @@ import {
 import {
   appendCommandMarkerCache,
   applyCommandMarkerBoundaries,
-  commandMarkersAsMessages,
   readCommandMarkerCache,
   type NativeChatCommandMarker
 } from './native-chat-command-marker'
-import {
-  deriveNativeChatStreamingText,
-  nativeChatStreamingMessage
-} from '../../../../shared/native-chat/native-chat-streaming'
+import { deriveNativeChatStreamingText } from '../../../../shared/native-chat/native-chat-streaming'
 import { useNativeChatRootInputRouting } from './use-native-chat-root-input-routing'
 import {
   emptyNativeChatContextMenuActions,
@@ -232,24 +229,17 @@ export function NativeChatResolvedView({
     return deriveNativeChatStreamingText({
       messages: messagesWithPending,
       previewText: hookPreview,
-      working: liveWorking,
+      working: liveWorking && !workingInterrupted,
       previewIsToolOutput: hookPreviewIsToolOutput
     })
-  }, [messagesWithPending, hookPreview, liveWorking, hookPreviewIsToolOutput])
-  const sessionWithPending = useMemo<typeof session>(() => {
-    if (pending.length === 0 && commandMarkers.length === 0 && !streamingText) {
-      return sessionAfterCommandBoundaries
-    }
-    return {
-      ...sessionAfterCommandBoundaries,
-      messages: [
-        ...sessionAfterCommandBoundaries.messages,
-        ...commandMarkersAsMessages(commandMarkers),
-        ...(streamingText ? [nativeChatStreamingMessage(streamingText)] : []),
-        ...pendingMessages
-      ]
-    }
-  }, [sessionAfterCommandBoundaries, pending, pendingMessages, commandMarkers, streamingText])
+  }, [messagesWithPending, hookPreview, liveWorking, workingInterrupted, hookPreviewIsToolOutput])
+  const sessionWithPending = useNativeChatSessionWithTail({
+    session: sessionAfterCommandBoundaries,
+    commandMarkers,
+    stopped: workingInterrupted,
+    streamingText,
+    pendingMessages
+  })
   // Include pending sends when selecting view state so the first echo leaves the empty screen immediately.
   const viewState = selectNativeChatViewState(sessionWithPending)
 

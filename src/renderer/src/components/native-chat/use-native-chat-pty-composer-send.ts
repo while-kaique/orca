@@ -140,6 +140,17 @@ export function useNativeChatPtyComposerSend(args: {
         if (classification === 'command') {
           args.onSlashCommand?.(text.trim())
           args.sessionOptionsSurface?.recordOutgoingCommand(text.trim())
+        } else if (classification === 'unknown-token') {
+          // Fork: a slash the catalog doesn't know ("/opus") used to vanish; say what was sent.
+          const token = text.trim().split(/\s/, 1)[0] ?? text.trim()
+          args.onSlashCommand?.(
+            text.trim(),
+            translate(
+              'fork.native.unknownCommand',
+              'Enviei {{command}}, mas esse comando não existe na lista. Se nada mudou, ele não existe (para trocar de modelo use /model).',
+              { command: token }
+            )
+          )
         }
       } else {
         pendingId = args.onOptimisticSend?.(text, imagePaths, retry !== undefined)

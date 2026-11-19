@@ -12,6 +12,7 @@ import type { NativeChatPickerItem } from '../../../../shared/native-chat/input/
 import type { NativeChatMentionFiles } from './use-native-chat-mention-files'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { localizeSlashCommandDescription } from './native-chat-slash-command-descriptions'
+import { nativeChatFixedMenuFrame, sameMenuFrame } from './native-chat-fixed-menu-frame'
 
 export const NativeChatPickerMenu = memo(function NativeChatPickerMenu({
   autocomplete,
@@ -235,19 +236,19 @@ function PickerListbox({
   children: React.ReactNode
 }): React.JSX.Element {
   const marker = useRef<HTMLSpanElement>(null)
-  const [bounds, setBounds] = useState<DOMRect | null>(null)
+  const [bounds, setBounds] = useState<ReturnType<typeof nativeChatFixedMenuFrame> | null>(null)
   useLayoutEffect(() => {
     const anchor = marker.current?.parentElement
     if (!anchor) {
       return
     }
     const measure = (): void => {
-      const next = anchor.getBoundingClientRect()
-      setBounds((current) =>
-        current?.left === next.left && current.width === next.width && current.top === next.top
-          ? current
-          : next
+      const next = nativeChatFixedMenuFrame(
+        anchor.getBoundingClientRect(),
+        (marker.current?.closest('.native-chat-appearance') as HTMLElement | null) ?? document.body,
+        4
       )
+      setBounds((current) => (sameMenuFrame(current, next) ? current : next))
     }
     const ancestors: HTMLElement[] = []
     for (let parent: HTMLElement | null = anchor; parent; parent = parent.parentElement) {
@@ -277,7 +278,7 @@ function PickerListbox({
               position: 'fixed',
               left: bounds.left,
               width: bounds.width,
-              bottom: window.innerHeight - bounds.top + 4
+              bottom: bounds.bottom
             }}
             // Inside a popover (the launch setup), take the menu layer Select and DropdownMenu use above popovers.
             className={`scrollbar-sleek max-h-72 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-floating ${marker.current?.closest('[data-slot="popover-content"]') ? 'z-[70]' : 'z-50'}`}
