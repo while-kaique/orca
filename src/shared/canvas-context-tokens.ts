@@ -18,7 +18,8 @@ export function contextTokensFromTranscriptTail(tail: string): number | null {
   const lines = tail.split('\n')
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i]
-    if (!line.startsWith('{') || !line.includes('"usage"')) {
+    const isCompaction = line.includes('"compact_boundary"')
+    if (!line.startsWith('{') || (!line.includes('"usage"') && !isCompaction)) {
       continue
     }
     let entry: unknown
@@ -26,6 +27,14 @@ export function contextTokensFromTranscriptTail(tail: string): number | null {
       entry = JSON.parse(line)
     } catch {
       // The tail starts mid-line, or the transcript was caught mid-write.
+      continue
+    }
+    // A /compact after the last reply: the context is what the compaction left.
+    if (isCompaction && isRecord(entry) && entry.subtype === 'compact_boundary') {
+      const after = isRecord(entry.compactMetadata) ? entry.compactMetadata.postTokens : undefined
+      if (typeof after === 'number' && Number.isFinite(after)) {
+        return after
+      }
       continue
     }
     // Subagents run in their own context; only the chat's own thread counts.

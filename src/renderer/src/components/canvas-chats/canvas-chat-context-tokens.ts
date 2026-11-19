@@ -5,6 +5,9 @@ import type { CanvasProject } from './canvas-chats-layout'
 
 /** Fork: tokens and model of each chat, read from its transcript while the flowchart is open. */
 const REFRESH_MS = 20_000
+/** A chat just born names its model about a second after its first prompt: look again soon. */
+const RETRY_MS = 2_000
+const RETRIES = 15
 const listeners = new Set<() => void>()
 let tokensByTranscript: CanvasContextTokens = {}
 let modelByTranscript: CanvasChatModels = {}
@@ -24,6 +27,8 @@ export function useCanvasContextTokensRefresh(projects: readonly CanvasProject[]
     .join('\n')
   useEffect(() => {
     let alive = true
+    let retries = 0
+    let retryTimer: number | undefined
     const paths = key ? key.split('\n').map((row) => row.split('\t')[0]) : []
     const read = (): void => {
       if (paths.length === 0) {
@@ -32,6 +37,11 @@ export function useCanvasContextTokensRefresh(projects: readonly CanvasProject[]
       void window.api.repos
         .readCanvasChatModels(paths)
         .then((next) => {
+          if (alive && retries < RETRIES && paths.some((path) => !next[path])) {
+            retries += 1
+            window.clearTimeout(retryTimer)
+            retryTimer = window.setTimeout(read, RETRY_MS)
+          }
           const merged = { ...modelByTranscript, ...next }
           if (alive && JSON.stringify(merged) !== JSON.stringify(modelByTranscript)) {
             for (const [path, model] of Object.entries(merged)) {
@@ -60,6 +70,7 @@ export function useCanvasContextTokensRefresh(projects: readonly CanvasProject[]
     return () => {
       alive = false
       window.clearInterval(timer)
+      window.clearTimeout(retryTimer)
     }
   }, [key])
 }
