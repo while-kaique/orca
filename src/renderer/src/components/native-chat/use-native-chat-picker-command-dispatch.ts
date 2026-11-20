@@ -27,6 +27,7 @@ export function useNativeChatPickerCommandDispatch(args: {
   answerCommandLocally?: NativeChatLocalCommandAnswer
   onSubmitted?: () => void
   sessionOptionsSurface: NativeChatPtySessionOptionsSurface | null
+  openModelPicker?: () => boolean
   trackPendingSend: NativeChatSendLifecycle['trackPendingSend']
   setDraft: (value: string) => void
   setCaret: Dispatch<SetStateAction<number>>
@@ -44,6 +45,7 @@ export function useNativeChatPickerCommandDispatch(args: {
     answerCommandLocally,
     onSubmitted,
     sessionOptionsSurface,
+    openModelPicker,
     trackPendingSend,
     setDraft,
     setCaret,
@@ -64,6 +66,7 @@ export function useNativeChatPickerCommandDispatch(args: {
           draft: text,
           answerCommandLocally,
           sessionOptionsSurface,
+          openModelPicker,
           onSlashCommand,
           onSubmitted,
           setDraft,
@@ -108,6 +111,7 @@ export function useNativeChatPickerCommandDispatch(args: {
       isDispatchingSessionOption,
       onSlashCommand,
       onSubmitted,
+      openModelPicker,
       resolveTarget,
       sessionOptionsSurface,
       setActiveSuggestion,

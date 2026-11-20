@@ -8,6 +8,7 @@ import {
   formatNativeChatContextUsageAnswer,
   formatNativeChatContextUsageUnreported
 } from './native-chat-context-usage-answer'
+import { isBareModelCommand } from './use-native-chat-pty-model-picker'
 import type { NativeChatPtySessionOptionsSurface } from '../../../../shared/native-chat/input/native-chat-pty-session-options'
 
 export type NativeChatModelContextWindow = (modelId: string) => number | null
@@ -76,8 +77,16 @@ export function answerNativeChatCommandInComposer(args: {
   setCaret: Dispatch<SetStateAction<number>>
   clearSkillOrigin: () => void
   setNotice: (notice: string | null) => void
+  openModelPicker?: () => boolean
 }): boolean {
   const command = args.draft.trim()
+  if (isBareModelCommand(command) && args.openModelPicker?.()) {
+    args.setDraft('')
+    args.setCaret(0)
+    args.clearSkillOrigin()
+    args.setNotice(null)
+    return true
+  }
   const answer =
     args.answerCommandLocally?.(
       command,

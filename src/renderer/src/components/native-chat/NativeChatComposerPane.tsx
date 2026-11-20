@@ -19,6 +19,7 @@ import { useNativeChatSendLifecycle } from './use-native-chat-send-lifecycle'
 import { useNativeChatSessionOptions } from './use-native-chat-session-options'
 import { useNativeChatDictation } from './use-native-chat-dictation'
 import { useNativeChatSessionOptionCommand } from './use-native-chat-session-option-command'
+import { useNativeChatPtyModelPicker } from './use-native-chat-pty-model-picker'
 import { useNativeChatPtyComposerSend } from './use-native-chat-pty-composer-send'
 import { useNativeChatStructuredComposerSend } from './use-native-chat-structured-composer-send'
 import { useImeEnterGestureOwnership } from '@/lib/ime-composition-keyboard-event'
@@ -226,6 +227,11 @@ export const NativeChatComposerPane = forwardRef<ComposerHandle, C.NativeChatCom
         paneKey
       })
     const sessionOptionsSurface = structuredTransport?.optionsSurface ?? ptySessionOptionsSurface
+    const ptyModelPicker = useNativeChatPtyModelPicker(
+      (ptySessionOptionsSurface &&
+        ptySessionOptionsSnapshot.find((option) => option.category === 'model')?.id) ??
+        null
+    )
     const contextUsageSummary = useNativeChatContextUsageSummary(structuredTransport)
     const sessionOptionsSnapshot = structuredTransport?.optionSnapshot ?? ptySessionOptionsSnapshot
 
@@ -249,6 +255,7 @@ export const NativeChatComposerPane = forwardRef<ComposerHandle, C.NativeChatCom
       onSubmitted,
       answerCommandLocally,
       sessionOptionsSurface: ptySessionOptionsSurface,
+      openModelPicker: ptyModelPicker.open,
       trackPendingSend,
       setDraft,
       setCaret,
@@ -401,7 +408,9 @@ export const NativeChatComposerPane = forwardRef<ComposerHandle, C.NativeChatCom
           sessionOptionsSurface={sessionOptionsSurface}
           sessionOptionsSnapshot={sessionOptionsSnapshot}
           contextUsage={contextUsageSummary}
-          sessionOptionsPickerRequest={structuredTransport?.optionPickerRequest ?? null}
+          sessionOptionsPickerRequest={
+            structuredTransport?.optionPickerRequest ?? ptyModelPicker.request
+          }
           agent={agent}
           launchPrompt={launchPrompt}
           {...fieldOverrides}

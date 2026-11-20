@@ -50,6 +50,7 @@ export function useNativeChatPtyComposerSend(args: {
   answerCommandLocally?: NativeChatLocalCommandAnswer
   onSubmitted?: () => void
   sessionOptionsSurface: NativeChatPtySessionOptionsSurface | null
+  openModelPicker?: () => boolean
   terminalTabId: string
   trackPendingSend: NativeChatSendLifecycle['trackPendingSend']
   setDraft: (value: string) => void
