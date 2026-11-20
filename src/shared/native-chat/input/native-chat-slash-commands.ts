@@ -33,7 +33,22 @@ const CLAUDE_COMMANDS: readonly SlashCommandSuggestion[] = [
   { name: 'compact', description: 'Summarize and compact the conversation' },
   { name: 'init', description: 'Initialize a CLAUDE.md' },
   { name: 'review', description: 'Review the current changes' },
-  { name: 'help', description: 'Show available commands' }
+  { name: 'help', description: 'Show available commands' },
+  // Fork: the commands people type daily; the terminal answers them, the chat only forwards.
+  { name: 'model', description: 'Choose the model' },
+  { name: 'cost', description: 'Show session cost and usage' },
+  { name: 'usage', description: 'Show plan usage limits' },
+  { name: 'status', description: 'Show version, model and account' },
+  { name: 'config', description: 'Open settings' },
+  { name: 'memory', description: 'Edit memory files' },
+  { name: 'mcp', description: 'Manage MCP servers' },
+  { name: 'agents', description: 'Manage subagents' },
+  { name: 'permissions', description: 'Manage tool permissions' },
+  { name: 'resume', description: 'Resume a past conversation' },
+  { name: 'rewind', description: 'Rewind the conversation' },
+  { name: 'add-dir', description: 'Add a working directory' },
+  { name: 'export', description: 'Export the conversation' },
+  { name: 'doctor', description: 'Check the installation' }
 ]
 
 // Why: OpenClaude writes its `/context` report to the transcript; Claude's TUI does not.
