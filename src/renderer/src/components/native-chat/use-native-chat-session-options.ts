@@ -22,7 +22,10 @@ import {
 import { readClaudeSessionOptionsFromTerminalScreen } from './claude-terminal-session-options'
 
 import { enqueueSessionOptionSettingsWrite } from './native-chat-session-option-settings-write'
-import { noteCanvasChatModelChoice } from '../canvas-chats/canvas-chat-model-choice'
+import {
+  noteCanvasChatModelChoice,
+  useCanvasChatCardModel
+} from '../canvas-chats/canvas-chat-model-choice'
 
 const EMPTY_SNAPSHOT: SessionOptionDescriptor[] = []
 const subscribeEmpty = (): (() => void) => () => {}
@@ -52,9 +55,10 @@ export function useNativeChatSessionOptions(args: {
     readTerminalScreen,
     paneKey
   } = args
-  const reportedModel = useAppStore((state) =>
+  const statusModel = useAppStore((state) =>
     paneKey ? (state.agentStatusByPaneKey[paneKey]?.model ?? null) : null
   )
+  const cardModel = useCanvasChatCardModel(terminalTabId)
   const canSwitchOmpModel = useAppStore((state) =>
     paneKey ? state.agentStatusByPaneKey[paneKey]?.modelSwitchCommand === 'orca-model' : false
   )
@@ -169,8 +173,9 @@ export function useNativeChatSessionOptions(args: {
   }, [agent, targetPtyId, terminalTabId])
 
   useEffect(() => {
-    // Claude uses terminal-frame evidence; other agents report model IDs in status hooks.
-    if (!surface || agent === 'claude' || !reportedModel) {
+    // Fork: Claude's model is what its flowchart card shows (transcript, then status hook), else the terminal frame's.
+    const reportedModel = agent === 'claude' ? (cardModel ?? statusModel) : statusModel
+    if (!surface || !reportedModel) {
       return
     }
     const catalog = getAgentSessionOptionCatalog(agent)
@@ -192,7 +197,7 @@ export function useNativeChatSessionOptions(args: {
     }
     appliedReportedModelRef.current = matched
     surface.reportSessionOptions({ model: matched })
-  }, [agent, discoveryContext, reportedModel, surface])
+  }, [agent, cardModel, discoveryContext, statusModel, surface])
 
   useEffect(() => {
     if (!surface || !discoveryContext) {

@@ -141,9 +141,8 @@ function SessionOptionPopover(props: {
   const { model, options, pendingIds, demandModelCatalog } = props
   const canOpen = [model, ...options].some(
     (descriptor) =>
-      descriptor.settable &&
-      !pendingIds.has(descriptor.id) &&
-      (!props.isWorking || descriptor.transport === 'agent-session')
+      // Fork: the model and effort stay changeable while the agent writes or thinks; the terminal takes them mid-turn.
+      descriptor.settable && !pendingIds.has(descriptor.id)
   )
   // Why here: this unmounts with the pill, so a picker that went away comes back closed.
   const [open, setOpen] = useState(false)

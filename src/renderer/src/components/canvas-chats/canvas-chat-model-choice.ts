@@ -22,6 +22,27 @@ export function useCanvasChatModelChoice(tabId: string): CanvasChatModelChoice |
   )
 }
 
+const cardModels = new Map<string, string>()
+
+/** The model the open card shows, so the chat screen's Model picker starts on it instead of empty. */
+export function noteCanvasChatCardModel(tabId: string, model: string | null): void {
+  if (!model || cardModels.get(tabId) === model) {
+    return
+  }
+  cardModels.set(tabId, model)
+  listeners.forEach((listener) => listener())
+}
+
+export function useCanvasChatCardModel(tabId: string): string | null {
+  return useSyncExternalStore(
+    (listener) => {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+    () => cardModels.get(tabId) ?? null
+  )
+}
+
 /**
  * The pick wins while the transcript's model is older than it; once the transcript names a model after the
  * pick (the next request or reply) the transcript is the truth again, and a same-family id is the more exact name.

@@ -1,10 +1,15 @@
+import { useEffect } from 'react'
 import { translate } from '@/i18n/i18n'
 import type { CanvasHierarchyOrderState } from '../../../../shared/canvas-hierarchy'
 import {
   useCanvasChatTranscriptModel,
   useCanvasChatTranscriptModelChangedAt
 } from './canvas-chat-context-tokens'
-import { resolveCardModel, useCanvasChatModelChoice } from './canvas-chat-model-choice'
+import {
+  noteCanvasChatCardModel,
+  resolveCardModel,
+  useCanvasChatModelChoice
+} from './canvas-chat-model-choice'
 import { canvasChatModelLabel } from './canvas-chat-model-label'
 import type { CanvasChat } from './canvas-chats-layout'
 
@@ -68,9 +73,14 @@ export function CanvasChatModel({ chat }: { chat: CanvasChat }): React.JSX.Eleme
   const transcriptModel = useCanvasChatTranscriptModel(chat.transcriptPath)
   const transcriptChangedAt = useCanvasChatTranscriptModelChangedAt(chat.transcriptPath)
   const choice = useCanvasChatModelChoice(chat.tabId)
-  const label = canvasChatModelLabel(
-    resolveCardModel({ choice, transcriptModel, transcriptChangedAt, statusModel: chat.model })
-  )
+  const model = resolveCardModel({
+    choice,
+    transcriptModel,
+    transcriptChangedAt,
+    statusModel: chat.model
+  })
+  useEffect(() => noteCanvasChatCardModel(chat.tabId, model), [chat.tabId, model])
+  const label = canvasChatModelLabel(model)
   return label ? (
     <span className="cc-model" data-family={label.family}>
       {label.label}

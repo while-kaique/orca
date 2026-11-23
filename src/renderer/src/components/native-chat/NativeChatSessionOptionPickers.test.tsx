@@ -302,13 +302,13 @@ describe('NativeChatSessionOptionPickers', () => {
     expect(pill('Model Opus 4.8, Session options Fast').textContent).toBe('Opus 4.8Fast')
   })
 
-  it('keeps terminal command pickers disabled while the agent is working', () => {
+  it('keeps terminal command pickers available while the agent is working', () => {
     render(
       <NativeChatSessionOptionPickers surface={surface} snapshot={[model(), effort]} isWorking />
     )
-    expect(pill('Model Opus 4.8, Effort High').parentElement?.getAttribute('data-disabled')).toBe(
-      'true'
-    )
+    expect(
+      pill('Model Opus 4.8, Effort High').parentElement?.getAttribute('data-disabled')
+    ).toBeNull()
   })
 
   it('renders a session with no reported model without an empty model control', () => {

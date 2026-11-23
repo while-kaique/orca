@@ -41,6 +41,8 @@ export type NativeChatPromptEditorProps = Omit<
   placeholder: string
   onChange: (input: NativeChatComposerInput) => void
   onSelect: (input: NativeChatComposerInput) => void
+  /** A leading `/name` this returns true for reads as a recognized command. */
+  isKnownCommand?: (name: string) => boolean
 }
 
 export function insertNativeChatPastedText(

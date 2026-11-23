@@ -2028,4 +2028,7 @@
   margin: 6px;
   border-radius: 8px;
   overflow: hidden;
+  /* the board turns selection off and the open card forces an arrow; the chat's text is selectable again */
+  user-select: text;
+  cursor: auto;
 }

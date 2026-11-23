@@ -37,6 +37,7 @@ import type {
 import { NativeChatImageRowProvider } from './NativeChatImageReferencePill'
 import { focusMountedNativeChatEditor, mountedEditorView } from './native-chat-mounted-editor-view'
 import { NativeChatUnkernedRunDecorations } from './native-chat-unkerned-run-decorations'
+import { NativeChatCommandTokenDecoration } from './native-chat-command-token-decoration'
 
 import { useNativeChatComposerMount } from './native-chat-composer-mount'
 
@@ -62,8 +63,11 @@ function NativePromptEditor({
   onChange,
   onSelect,
   className,
+  isKnownCommand,
   ...events
 }: NativeChatPromptEditorProps): React.JSX.Element {
+  const isKnownCommandRef = useRef(isKnownCommand)
+  isKnownCommandRef.current = isKnownCommand
   const historyPaths = useMemo(() => createNativeChatPastedTextHistory(scopeKey ?? ''), [scopeKey])
   const adopted = useRef(readNativeChatDraftSnapshot(scopeKey, initialValue))
   const userOwned = useRef(false)
@@ -103,6 +107,9 @@ function NativePromptEditor({
         NativeChatFileReference,
         NativeChatImageReference,
         NativeChatUnkernedRunDecorations,
+        NativeChatCommandTokenDecoration.configure({
+          isKnown: (name) => isKnownCommandRef.current?.(name) ?? false
+        }),
         // A disabled box still says why it is disabled, as the plain text box's placeholder does.
         Placeholder.configure({
           placeholder: () => placeholderRef.current,
