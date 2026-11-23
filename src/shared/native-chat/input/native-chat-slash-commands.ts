@@ -1,6 +1,7 @@
 // Share pure slash-command data across desktop/mobile without DOM/RN dependencies or mirrored catalogs.
 
 import type { AgentSessionSlashCommand } from '../../agent-session/agent-session-wire'
+import { CLAUDE_FORK_BUILTIN_COMMANDS } from './claude-builtin-slash-commands'
 import type { AgentType } from '../../agent-status/contracts/agent-status-types'
 
 /** Terminal replies: composer answers locally without sending; transcript surfaces an agent-written row; absent means terminal/effect-only feedback. */
@@ -34,26 +35,12 @@ const CLAUDE_COMMANDS: readonly SlashCommandSuggestion[] = [
   { name: 'init', description: 'Initialize a CLAUDE.md' },
   { name: 'review', description: 'Review the current changes' },
   { name: 'help', description: 'Show available commands' },
-  // Fork: the commands people type daily; the terminal answers them, the chat only forwards.
-  { name: 'model', description: 'Choose the model' },
-  { name: 'cost', description: 'Show session cost and usage' },
-  { name: 'usage', description: 'Show plan usage limits' },
-  { name: 'status', description: 'Show version, model and account' },
-  { name: 'config', description: 'Open settings' },
-  { name: 'memory', description: 'Edit memory files' },
-  { name: 'mcp', description: 'Manage MCP servers' },
-  { name: 'agents', description: 'Manage subagents' },
-  { name: 'permissions', description: 'Manage tool permissions' },
-  { name: 'resume', description: 'Resume a past conversation' },
-  { name: 'rewind', description: 'Rewind the conversation' },
-  { name: 'add-dir', description: 'Add a working directory' },
-  { name: 'export', description: 'Export the conversation' },
-  { name: 'doctor', description: 'Check the installation' }
+  ...CLAUDE_FORK_BUILTIN_COMMANDS
 ]
 
 // Why: OpenClaude writes its `/context` report to the transcript; Claude's TUI does not.
 const OPENCLAUDE_COMMANDS: readonly SlashCommandSuggestion[] = [
-  ...CLAUDE_COMMANDS,
+  ...CLAUDE_COMMANDS.filter((command) => command.name !== 'context'),
   { name: 'context', description: 'Show context usage', reply: 'transcript' }
 ]
 
