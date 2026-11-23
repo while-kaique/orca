@@ -24,7 +24,8 @@ export function CanvasChatTerminal({
   paneKey,
   livePty,
   terminalReady,
-  onWake
+  onWake,
+  background
 }: {
   worktreeId: string
   tabId: string
@@ -32,6 +33,8 @@ export function CanvasChatTerminal({
   livePty: string | null
   terminalReady: boolean
   onWake: () => void
+  /** Names of the agents and commands this chat left running, shown so a quiet chat is not mistaken for idle. */
+  background: readonly string[]
 }): React.JSX.Element {
   const wake = useCanvasChatTerminalWake({ tabId, livePty, onWake })
   const screen = useCanvasChatScreenChoice({ worktreeId, tabId, paneKey })
@@ -55,18 +58,30 @@ export function CanvasChatTerminal({
     wake.restoreSeconds < 0
   return (
     <div className="cc-terminal-wrap">
-      {screen.available ? (
+      {screen.available || background.length > 0 ? (
         <div className="cc-screen-bar">
-          <button
-            type="button"
-            className="cc-screen-switch"
-            onClick={() => screen.setMode(screen.mode === 'chat' ? 'terminal' : 'chat')}
-          >
-            {screen.mode === 'chat' ? <SquareTerminal size={12} /> : <MessageSquare size={12} />}
-            {screen.mode === 'chat'
-              ? translate('fork.canvas.screenShowTerminal', 'Ver o terminal')
-              : translate('fork.canvas.screenShowChat', 'Ver a tela de chat')}
-          </button>
+          {background.length > 0 ? (
+            <span className="cc-screen-bg" title={background.join(', ')}>
+              <span className="cc-spin" />
+              <span>
+                {translate('fork.canvas.screenBackground', 'Rodando em segundo plano: {{names}}', {
+                  names: background.join(', ')
+                })}
+              </span>
+            </span>
+          ) : null}
+          {screen.available ? (
+            <button
+              type="button"
+              className="cc-screen-switch"
+              onClick={() => screen.setMode(screen.mode === 'chat' ? 'terminal' : 'chat')}
+            >
+              {screen.mode === 'chat' ? <SquareTerminal size={12} /> : <MessageSquare size={12} />}
+              {screen.mode === 'chat'
+                ? translate('fork.canvas.screenShowTerminal', 'Ver o terminal')
+                : translate('fork.canvas.screenShowChat', 'Ver a tela de chat')}
+            </button>
+          ) : null}
         </div>
       ) : null}
       {showChat && livePty ? (

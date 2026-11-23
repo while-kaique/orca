@@ -2004,7 +2004,25 @@
   justify-content: flex-end;
   padding: 4px 8px 0;
 }
+.cc-screen-bg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-right: auto;
+  color: var(--cc-bg-task);
+  font: 11px system-ui;
+}
+.cc-screen-bg > .cc-spin {
+  flex: none;
+}
+.cc-screen-bg > span:last-child {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .cc-screen-switch {
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 5px;

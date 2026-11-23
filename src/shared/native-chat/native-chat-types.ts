@@ -257,6 +257,8 @@ export type NativeChatMessage = AgentJournalProducerLinkage & {
   foldedJournalPosition?: AgentJournalPosition
   /** Private presentation row; raw host messages never publish this fold-only marker. */
   unpairedToolResults?: true
+  /** Fork: a Claude background-task notice drawn faint; it opens the turn Claude answers it in. */
+  backgroundNotice?: true
 }
 
 /** Split reasoning and its answer share the provider's row identity. */

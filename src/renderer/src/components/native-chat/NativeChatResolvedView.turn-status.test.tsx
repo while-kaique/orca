@@ -305,6 +305,46 @@ describe('NativeChatResolvedView turn status', () => {
     expect(screen.queryByRole('button', { name: 'Toggle turn details' })).toBeNull()
   })
 
+  it('keeps the reply to a prompt visible when a background notice starts a later turn', () => {
+    const at = Date.parse('2026-09-28T10:00:00.000Z')
+    retained.session = transcript('ready', false, [
+      { ...userTurn, timestamp: at },
+      {
+        id: 'answer-1',
+        role: 'assistant',
+        blocks: [{ type: 'text', text: 'Only the first video is ready.' }],
+        timestamp: at + 5_000,
+        source: 'transcript'
+      },
+      {
+        id: 'notice-1',
+        role: 'user',
+        blocks: [
+          {
+            type: 'text',
+            text: '<task-notification>\n<task-id>a1</task-id>\n<status>completed</status>\n<summary>Agent "Voice job" finished</summary>\n</task-notification>'
+          }
+        ],
+        timestamp: at + 60_000,
+        source: 'transcript'
+      },
+      {
+        id: 'answer-2',
+        role: 'assistant',
+        blocks: [{ type: 'text', text: 'The voice job started.' }],
+        timestamp: at + 63_000,
+        source: 'transcript'
+      }
+    ])
+    setStatus({ state: 'done' }, 90_000)
+
+    renderPane()
+
+    expect(screen.getByText('Only the first video is ready.')).toBeInTheDocument()
+    expect(screen.getByText(/Voice job/)).toBeInTheDocument()
+    expect(screen.getByText('The voice job started.')).toBeInTheDocument()
+  })
+
   it('stays quiet on a settled turn it never watched', () => {
     retained.session = transcript('ready', false)
     setStatus({ state: 'done' }, 60_000)

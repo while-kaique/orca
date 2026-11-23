@@ -160,6 +160,16 @@ export const MessageRow = memo(function MessageRow(
     )
   }
 
+  if (message.backgroundNotice) {
+    return (
+      <div ref={rowRef} data-native-chat-message-id={message.id}>
+        <p className="min-w-0 max-w-full select-text text-sm text-chat-foreground-faint [overflow-wrap:anywhere]">
+          {markdown}
+        </p>
+      </div>
+    )
+  }
+
   if (isUser) {
     return (
       <NativeChatUserMessageRow

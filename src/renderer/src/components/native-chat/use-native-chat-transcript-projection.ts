@@ -9,6 +9,7 @@ import type { AgentSessionLatestTurn } from '../../../../shared/agent-session/ag
 import { createNativeChatMessageListProjection } from './native-chat-message-list-projection'
 import { projectNativeChatTaskListFrames } from '../../../../shared/native-chat/input/native-chat-task-list-frames'
 import { omitNativeChatThreadGoalRows } from './native-chat-thread-goal-rows'
+import { nativeChatBackgroundNoticeRows } from './native-chat-background-notice-rows'
 import type { NativeChatLiveSession } from './use-native-chat-live-session'
 
 /** Separate conversation/subagent rows, using journal turn placement when available. */
@@ -30,7 +31,8 @@ export function useNativeChatTranscriptProjection(
   const projection = useMemo(
     () =>
       projectMessages(
-        session.messages,
+        // Journal hosts key turns themselves; only terminal transcripts need the notice as a turn opener.
+        journalItems ? session.messages : nativeChatBackgroundNoticeRows(session.messages),
         journalItems
           ? { items: journalItems, submissions: journalSubmissions ?? [], latestTurn }
           : null

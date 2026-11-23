@@ -348,6 +348,9 @@ export function ChatNode({
             livePty={livePty}
             terminalReady={terminalReady}
             onWake={onWake}
+            background={chat.agents
+              .filter((agent) => agent.status === 'working' || agent.status === 'monitoring')
+              .map((agent) => agent.name)}
           />
           {livePty ? (
             <CanvasVoiceBar ptyId={livePty} cardRef={cardRef} autoStart={autoVoice} />
