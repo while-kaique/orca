@@ -3,7 +3,7 @@ import {
   normalizeNativeChatUserText,
   normalizedNativeChatUserMessageText
 } from './native-chat-image-transcript-markers'
-import { isImageRefBlock, type NativeChatMessage } from '../native-chat-types'
+import { isImageRefBlock, isTextBlock, type NativeChatMessage } from '../native-chat-types'
 
 export type NativeChatPendingOccurrence = {
   text: string
@@ -61,21 +61,27 @@ function nativeChatUserMessageContentKey(
   return key === 'empty' ? null : key
 }
 
-/** Fork: an image-only send can land with text already waiting on the terminal's input line (voice, typing);
- *  the row then carries text, yet it is still that send, since each paste file is unique. */
+const IMAGE_MARKERS = /\[Image #\d+\]/g
+
+/** Fork: an image-only send can land with text already waiting on the terminal's input line (voice, typing),
+ *  or, sent mid-turn, as bare `[Image #N]` markers with no file path. Each paste file is unique, so its path,
+ *  or else as many markers as images sent, still identifies that send. */
 function nativeChatUserMessageKeys(
   message: NativeChatMessage,
   sentImagePaths?: readonly string[]
 ): string[] {
   const key = nativeChatUserMessageContentKey(message, sentImagePaths)
-  if (!key) {
-    return []
-  }
   const sent = sentImagePaths?.filter(Boolean) ?? []
-  if (sent.length === 0) {
-    return [key]
+  if (sent.length === 0 || message.role !== 'user') {
+    return key ? [key] : []
   }
   const imagesKey = nativeChatPendingContentKey({ text: '', imagePaths: sent })
+  if (!key) {
+    const markers = message.blocks
+      .filter(isTextBlock)
+      .reduce((count, block) => count + (block.text.match(IMAGE_MARKERS)?.length ?? 0), 0)
+    return markers === sent.length ? [imagesKey] : []
+  }
   const samePath = (path: string): string => path.replaceAll('\\', '/').toLowerCase()
   const rowPaths = new Set(
     message.blocks

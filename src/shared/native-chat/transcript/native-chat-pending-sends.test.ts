@@ -177,4 +177,17 @@ describe('image-only sends that land with text', () => {
     expect(pendingSendsAsMessages(pending, landed)).toEqual([])
     expect(prunePendingSends(pending, landed)).toEqual([])
   })
+
+  it('retires the echo of an image sent mid-turn, which lands as a bare marker without its file', () => {
+    const pending: NativeChatPendingSend[] = [
+      { id: 'p', text: '', imagePaths: ['C:/pastes/orca-paste-2.png'], sentAt: 100 }
+    ]
+    const landed: NativeChatMessage[] = [
+      userMessage('u', '[Image #15]', 200),
+      assistantMessage('a', 'Got it.', 300)
+    ]
+
+    expect(pendingSendsAsMessages(pending, landed)).toEqual([])
+    expect(prunePendingSends(pending, landed)).toEqual([])
+  })
 })
