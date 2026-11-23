@@ -61,14 +61,40 @@ function nativeChatUserMessageContentKey(
   return key === 'empty' ? null : key
 }
 
+/** Fork: an image-only send can land with text already waiting on the terminal's input line (voice, typing);
+ *  the row then carries text, yet it is still that send, since each paste file is unique. */
+function nativeChatUserMessageKeys(
+  message: NativeChatMessage,
+  sentImagePaths?: readonly string[]
+): string[] {
+  const key = nativeChatUserMessageContentKey(message, sentImagePaths)
+  if (!key) {
+    return []
+  }
+  const sent = sentImagePaths?.filter(Boolean) ?? []
+  if (sent.length === 0) {
+    return [key]
+  }
+  const imagesKey = nativeChatPendingContentKey({ text: '', imagePaths: sent })
+  const samePath = (path: string): string => path.replaceAll('\\', '/').toLowerCase()
+  const rowPaths = new Set(
+    message.blocks
+      .filter(isImageRefBlock)
+      .map((block) => (block.path ? samePath(block.path) : ''))
+      .filter(Boolean)
+  )
+  return key !== imagesKey && sent.every((path) => rowPaths.has(samePath(path)))
+    ? [key, imagesKey]
+    : [key]
+}
+
 export function matchingNativeChatUserContentCounts(
   messages: readonly NativeChatMessage[],
   sentImagePaths?: readonly string[]
 ): Map<string, number> {
   const counts = new Map<string, number>()
   for (const message of messages) {
-    const key = nativeChatUserMessageContentKey(message, sentImagePaths)
-    if (key) {
+    for (const key of nativeChatUserMessageKeys(message, sentImagePaths)) {
       counts.set(key, (counts.get(key) ?? 0) + 1)
     }
   }
@@ -83,8 +109,7 @@ export function advancedNativeChatUserContentCounts(
   const waiting = new Map<string, number>()
   for (const message of messages) {
     if (message.role === 'user') {
-      const key = nativeChatUserMessageContentKey(message, sentImagePaths)
-      if (key) {
+      for (const key of nativeChatUserMessageKeys(message, sentImagePaths)) {
         waiting.set(key, (waiting.get(key) ?? 0) + 1)
       }
       continue

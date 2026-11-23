@@ -153,3 +153,28 @@ describe('pendingSendsAsMessages', () => {
     expect(prunePendingSends(pending, remoteTranscript)).toEqual([])
   })
 })
+
+describe('image-only sends that land with text', () => {
+  it('retires the echo once its pasted image arrives with text typed on the terminal', () => {
+    const path = 'C:\\Users\\me\\pastes\\orca-paste-1.png'
+    const pending: NativeChatPendingSend[] = [
+      { id: 'p', text: '', imagePaths: [path], sentAt: 100 }
+    ]
+    const landed: NativeChatMessage[] = [
+      {
+        id: 'u',
+        role: 'user',
+        blocks: [
+          { type: 'image-ref', path },
+          { type: 'text', text: 'is this right?' }
+        ],
+        timestamp: 200,
+        source: 'transcript'
+      },
+      assistantMessage('a', 'Yes.', 300)
+    ]
+
+    expect(pendingSendsAsMessages(pending, landed)).toEqual([])
+    expect(prunePendingSends(pending, landed)).toEqual([])
+  })
+})
