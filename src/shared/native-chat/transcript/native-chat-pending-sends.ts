@@ -1,3 +1,4 @@
+import { isKnownHarnessInjectedUserTurnText } from '../../harness-injected-user-turns'
 import { nativeChatContinuationSendText } from './native-chat-continuation-send'
 import type { NativeChatMessage } from '../native-chat-types'
 import {
@@ -165,9 +166,28 @@ export function prunePendingSends<T extends NativeChatPendingSend>(
       return false
     }
     const openIndex = stillOpen.indexOf(entry)
-    return openIndex === -1 || !gluedRepresented.has(openIndex)
+    return (
+      (openIndex === -1 || !gluedRepresented.has(openIndex)) &&
+      !overtakenPendingSend(entry, messages)
+    )
   })
   return next.length === pending.length ? pending : next
+}
+
+/** Fork: the session answers in order, so a plain send that later answered prompts passed never reached it. */
+const OVERTAKING_ANSWERED_PROMPTS = 2
+
+function overtakenPendingSend(
+  entry: NativeChatPendingSend,
+  messages: readonly NativeChatMessage[]
+): boolean {
+  if (entry.delivery || entry.recovery || entry.writeUnconfirmedAt !== undefined) {
+    return false
+  }
+  const prompts = advancedNativeChatUserRows(messagesAfterPendingBoundary(messages, entry)).filter(
+    (row) => !isKnownHarnessInjectedUserTurnText(row.text)
+  )
+  return prompts.length >= OVERTAKING_ANSWERED_PROMPTS
 }
 
 /** Sends whose transcript row has not landed yet; exact and glued matches both hide an echo. */

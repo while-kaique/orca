@@ -191,3 +191,37 @@ describe('image-only sends that land with text', () => {
     expect(prunePendingSends(pending, landed)).toEqual([])
   })
 })
+
+describe('sends that never reached the session', () => {
+  const lost = (): NativeChatPendingSend => ({
+    id: 'lost',
+    text: 'think of a way to always get 4:1',
+    sentAt: 100,
+    afterMessageId: 'before',
+    afterMessageTimestamp: 50
+  })
+
+  it('keeps waiting while only one later prompt has been answered', () => {
+    const messages = [
+      assistantMessage('before', 'done', 50),
+      userMessage('u1', 'I liked this one', 200),
+      assistantMessage('a1', 'Great.', 300)
+    ]
+
+    expect(prunePendingSends([lost()], messages)).toHaveLength(1)
+  })
+
+  it('drops the echo once two later prompts were answered without it', () => {
+    const messages = [
+      assistantMessage('before', 'done', 50),
+      userMessage('u1', 'I liked this one', 200),
+      assistantMessage('a1', 'Great.', 300),
+      userMessage('notice', '<task-notification>done</task-notification>', 350),
+      assistantMessage('a2', 'Noted.', 360),
+      userMessage('u2', 'and now?', 400),
+      assistantMessage('a3', 'Here it is.', 500)
+    ]
+
+    expect(prunePendingSends([lost()], messages)).toEqual([])
+  })
+})
