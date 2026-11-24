@@ -46,6 +46,23 @@ export type NativeChatSendHandle = {
 }
 
 /** Serialize clear/body/delayed Enter per PTY; a CR sharing the paste write can be swallowed. */
+/** Fork: Claude enters bash mode only on a typed leading `!` (a pasted one stays prose), so type it, then paste the command. */
+export function sendNativeChatBashCommand(
+  ptyId: string,
+  command: string,
+  options: NativeChatSendOptions
+): NativeChatSendHandle {
+  return sendNativeChatObservedWrites(
+    ptyId,
+    [
+      { data: '!', delayBeforeMs: 0 },
+      { data: buildNativeChatPasteBytes(command), delayBeforeMs: NATIVE_CHAT_SUBMIT_DELAY_MS },
+      { data: NATIVE_CHAT_SUBMIT, delayBeforeMs: NATIVE_CHAT_SUBMIT_DELAY_MS }
+    ],
+    options
+  )
+}
+
 export function sendNativeChatMessage(
   ptyId: string,
   text: string,

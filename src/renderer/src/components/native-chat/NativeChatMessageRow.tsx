@@ -11,6 +11,8 @@ import type {
 import { deriveNativeChatRowContent } from '../../../../shared/native-chat/transcript/native-chat-row-content'
 import { NativeChatReasoningRow } from './NativeChatReasoningRow'
 import { NativeChatNoticeRow } from './NativeChatNoticeRow'
+import { NATIVE_CHAT_BASH_PINK } from './native-chat-bash-rows'
+import { isTextBlock } from '../../../../shared/native-chat/native-chat-types'
 import { nativeChatNoticeBlock } from '../../../../shared/native-chat/native-chat-notice'
 import { nativeChatStoppedBeforeStartLabel } from './native-chat-stopped-before-start-row'
 import { nativeChatBlocksInOwnWords } from '../../../../shared/native-chat/native-chat-stopped-before-start'
@@ -165,6 +167,23 @@ export const MessageRow = memo(function MessageRow(
       <div ref={rowRef} data-native-chat-message-id={message.id}>
         <p className="min-w-0 max-w-full select-text text-sm text-chat-foreground-faint [overflow-wrap:anywhere]">
           {markdown}
+        </p>
+      </div>
+    )
+  }
+
+  if (isUser && message.bashCommand) {
+    return (
+      <div ref={rowRef} data-native-chat-message-id={message.id} className="flex justify-end">
+        <p
+          className="min-w-0 max-w-full select-text whitespace-pre-wrap rounded-lg bg-muted px-3 py-2 font-mono text-sm [overflow-wrap:anywhere]"
+          style={{ color: NATIVE_CHAT_BASH_PINK }}
+        >
+          {blocks
+            .filter(isTextBlock)
+            .map((block) => block.text)
+            .join('')
+            .replace(/^!\s*/, '! ')}
         </p>
       </div>
     )

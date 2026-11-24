@@ -109,14 +109,25 @@ function withoutStrippedMarkerSpace(text: string, stripped: string): string {
 /** Normalizes PTY-backed user text into the pending-echo comparison key. */
 export function normalizeNativeChatUserText(text: string): string {
   // Strip sequences first so their printable tails cannot survive a lone-control pass.
-  return stripImagePromptMarker(
-    stripAnsiEscapeSequences(unwrapClaudePastedContent(text)).replace(
-      TERMINAL_CONTROL_CHARACTER_PATTERN,
-      ''
+  return (
+    stripImagePromptMarker(
+      stripAnsiEscapeSequences(unwrapClaudePastedContent(unwrapBashInput(text))).replace(
+        TERMINAL_CONTROL_CHARACTER_PATTERN,
+        ''
+      )
     )
+      .trim()
+      .replace(/\s+/g, ' ')
+      // Fork: `! cmd` sent from the chat lands as `<bash-input>cmd</bash-input>`; both read as `!cmd`.
+      .replace(/^!\s+/, '!')
   )
-    .trim()
-    .replace(/\s+/g, ' ')
+}
+
+const BASH_INPUT_ROW = /^\s*<bash-input>([\s\S]*?)<\/bash-input>\s*$/
+
+function unwrapBashInput(text: string): string {
+  const input = BASH_INPUT_ROW.exec(text)
+  return input ? `!${input[1]}` : text
 }
 
 export function normalizedNativeChatUserMessageText(message: NativeChatMessage): string | null {

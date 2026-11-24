@@ -254,6 +254,7 @@ export function pendingSendsAsMessages(
       ...(entry.text.trim().length > 0 ? [{ type: 'text' as const, text: entry.text }] : [])
     ],
     timestamp: entry.sentAt,
+    ...(entry.text.trimStart().startsWith('!') ? { bashCommand: true as const } : {}),
     pendingSend: nativeChatPendingSendPlacement(entry, workingEpoch),
     source: 'scrape' as const
   }))

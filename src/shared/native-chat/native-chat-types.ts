@@ -259,6 +259,8 @@ export type NativeChatMessage = AgentJournalProducerLinkage & {
   unpairedToolResults?: true
   /** Fork: a Claude background-task notice drawn faint; it opens the turn Claude answers it in. */
   backgroundNotice?: true
+  /** Fork: a `!` shell command run in the agent's terminal, drawn in the terminal's pink. */
+  bashCommand?: true
 }
 
 /** Split reasoning and its answer share the provider's row identity. */

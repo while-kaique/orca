@@ -225,3 +225,12 @@ describe('sends that never reached the session', () => {
     expect(prunePendingSends([lost()], messages)).toEqual([])
   })
 })
+
+describe('shell commands sent with !', () => {
+  it('hides the echo once Claude records the command it ran', () => {
+    const pending: NativeChatPendingSend[] = [pendingOf('p', '! ls -la')]
+    const landed = [userMessage('u', '<bash-input>ls -la</bash-input>', 200)]
+
+    expect(pendingSendsAsMessages(pending, landed)).toEqual([])
+  })
+})

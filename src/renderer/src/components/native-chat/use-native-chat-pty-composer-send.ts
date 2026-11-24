@@ -11,6 +11,7 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '../../store/index'
 import { emitNativeChatMessageSent } from '@/lib/native-chat-telemetry'
 import {
+  sendNativeChatBashCommand,
   sendNativeChatMessage,
   sendNativeChatTypedCommand,
   submitNativeChatPrompt,
@@ -115,8 +116,15 @@ export function useNativeChatPtyComposerSend(args: {
             }
           : launchSendOptions
       let pendingHandle: NativeChatSendHandle | null = null
+      const bashCommand =
+        args.agent === 'claude' && classification === 'chat' && imagePaths.length === 0
+          ? /^\s*!\s*(\S[\s\S]*)$/.exec(text)?.[1]
+          : undefined
       // Why: slash-like text must not silently drop its attached images.
-      if (classification !== 'chat' && imagePaths.length === 0) {
+      if (bashCommand !== undefined) {
+        text = `!${bashCommand}`
+        pendingHandle = sendNativeChatBashCommand(target.ptyId, bashCommand, sendOptions)
+      } else if (classification !== 'chat' && imagePaths.length === 0) {
         pendingHandle =
           args.agent === 'codex' && isSlashCommandDraft(text)
             ? sendNativeChatTypedCommand(target.ptyId, text, launchSendOptions)

@@ -61,9 +61,11 @@ export function nativeChatTurnFoldRow(
         (block.tone === 'error' || block.failure?.kind === 'usageLimitReached') &&
         block.presentation !== AGENT_SESSION_ORCA_STOP_PRESENTATION
     ),
-    // Fork: a slash command sent from the composer (`command:` row) is the only sign it went out; never fold it.
+    // Fork: a slash command sent from the composer (`command:` row) is the only sign it went out, and a `!`
+    // command's output is its whole answer; never fold either.
     explainsTurn:
       message.id.startsWith('command:') ||
+      message.bashCommand === true ||
       message.blocks.some(
         (block) =>
           block.type === 'text' &&
