@@ -61,15 +61,18 @@ export function nativeChatTurnFoldRow(
         (block.tone === 'error' || block.failure?.kind === 'usageLimitReached') &&
         block.presentation !== AGENT_SESSION_ORCA_STOP_PRESENTATION
     ),
-    explainsTurn: message.blocks.some(
-      (block) =>
-        block.type === 'text' &&
-        (block.presentation === 'compaction' ||
-          block.presentation === AGENT_SESSION_COMPACTION_SKIPPED_PRESENTATION ||
-          block.presentation === AGENT_SESSION_ORCA_STOP_PRESENTATION ||
-          block.presentation === AGENT_SESSION_TURN_NOTICE_PRESENTATION ||
-          block.presentation === AGENT_SESSION_HOOK_SENT_BACK_PRESENTATION)
-    ),
+    // Fork: a slash command sent from the composer (`command:` row) is the only sign it went out; never fold it.
+    explainsTurn:
+      message.id.startsWith('command:') ||
+      message.blocks.some(
+        (block) =>
+          block.type === 'text' &&
+          (block.presentation === 'compaction' ||
+            block.presentation === AGENT_SESSION_COMPACTION_SKIPPED_PRESENTATION ||
+            block.presentation === AGENT_SESSION_ORCA_STOP_PRESENTATION ||
+            block.presentation === AGENT_SESSION_TURN_NOTICE_PRESENTATION ||
+            block.presentation === AGENT_SESSION_HOOK_SENT_BACK_PRESENTATION)
+      ),
     sendsBack: message.blocks.some(
       (block) =>
         block.type === 'text' && block.presentation === AGENT_SESSION_HOOK_SENT_BACK_PRESENTATION

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   nativeChatTurnAnswerRows,
   nativeChatTurnFold,
+  nativeChatTurnFoldRow,
   type NativeChatTurnFoldRow
 } from './native-chat-turn-fold'
 
@@ -193,5 +194,27 @@ describe('nativeChatTurnFold', () => {
     })
     expect([...foldedRows]).toEqual([1])
     expect([...nativeChatTurnAnswerRows(rows)]).toEqual([3])
+  })
+})
+
+describe('slash command sent from the composer', () => {
+  it('stays outside the fold of the turn it follows', () => {
+    const marker = nativeChatTurnFoldRow(
+      {
+        id: 'command:1-1',
+        role: 'system',
+        blocks: [{ type: 'text', text: 'Executou /compact' }],
+        timestamp: 10,
+        source: 'scrape'
+      },
+      'turn-1',
+      false
+    )
+    const { foldedRows } = nativeChatTurnFold({
+      rows: [row({ role: 'user' }), row({ rendersProse: false }), row(), marker],
+      settledTurnKeys: new Set(['turn-1']),
+      expandedTurnKeys: new Set()
+    })
+    expect([...foldedRows]).toEqual([1])
   })
 })

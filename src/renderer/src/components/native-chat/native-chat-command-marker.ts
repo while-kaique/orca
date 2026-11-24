@@ -65,6 +65,10 @@ function isClearCommand(command: string): boolean {
   return command.trim().toLowerCase().split(/\s+/)[0] === '/clear'
 }
 
+function isCompactCommand(command: string): boolean {
+  return command.trim().toLowerCase().split(/\s+/)[0] === '/compact'
+}
+
 function latestClearSentAt(markers: readonly NativeChatCommandMarker[]): number | null {
   let latest: number | null = null
   for (const marker of markers) {
@@ -100,9 +104,15 @@ export function commandMarkersAsMessages(
         type: 'text' as const,
         text:
           marker.output ??
-          translate('components.native-chat.commandMarker.ran', 'Ran {{command}}', {
-            command: marker.command
-          })
+          (isCompactCommand(marker.command)
+            ? translate(
+                'fork.native.compactSent',
+                'Pedi para compactar a conversa ({{command}}). Leva 1 a 2 minutos; quando terminar aparece a linha "Contexto compactado".',
+                { command: marker.command }
+              )
+            : translate('components.native-chat.commandMarker.ran', 'Ran {{command}}', {
+                command: marker.command
+              }))
       }
     ],
     timestamp: marker.sentAt,
