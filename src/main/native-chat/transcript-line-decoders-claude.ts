@@ -124,7 +124,7 @@ export function decodeClaudeTranscriptLine(
   const messageId = extractString(record.uuid) ?? extractString(message?.id)
   return {
     id: messageId ?? fallbackId,
-    role: claudeMessageRole(role, blocks, message?.content),
+    role: claudeMessageRole(role, blocks, message?.content, record.thinkingDisplay),
     // Decode ! command echoes so harness filtering cannot hide them and strand the local echo.
     blocks:
       role === 'user'
@@ -179,13 +179,16 @@ function isImageSourceRecord(blocks: NativeChatBlock[]): boolean {
 function claudeMessageRole(
   role: 'user' | 'assistant',
   blocks: NativeChatBlock[],
-  content: unknown
+  content: unknown,
+  thinkingDisplay: unknown
 ): NativeChatMessage['role'] {
   if (role === 'user') {
     const onlyToolResults = blocks.every((block) => block.type === 'tool-result')
     return onlyToolResults && blocks.length > 0 ? 'tool' : 'user'
   }
-  return isThinkingOnlyContent(content) ? 'reasoning' : role
+  // Fork: with `thinkingDisplay: "updates"` (Opus 5.5) the visible thinking is the model's mid-turn word to the
+  // user, which the terminal prints; reading it as hidden reasoning made replies to mid-turn messages vanish.
+  return isThinkingOnlyContent(content) && thinkingDisplay !== 'updates' ? 'reasoning' : role
 }
 
 // Decoded thinking becomes a text block, so classify from the raw content parts.
