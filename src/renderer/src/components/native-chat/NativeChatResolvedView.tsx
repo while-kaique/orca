@@ -357,6 +357,7 @@ export function NativeChatResolvedView({
             expandSignal={false}
             {...turnTiming}
             awaitingInput={awaitingInput}
+            openTerminal={onSwitchToTerminal}
             onLinkClick={onLinkClick}
             allowFileUriLinks={fileLinkContext !== null}
             deliveryNotices={deliveryNotices}

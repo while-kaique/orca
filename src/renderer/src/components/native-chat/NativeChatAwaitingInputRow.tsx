@@ -19,7 +19,8 @@ export function NativeChatAwaitingInputRow({
   pending,
   disclosureKey,
   listsQuestions = true,
-  onLinkClick
+  onLinkClick,
+  openTerminal
 }: {
   /** Null when the payload named no question; the label carries the row alone. */
   subject: NativeChatAskRowSubject | null
@@ -30,6 +31,8 @@ export function NativeChatAwaitingInputRow({
   /** False when the caller already shows each question of a grouped prompt in full. */
   listsQuestions?: boolean
   onLinkClick?: CommentMarkdownLinkClickHandler
+  /** Fork: a wait with no question to show is a dialog only the terminal draws; this opens it. */
+  openTerminal?: () => void
 }): React.JSX.Element {
   // Separate group and question keys because a pending Codex group becomes individual rows when answered.
   const { open, setOpen } = useNativeChatDisclosure(
@@ -45,10 +48,15 @@ export function NativeChatAwaitingInputRow({
   const label = !pending
     ? translate('components.native-chat.ask.asked', NATIVE_CHAT_ASK_ROW_COPY.asked)
     : subject === null
-      ? translate(
-          'components.native-chat.ask.awaitingUnnamed',
-          NATIVE_CHAT_ASK_ROW_COPY.awaitingUnnamed
-        )
+      ? openTerminal
+        ? translate(
+            'fork.native.awaitingTerminalDialog',
+            'Uma caixa aberta no terminal espera sua resposta'
+          )
+        : translate(
+            'components.native-chat.ask.awaitingUnnamed',
+            NATIVE_CHAT_ASK_ROW_COPY.awaitingUnnamed
+          )
       : translate('components.native-chat.ask.awaiting', NATIVE_CHAT_ASK_ROW_COPY.awaiting)
   const text =
     subject === null
@@ -103,7 +111,18 @@ export function NativeChatAwaitingInputRow({
           {header}
         </button>
       ) : (
-        <div className={ROW_CLASS_NAME}>{header}</div>
+        <div className={ROW_CLASS_NAME}>
+          {header}
+          {pending && subject === null && openTerminal ? (
+            <button
+              type="button"
+              onClick={openTerminal}
+              className="ml-1 shrink-0 rounded-md border border-border px-2 py-0.5 text-xs text-chat-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {translate('components.native-chat.question.openTerminal', 'Answer in terminal')}
+            </button>
+          ) : null}
+        </div>
       )}
       {toggles && open && question !== null ? (
         // Indented to the label, past the icon slot and its gap.

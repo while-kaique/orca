@@ -91,11 +91,13 @@ export function NativeChatMessageList({
   turnActivity,
   stopping = false,
   runtimeContext,
-  structuredAttachments = false
+  structuredAttachments = false,
+  openTerminal
 }: {
   ref?: Parameters<typeof useNativeChatMessageListHandle>[0]
   session: NativeChatLiveSession
   structuredAttachments?: boolean
+  openTerminal?: () => void
   journalItems?: readonly AgentJournalRenderItem[]
   /** With the items, what places each row in its turn (structured lane). */
   journalSubmissions?: readonly AgentJournalSubmission[]
@@ -400,7 +402,7 @@ export function NativeChatMessageList({
                     allowFileUriLinks={allowFileUriLinks}
                   />
                 ) : tailRow === 'awaiting-input' ? (
-                  <NativeChatAwaitingInputRow subject={null} pending />
+                  <NativeChatAwaitingInputRow subject={null} pending openTerminal={openTerminal} />
                 ) : null}
                 <NativeChatWaitingTranscriptItems slots={waitingSlots} context={rowContext} />
               </div>
