@@ -1,6 +1,7 @@
 import { asyncQuestionSourceScope } from '../../../../shared/native-chat/input/native-chat-ask'
 import { useNativeChatAsyncQuestions } from './use-native-chat-async-questions'
 import { useNativeChatPromptCardPresentation } from './use-native-chat-prompt-card-presentation'
+import { useNativeChatTerminalDialogCard } from './use-native-chat-terminal-dialog-card'
 import { useMemo } from 'react'
 import { useAppStore } from '../../store'
 import type { AskPrompt } from '../../../../shared/native-chat/input/native-chat-ask-types'
@@ -81,12 +82,18 @@ export function useNativeChatTerminalPromptCard(args: {
     messages,
     settled: transcriptSettled
   })
-  const promptCard = useNativeChatInteractivePromptCard({
+  const interactiveCard = useNativeChatInteractivePromptCard({
     paneKey,
     messages,
     transcriptSettled,
     transcriptAsk: asyncQuestions.blocking ?? asyncQuestions.prompt
   })
+  const dialogCard = useNativeChatTerminalDialogCard({
+    paneKey,
+    agent,
+    hasCard: interactiveCard !== null
+  })
+  const promptCard = interactiveCard ?? dialogCard
   const presentation = useNativeChatPromptCardPresentation({
     paneKey,
     targetPtyId,
