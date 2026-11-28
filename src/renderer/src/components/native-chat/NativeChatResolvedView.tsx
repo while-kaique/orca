@@ -406,6 +406,10 @@ export function NativeChatResolvedView({
           readTerminalScreen={readTerminalScreen}
           launchSeed={{ ...launchDraftSignal, ownsTabWideLaunchDraft, readTerminalDraft }}
           recallSource={{ messages: sessionWithPending.messages, commands: commandMarkers }}
+          ptyContext={{
+            transcriptPath: transcriptPath ?? null,
+            refreshKey: `${session.messages.length}:${isWorking}`
+          }}
         />
       </div>
       {contextMenu.menu}

@@ -61,7 +61,8 @@ export const NativeChatComposerPane = forwardRef<ComposerHandle, C.NativeChatCom
       inputOwnedByCard = false,
       notices: chatNotices,
       workspacePending: pending = false,
-      launchPrompt
+      launchPrompt,
+      ptyContext
     },
     ref
   ): React.JSX.Element {
@@ -232,7 +233,7 @@ export const NativeChatComposerPane = forwardRef<ComposerHandle, C.NativeChatCom
         ptySessionOptionsSnapshot.find((option) => option.category === 'model')?.id) ??
         null
     )
-    const contextUsageSummary = useNativeChatContextUsageSummary(structuredTransport)
+    const contextUsageSummary = useNativeChatContextUsageSummary(structuredTransport, ptyContext)
     const sessionOptionsSnapshot = structuredTransport?.optionSnapshot ?? ptySessionOptionsSnapshot
 
     const sendStructured = useNativeChatStructuredComposerSend({

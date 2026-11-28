@@ -150,6 +150,8 @@ export type NativeChatComposerProps = {
   notices?: readonly NativeChatComposerNotice[]
   /** The conversation Up/Down recalls prompts from. */
   recallSource?: NativeChatRecallSource
+  /** Fork: a terminal-backed chat's transcript, read for the context ring; the key changes on a new reply. */
+  ptyContext?: { transcriptPath: string | null; refreshKey: unknown }
 }
 
 /** The unsent TUI launch prefill and this pane’s adoption/cleanup authority. */
